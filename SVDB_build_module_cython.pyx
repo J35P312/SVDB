@@ -90,9 +90,9 @@ def clear_duplicate(variant_dictionary,args):
                                 hit = False
                                 if chromosomeA == chromosomeB:
                                         #if sample_variants[i][1] >= sample_variants[j][0] and sample_variants[j][1] >= sample_variants[i][0]:
-                                        hit=SVDB_overlap_module.isSameVariation(sample_variants[i][0],sample_variants[i][1],sample_variants[j][0],sample_variants[j][1],args.overlap)
+                                        hit=SVDB_overlap_module.isSameVariation(sample_variants[i][0],sample_variants[i][1],sample_variants[j][0],sample_variants[j][1],0.9)
                                 else:
-                                    hit=SVDB_overlap_module.precise_overlap(sample_variants[i][0],sample_variants[i][1],sample_variants[j][0],sample_variants[j][1],args.bnd_distance)
+                                    hit=SVDB_overlap_module.precise_overlap(sample_variants[i][0],sample_variants[i][1],sample_variants[j][0],sample_variants[j][1],2000)
                                 if hit:
                                     del sample_variants[j]
                                     j += -1
