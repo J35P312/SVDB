@@ -52,25 +52,18 @@ def readVCFLine(line):
                 lst=string.split(":");
                 chrB=lst[0].replace("chr","").replace("Chr","").replace("CHR","")
                 posB=int(lst[1]);
-                try:
-                    if int(chrA) > int(chrB):
-                        chrT = chrA
-                        chrA = chrB
-                        chrB = chrT
+                if chrA > chrB:
+                    chrT = chrA
+                    chrA = chrB
+                    chrB = chrT
                         
-                        tmpPos=posB
-                        posB=posA
-                        posA=tmpPos
-                except:
-                    if chrA > chrB:
-                        chrT = chrA
-                        chrA = chrB
-                        chrB = chrT
-                        
-                        tmpPos=posB
-                        posB=posA
-                        posA=tmpPos
-                
+                    tmpPos=posB
+                    posB=posA
+                    posA=tmpPos
+                elif chrA == chrB and posA > posB:
+                    tmpPos=posB
+                    posB=posA
+                    posA=tmpPos                   
                 
         event_type="BND"
     return( chrA, posA, chrB, posB,event_type);
