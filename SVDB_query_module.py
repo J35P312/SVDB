@@ -92,7 +92,7 @@ def isVariationInDB(DBvariants, Query_variant,args):
                     if not (chrA == chrB):
                         hit_tmp=SVDB_overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
                         if hit_tmp != None:
-                            hit_tag=event[-1].strip().split("SAMPLES=")[-1]
+                            hit_tag=event[-1].strip().split(";SAMPLES=")[-1]
                             db_tag=event[-1].split("NSAMPLES=")[-1]
                             
                             hit_tag=hit_tag.split(";")[0];
@@ -104,7 +104,7 @@ def isVariationInDB(DBvariants, Query_variant,args):
                     elif chrBpos >= event[0] and event[1] >= chrApos:
                         hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
                         if hit_tmp != None:
-                            hit_tag=event[-1].split("SAMPLES=")[-1]
+                            hit_tag=event[-1].split(";SAMPLES=")[-1]
                             db_tag=event[-1].split("NSAMPLES=")[-1]
                             
                             hit_tag=hit_tag.split(";")[0];
