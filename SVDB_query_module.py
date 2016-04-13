@@ -104,7 +104,7 @@ def isVariationInDB(DBvariants, Query_variant,args):
                     elif chrBpos >= event[0] and event[1] >= chrApos:
                         hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
                         if hit_tmp != None:
-                            hit_tag=event[-1].split("OCC=")[-1]
+                            hit_tag=event[-1].split("SAMPLES=")[-1]
                             db_tag=event[-1].split("NSAMPLES=")[-1]
                             
                             hit_tag=hit_tag.split(";")[0];
