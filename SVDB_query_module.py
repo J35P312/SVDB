@@ -78,8 +78,9 @@ def isVariationInDB(DBvariants, Query_variant,args):
     chrB =Query_variant[2]
     chrBpos = Query_variant[3]
     variation_type=Query_variant[4]
-    hits=0;
+
     db_size=0;
+    samples=set([])
     if chrA in DBvariants:
         # now look if chrB is here
         if chrB in DBvariants[chrA]:
@@ -91,13 +92,14 @@ def isVariationInDB(DBvariants, Query_variant,args):
                     if not (chrA == chrB):
                         hit_tmp=SVDB_overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
                         if hit_tmp != None:
-                            hit_tag=event[-1].split("OCC=")[-1]
+                            hit_tag=event[-1].strip().split("SAMPLES=")[-1]
                             db_tag=event[-1].split("NSAMPLES=")[-1]
                             
                             hit_tag=hit_tag.split(";")[0];
                             db_tag=db_tag.split(";")[0];
                             
-                            hits +=int(hit_tag)
+                            for hit in hit_tag.split("|"):
+                                samples.add(hit)
                             db_size=int(db_tag)
                     elif chrBpos >= event[0] and event[1] >= chrApos:
                         hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
@@ -108,6 +110,8 @@ def isVariationInDB(DBvariants, Query_variant,args):
                             hit_tag=hit_tag.split(";")[0];
                             db_tag=db_tag.split(";")[0];
                             
-                            hits +=int(hit_tag)
+                            for hit in hit_tag.split("|"):
+                                samples.add(hit)
                             db_size=int(db_tag)
+    hits=len(samples);
     return hits,db_size
