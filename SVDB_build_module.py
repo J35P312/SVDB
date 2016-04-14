@@ -48,10 +48,14 @@ def db_header():
     return(headerString)
 
 def main(args):
-    print(db_header())
+    if args.prefix:
+        f = open(args.prefix+".db.vcf",'w')
+        f.write(db_header())
+    else:
+        print(db_header())
     #store all the variants in a dictionary
-    if args.build:
-        samples=glob.glob("{}/*.vcf".format( os.path.abspath(args.build) ) )
+    if args.folder:
+        samples=glob.glob("{}/*.vcf".format( os.path.abspath(args.folder) ) )
     elif args.files:
         samples=args.files
                 
@@ -66,7 +70,8 @@ def main(args):
             for event_type in variant_dictionary[chromosomeA][chromosomeB]:
                 processed_variants[chromosomeA][chromosomeB][event_type]=clustered(variant_dictionary[chromosomeA][chromosomeB][event_type],chromosomeA,chromosomeB,args)
     #print the variants in the same order as the contig order in the first vcf file
-    ID=0 
+
+    ID=0
     for chromosomeA in chromosome_order:
         for chromosomeB in processed_variants[chromosomeA]:
             for variant_type in processed_variants[chromosomeA][chromosomeB]:
@@ -82,5 +87,7 @@ def main(args):
                     else:
                         variant_tag= "<" + variant_type + ">"                        
                         INFO= "END={};".format(posB)+INFO
-                        
-                    print("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO))    
+                    if not args.prefix:   
+                        print("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO))
+                    else:
+                        f.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO))

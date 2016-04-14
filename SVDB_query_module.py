@@ -7,7 +7,8 @@ def main(args):
     #start by loading the variations
     variations = args.query_vcf
     queries = []
-    
+    if args.prefix:
+        f=open(args.prefix+"_query.vcf","w")
     with open(variations) as fin:
         noOCCTag=1;
         infoFound=0;
@@ -24,18 +25,31 @@ def main(args):
                 lookForFilter=meta_line.split("=");
                 #the last infotag will be the Feature tag
                 if(lookForFilter[0] != "INFO" and noOCCTag and infoFound==1):
-                    sys.stdout.write("##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n");
-                    sys.stdout.write("##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n");
-                    sys.stdout.write(line);
+                    if not args.prefix:
+                        sys.stdout.write("##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n");
+                        sys.stdout.write("##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n");
+                        sys.stdout.write(line);
+                    else:
+                        f.write("##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n")
+                        f.write("##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n")
+                        f.write(line)
+
                     infoFound=0;noFeatureTag=0;
                 elif(lookForFilter[0] == "INFO"):
-                    sys.stdout.write(line);
+                    if not args.prefix:
+                        sys.stdout.write(line);
+                    else:
+                        f.write(line)
+
                     infoFound=1;
                     #there should only be one feature tag per vf file
                     if(line == "INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">"):
                         noOCCTag=0
                 else:
-                    sys.stdout.write(line)
+                    if not args.prefix:
+                        sys.stdout.write(line)
+                    else:
+                        f.write(line)
             else:
                 #in this case I need to store a query
                 chrA,posA,chrB,posB,event_type =readVCF.readVCFLine(line);
@@ -68,8 +82,10 @@ def main(args):
         vcf_entry = query[6].rstrip()
         content=vcf_entry.split("\t")
         content[7]="{};OCC={};FRQ={}".format(content[7], query[5],(query[5]/float(db_size ) ))
-        print(("\t").join(content))
-
+        if not args.prefix:
+            print(("\t").join(content))
+        else:
+            f.write(("\t").join(content)+"\n")
 
 
 def isVariationInDB(DBvariants, Query_variant,args):
@@ -104,7 +120,7 @@ def isVariationInDB(DBvariants, Query_variant,args):
                     elif chrBpos >= event[0] and event[1] >= chrApos:
                         hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
                         if hit_tmp != None:
-                            hit_tag=event[-1].split(";SAMPLES=")[-1]
+                            hit_tag=event[-1].strip().split(";SAMPLES=")[-1]
                             db_tag=event[-1].split("NSAMPLES=")[-1]
                             
                             hit_tag=hit_tag.split(";")[0];
@@ -114,4 +130,6 @@ def isVariationInDB(DBvariants, Query_variant,args):
                                 samples.add(hit)
                             db_size=int(db_tag)
     hits=len(samples);
+    if hits > db_size:
+        print samples
     return hits,db_size
