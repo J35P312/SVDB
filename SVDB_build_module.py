@@ -20,12 +20,7 @@ def clustered(variant_dictionary,chrA,chrB,args):
     #now merge the variants in the clusters
     for cluster in clusters:
         #no merging if there is only one variant in the cluster, if there are only 2 variants, pick represent the overlaping variants as the one having the lowest index
-        if len(cluster) < 3:
-            clustered_variants.append(unclustered[min(cluster)]+[len(cluster)])
-            if len(cluster) > 1:
-            	clustered_variants[-1][-2] +="|" + unclustered[max(cluster)][-1]
-        else:
-            clustered_variants += SVDB_build_module_cython.evaluate_cluster(cluster,unclustered,chrA,chrB,args)
+        clustered_variants += SVDB_build_module_cython.evaluate_cluster(cluster,unclustered,chrA,chrB,args)
     
     return(clustered_variants);
 
@@ -44,6 +39,7 @@ def db_header():
     headerString+="##INFO=<ID=SAMPLES,Number=1,Type=Int,Description=\"the ID of the samples carrying this variant\">\n";
     headerString+="##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the vriant\">\n";
     headerString+="##INFO=<ID=samples,Number=1,Type=String,Description=\"the sample ID of each sample having this variant, seprated using |\">\n";
+    headerString+="##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
     headerString+="#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO";
     return(headerString)
 
@@ -82,11 +78,16 @@ def main(args):
                     posA=variant[0]
                     posB=variant[1]
                     INFO="SVTYPE={};OCC={};NSAMPLES={};FRQ={};SAMPLES={}".format(variant_type,variant[-1],Nsamples,variant[-1]/float(Nsamples),variant[-2])
+                    if chromosomeA == chromosomeB:
+                        INFO= "SVLEN={};".format(abs(posB-posA))+INFO
+
                     if(variant_type == "BND"):
                         variant_tag="N[{}:{}[".format(chromosomeB,posB)
                     else:
                         variant_tag= "<" + variant_type + ">"                        
                         INFO= "END={};".format(posB)+INFO
+                    
+                        
                     if not args.prefix:   
                         print("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO))
                     else:

@@ -37,42 +37,31 @@ def generate_cluster(n,indexes,unclustered,chrA,chrB,args):
 #evaluate clusters and break large complex clusters into simple overlaped variants
 def evaluate_cluster(cluster,samples,chrA,chrB,args):
     processed_clusters=[]
-    record=-1;
-    singlet_record= float("inf")              
-    for i in range(0,10):
-        test_cluster=[];
-        cluster_list=list(cluster)
-        hits=0;
-        singlets=0;
-        while cluster_list:
-            variant_index=random.randint(0,len(cluster_list)-1)
-            variant=cluster_list[variant_index]
-            del cluster_list[variant_index];
-            overlapping=[]
-            for j in cluster_list:
-                hit = False
-                if j != variant:
-                    if chrA == chrB:
-                        hit=SVDB_overlap_module.isSameVariation(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.overlap)
-                    else:
-                        hit=SVDB_overlap_module.precise_overlap(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.bnd_distance)
-                    if hit:
-                        overlapping.append(j)
+    cluster_list=list(cluster)
+    total_list=cluster_list            
+    while cluster_list:
+        variant_index=random.randint(0,len(cluster_list)-1)
+        variant=cluster_list[variant_index]
+        del cluster_list[variant_index];
+        overlapping=[]
+        for j in total_list:
+            hit = False
+            if j != variant:
+                if chrA == chrB:
+                    hit=SVDB_overlap_module.isSameVariation(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.overlap)
+                else:
+                    hit=SVDB_overlap_module.precise_overlap(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.bnd_distance)
+                if hit:
+                    overlapping.append(j)
                     
-            #delete all the matched variants, add a new entry into the processed cluster list
-            cluster_list=list(set(cluster_list)-set(overlapping))
-            test_cluster.append(samples[variant]+[len(overlapping)+1])
-            #add sample id of all the matched variants
-            for j in overlapping:
-                test_cluster[-1][-2] += "|" + samples[j][-1]
-            
-            hits+=len(overlapping)
-            if not overlapping:
-                singlets += 1
-        if hits > record and singlet_record > singlets:
-            processed_clusters=test_cluster
-            singlet_record=singlets
-            record=hits          
+        #delete all the matched variants, add a new entry into the processed cluster list
+        overlapping=set(overlapping)
+        cluster_list=list(set(cluster_list)-overlapping)
+        processed_clusters.append(samples[variant]+[len(overlapping)+1])
+        #add sample id of all the matched variants
+        for j in list(overlapping):
+            processed_clusters[-1][-2] += "|" + samples[j][-1]
+      
     return(processed_clusters)
 #clear duplicate entries from samples, for example when multiple callers have found the same variant 
 def clear_duplicate(variant_dictionary,args):
