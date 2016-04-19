@@ -42,7 +42,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser("""SVDB: build module""")
         parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
         parser.add_argument('--no_merge'       , help="skip the merging of variants", required=False, action="store_true")
-        parser.add_argument('--bnd_distance', type=int,default= 5000,help="the maximum distance between two similar precise breakpoints(default = 5000)")
+        parser.add_argument('--bnd_distance', type=int,default= 2500,help="the maximum distance between two similar precise breakpoints(default = 2500)")
         parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument('--files'        , type=str, nargs='*', help="create a db using the specified vcf files(cannot be used with --folder)")
         parser.add_argument('--folder', type=str, help="create a db using all the vcf files in the folders")
