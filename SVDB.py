@@ -32,6 +32,7 @@ if __name__ == '__main__':
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db")
         parser.add_argument('--db'        , type=str,  help="path to a SVDB vcf")
+        parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
         parser.add_argument('--bnd_distance', type=int,default= 10000,help="the maximum distance between two similar precise breakpoints(default = 10000)")
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--no_var',help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
