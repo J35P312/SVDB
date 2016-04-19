@@ -46,7 +46,7 @@ def db_header():
 def main(args):
     if args.prefix:
         f = open(args.prefix+".db.vcf",'w')
-        f.write(db_header())
+        f.write(db_header()+"\n")
     else:
         print(db_header())
     #store all the variants in a dictionary
