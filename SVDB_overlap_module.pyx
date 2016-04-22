@@ -29,3 +29,12 @@ def isSameVariation(chrApos_query,chrBpos_query,chrApos_db,chrBpos_db,ratio): #e
     if event_ratio >= ratio:
         return(True)
     return None
+
+def variant_overlap(chrA,chrB,chrApos_query,chrBpos_query,chrApos_db,chrBpos_db,ratio,distance):
+
+    overlap = False
+    if chrA == chrB:
+        overlap= isSameVariation(chrApos_query,chrBpos_query,chrApos_db,chrBpos_db,ratio)
+    else:
+        overlap = precise_overlap(chrApos_query,chrBpos_query,chrApos_db,chrBpos_db,distance)
+    return(overlap)
