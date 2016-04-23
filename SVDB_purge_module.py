@@ -3,34 +3,31 @@ import readVCF
 
 #delete specified samples from the db
 def purge_sample(args):
-    for sample in args.samples:
-        for line in open(args.db):
-            if not "#" == line[0]:
-                content=line.strip().split("\t")
-                info=content[7]
-                samples=info.split(";SAMPLES=")[-1];
-                samples=samples.split("|");
-                hits = True
-                if sample in samples:
-                    sample_set=set(samples)
-                    sample_set=sample_set-set([sample])
-                    hits=len(sample_set)
-                    db_size=info.split("NSAMPLES=")[-1]
-                    db_size=float(db_size.split(";")[0])
-                    frequency=hits/db_size
-                    samples="|".join(list(sample_set))
-                    variant_info="OCC={};NSAMPLES={};FRQ={};SAMPLES={}".format(hits,db_size,frequency,samples)
-                    info=info.split("OCC")[0];
-                    info+= variant_info;
+    for line in open(args.db):
+        if not "#" == line[0]:
+            content=line.strip().split("\t")
+            info=content[7]
+            samples=info.split(";SAMPLES=")[-1];
+            samples=samples.split("|");
 
-                content[7]=info
-                if hits:            
-                    print("\t".join(content))
+            sample_set=set(samples)-set(args.samples)
+            hits=len(sample_set)
+            db_size=info.split("NSAMPLES=")[-1]
+            db_size=float(db_size.split(";")[0])-len(args.samples)
+            frequency=hits/db_size
+            samples="|".join(list(sample_set))
+            variant_info="OCC={};NSAMPLES={};FRQ={};SAMPLES={}".format(hits,db_size,frequency,samples)
+            info=info.split("OCC")[0];
+            info+= variant_info;
 
-            else:
-                print(line.strip())         
+            content[7]=info
+            if hits:
+                print("\t".join(content))
 
-#remove varaitns if they are found in the vcf
+        else:
+            print(line.strip())         
+
+#remove variants if they are found in the vcf
 def purge_variants(args):
     variants={}
     for line in open(args.vcf):
@@ -63,7 +60,14 @@ def purge_variants(args):
                 print(db_line.strip())
 
 def main(args):
-    if args.samples:
+    if args.samples or args.file:
+
+        if args.file:
+            args.samples=[]
+            for line in open(args.file):
+                if not line.strip() == "":
+                    args.samples.append(line.strip())
+
         purge_sample(args)
     elif args.vcf:
         purge_variants(args)

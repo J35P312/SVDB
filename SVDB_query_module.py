@@ -26,12 +26,12 @@ def main(args):
                 #the last infotag will be the Feature tag
                 if(lookForFilter[0] != "INFO" and noOCCTag and infoFound==1):
                     if not args.prefix:
-                        sys.stdout.write("##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n");
-                        sys.stdout.write("##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n");
+                        sys.stdout.write("##INFO=<ID={},Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n".format(args.hit_tag));
+                        sys.stdout.write("##INFO=<ID={},Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n".format(args.frequency_tag));
                         sys.stdout.write(line);
                     else:
-                        f.write("##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n")
-                        f.write("##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n")
+                        f.write("##INFO=<ID={},Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n".format(args.hit_tag))
+                        f.write("##INFO=<ID={},Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n".format(args.frequency_tag))
                         f.write(line)
 
                     infoFound=0;noFeatureTag=0;
@@ -43,7 +43,7 @@ def main(args):
 
                     infoFound=1;
                     #there should only be one feature tag per vf file
-                    if(line == "INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">"):
+                    if(line == "INFO=<ID={},Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">".format(args.hit_tag)):
                         noOCCTag=0
                 else:
                     if not args.prefix:
@@ -78,10 +78,10 @@ def main(args):
         if db != 0:
             db_size=db
 
-    for query in sorted(queries, key=itemgetter(5)):
+    for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
         vcf_entry = query[6].rstrip()
         content=vcf_entry.split("\t")
-        content[7]="{};OCC={};FRQ={}".format(content[7], query[5],(query[5]/float(db_size ) ))
+        content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
         if not args.prefix:
             print(("\t").join(content))
         else:
