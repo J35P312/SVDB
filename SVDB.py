@@ -86,9 +86,11 @@ if __name__ == '__main__':
     elif args.merge:
         parser = argparse.ArgumentParser("""SVDB: purge module""")
         parser.add_argument('--merge', help="merge structural variants", required=False, action="store_true")
-        parser.add_argument('--vcf', type=str, help="remove all the entries within the DB that overlaps with any variant in the vcf",required=True)
+        parser.add_argument('--vcf', nargs='*', type=str, help="remove all the entries within the DB that overlaps with any variant in the vcf",required=True)
         parser.add_argument('--bnd_distance', type=int,default= 2000,help="the maximum distance between two similar precise breakpoints(default = 2000)")
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.9")
+        parser.add_argument('--ci', help="overides overlap and bnd_distance,merge based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
+        parser.add_argument('--no_intra', help="no merging of variants within the same vcf", required=False, action="store_true")
         args= parser.parse_args()        
         SVDB_merge_vcf_module.main(args)
     else:

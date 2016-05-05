@@ -15,8 +15,11 @@ def build_db(args,samples,prefix):
 
 def query_db(args,sample,db,prefix):
     args.prefix=prefix;
+    args.invert=False
     args.query_vcf=sample
     args.db=db
+    args.hit_tag="OCC"
+    args.frequency_tag="FRQ"
     args.prefix=prefix
     args.no_var=False
     SVDB_query_module.main(args)
@@ -78,7 +81,7 @@ def similarity_matrix(args,samples):
             #os.remove(row_sample+"_"+column_sample+"_query.vcf")
         norm=row[i]
         for j in range(0,len(row)):
-            matrix[i][j]=row[j]/float(norm)
+            matrix[i][j]=round(row[j]/float(norm),2)
         i+=1;
 
     #calculate the mean value of the queries
