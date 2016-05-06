@@ -30,6 +30,7 @@ def readVCFLine(line):
 
     #intrachromosomal variant
     elif(not  "]" in variation[4] and not "[" in variation[4]):
+        
         chrB=chrA;
         posB=int(description["END"]);
         #sometimes the fermikit intra chromosomal events are inverted i.e the end pos is a lower position than the start pos
@@ -38,10 +39,17 @@ def readVCFLine(line):
             posB=posA
             posA=tmp
         event_type=variation[4].strip("<").rstrip(">");
-        if "DUP" in event_type:
-            event_type="DUP"
-        if "INS" in event_type:
-            event_type="BND"
+
+        if "<" in variation[4] and ">" in variation[4]:
+            if "DUP" in event_type:
+                event_type="DUP"
+            if "INS" in event_type:
+                event_type="BND"
+        else:
+            if "SVTYPE" in description:
+                event_type=description["SVTYPE"];
+                if "INS" in event_type:
+                    event_type = "BND"
     #if the variant is given as a breakpoint, it is stored as a precise variant in the db
     else:
         B=variation[4];

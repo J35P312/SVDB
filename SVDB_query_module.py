@@ -2,6 +2,7 @@ import sys, os, glob
 import readVCF
 import SVDB_overlap_module
 from operator import itemgetter
+import SVDB_merge_vcf_module_cython
 
 def main(args):
     #start by loading the variations
@@ -104,31 +105,27 @@ def isVariationInDB(DBvariants, Query_variant,args):
             for event in DBvariants[chrA][chrB]:
                 #check if the variant type of the events is the same
                 if(event[2] == variation_type or args.no_var):
-                
-                    if not (chrA == chrB):
-                        hit_tmp=SVDB_overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
-                        if hit_tmp != None:
-                            hit_tag=event[-1].strip().split(";SAMPLES=")[-1]
-                            db_tag=event[-1].split("NSAMPLES=")[-1]
+                    hit_tmp = None
+                    if not args.ci:
+                        if not (chrA == chrB):
+                            hit_tmp=SVDB_overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
+
+                        elif chrBpos >= event[0] and event[1] >= chrApos:
+                            hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
+                    else:
+                        ciA_query,ciB_query,ciA_db,ciB_db=SVDB_merge_vcf_module_cython.find_ci(Query_variant,Query_variant)
+                        hit_tmp=SVDB_overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
+
+                    if hit_tmp != None:
+                        hit_tag=event[-1].strip().split(";SAMPLES=")[-1]
+                        db_tag=event[-1].split("NSAMPLES=")[-1]
+                        
+                        hit_tag=hit_tag.split(";")[0];
+                        db_tag=db_tag.split(";")[0];
                             
-                            hit_tag=hit_tag.split(";")[0];
-                            db_tag=db_tag.split(";")[0];
-                            
-                            for hit in hit_tag.split("|"):
-                                samples.add(hit)
-                            db_size=int(db_tag)
-                    elif chrBpos >= event[0] and event[1] >= chrApos:
-                        hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
-                        if hit_tmp != None:
-                            hit_tag=event[-1].strip().split(";SAMPLES=")[-1]
-                            db_tag=event[-1].split("NSAMPLES=")[-1]
-                            
-                            hit_tag=hit_tag.split(";")[0];
-                            db_tag=db_tag.split(";")[0];
-                            
-                            for hit in hit_tag.split("|"):
-                                samples.add(hit)
-                            db_size=int(db_tag)
+                        for hit in hit_tag.split("|"):
+                            samples.add(hit)
+                        db_size=int(db_tag)
     hits=len(samples);
     if hits > db_size:
         print samples

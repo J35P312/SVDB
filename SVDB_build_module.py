@@ -55,8 +55,7 @@ def main(args):
     elif args.files:
         samples=args.files
                 
-    variant_dictionary,chromosome_order,Nsamples=SVDB_build_module_cython.get_variant_files(samples)
-    variant_dictionary=SVDB_build_module_cython.clear_duplicate(variant_dictionary,args)                
+    variant_dictionary,chromosome_order,Nsamples=SVDB_build_module_cython.get_variant_files(samples)          
     processed_variants={}
     #compute the frequency of the variants
     for chromosomeA in chromosome_order:

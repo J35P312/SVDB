@@ -34,8 +34,8 @@ if __name__ == '__main__':
     elif args.query:
         parser = argparse.ArgumentParser("""SVDB: query module""")
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
-        parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db")
-        parser.add_argument('--db'        , type=str,  help="path to a SVDB vcf")
+        parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required = True)
+        parser.add_argument('--db'        , type=str,  help="path to a SVDB vcf", required = True)
         parser.add_argument('--hit_tag'        , type=str,default="OCC",help="the tag used to describe the number of hits within the info field of the output vcf(default=OCC)")
         parser.add_argument('--frequency_tag'        , type=str,default="FRQ",help="the tag used to describe the frequency of the variant(defualt=FRQ)")
         parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
@@ -43,6 +43,7 @@ if __name__ == '__main__':
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--no_var',help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
         parser.add_argument('--invert', help="invert the sorting order so that high frequency samples are present on top of the output vcf", required=False, action="store_true")
+        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args = parser.parse_args()
 
         SVDB_query_module.main(args)
@@ -50,6 +51,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser("""SVDB: build module""")
         parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
         parser.add_argument('--no_merge'       , help="skip the merging of variants", required=False, action="store_true")
+        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int,default= 2500,help="the maximum distance between two similar precise breakpoints(default = 2500)")
         parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument('--files'        , type=str, nargs='*', help="create a db using the specified vcf files(cannot be used with --folder)")
@@ -84,7 +86,7 @@ if __name__ == '__main__':
             print("use the samples or vcf option to remove entries from the db")
 
     elif args.merge:
-        parser = argparse.ArgumentParser("""SVDB: purge module""")
+        parser = argparse.ArgumentParser("""SVDB: vcf_merge module""")
         parser.add_argument('--merge', help="merge structural variants", required=False, action="store_true")
         parser.add_argument('--vcf', nargs='*', type=str, help="remove all the entries within the DB that overlaps with any variant in the vcf",required=True)
         parser.add_argument('--bnd_distance', type=int,default= 2000,help="the maximum distance between two similar precise breakpoints(default = 2000)")

@@ -1,6 +1,7 @@
 import SVDB_overlap_module
 import random
 import readVCF
+import SVDB_merge_vcf_module_cython
 #these modules are compiled using cython prior to constructing the db
 
 #search through all variants and divide them into clusters
@@ -18,14 +19,13 @@ def generate_cluster(n,indexes,unclustered,chrA,chrB,args):
                 hit=False
                 #check if the variant is similar to any variant in the cluster, then add it
                 if not i in cluster:
-                    #print unclustered[variant]
-                    #print unclustered[i]
-                    if chrA == chrB:
-                        #print "test"
-                        #print args.overlap
-                        hit=SVDB_overlap_module.isSameVariation(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.overlap)
+                    if not args.ci:
+                        if chrA == chrB:
+                            hit=SVDB_overlap_module.isSameVariation(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.overlap)
+                        else:
+                            hit=SVDB_overlap_module.precise_overlap(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.bnd_distance)
                     else:
-                        hit=SVDB_overlap_module.precise_overlap(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.bnd_distance)
+                        hit=SVDB_overlap_module.ci_overlap_two_sided(unclustered[variant][0],unclustered[variant][1],unclustered[variant][2],unclustered[variant][3],unclustered[i][0],unclustered[i][1],unclustered[i][2],unclustered[i][3])
                     #print hit
                     if hit:
                         cluster=cluster | set([i])
@@ -47,10 +47,13 @@ def evaluate_cluster(cluster,samples,chrA,chrB,args):
         for j in total_list:
             hit = False
             if j != variant:
-                if chrA == chrB:
-                    hit=SVDB_overlap_module.isSameVariation(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.overlap)
+                if not args.ci:
+                    if chrA == chrB:
+                        hit=SVDB_overlap_module.isSameVariation(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.overlap)
+                    else:
+                        hit=SVDB_overlap_module.precise_overlap(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.bnd_distance)
                 else:
-                    hit=SVDB_overlap_module.precise_overlap(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.bnd_distance)
+                    hit=SVDB_overlap_module.ci_overlap_two_sided(samples[variant][0],samples[variant][1],samples[variant][2],samples[variant][3],samples[j][0],samples[j][1],samples[j][2],samples[j][3])
                 if hit:
                     overlapping.append(j)
                     
@@ -63,32 +66,6 @@ def evaluate_cluster(cluster,samples,chrA,chrB,args):
             processed_clusters[-1][-2] += "|" + samples[j][-1]
       
     return(processed_clusters)
-#clear duplicate entries from samples, for example when multiple callers have found the same variant 
-def clear_duplicate(variant_dictionary,args):
-       
-    for chromosomeA in variant_dictionary:
-        for chromosomeB in variant_dictionary[chromosomeA]:
-            for event_type in variant_dictionary[chromosomeA][chromosomeB]:
-                for sample_id in variant_dictionary[chromosomeA][chromosomeB][event_type]:
-                    sample_variants=variant_dictionary[chromosomeA][chromosomeB][event_type][sample_id]
-                    i=0;
-                    while i < len(sample_variants):
-                        j=0;
-                        while j < len(sample_variants):
-                            if j != i:
-                                hit = False
-                                if chromosomeA == chromosomeB:
-                                        #if sample_variants[i][1] >= sample_variants[j][0] and sample_variants[j][1] >= sample_variants[i][0]:
-                                        hit=SVDB_overlap_module.isSameVariation(sample_variants[i][0],sample_variants[i][1],sample_variants[j][0],sample_variants[j][1],0.9)
-                                else:
-                                    hit=SVDB_overlap_module.precise_overlap(sample_variants[i][0],sample_variants[i][1],sample_variants[j][0],sample_variants[j][1],500)
-                                if hit:
-                                    del sample_variants[j]
-                                    j += -1
-                            j+=1 
-                        i+=1
-                    variant_dictionary[chromosomeA][chromosomeB][event_type][sample_id]=sample_variants
-    return(variant_dictionary)
 
 #get all the variants, and store them as a dictionary    
 def get_variant_files(samples):
@@ -112,7 +89,8 @@ def get_variant_files(samples):
                     if not event_type in variant_dictionary[chrA][chrB]:
                         variant_dictionary[chrA][chrB][event_type]={}
                     if not sample_id in variant_dictionary[chrA][chrB][event_type]:
-                        variant_dictionary[chrA][chrB][event_type][sample_id] =[]  
-                    variant_dictionary[chrA][chrB][event_type][sample_id].append([int(posA),int(posB)])
+                        variant_dictionary[chrA][chrB][event_type][sample_id] =[]
+                    CIA,CIB=SVDB_merge_vcf_module_cython.get_CIPOS_CEND(line.strip())
+                    variant_dictionary[chrA][chrB][event_type][sample_id].append([int(posA),int(posB),CIA,CIB])
     return(variant_dictionary,chromosome_order,Nsamples)
 

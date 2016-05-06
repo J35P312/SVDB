@@ -8,8 +8,7 @@ def retrieve_key(line,key):
             return(False)
     return(item)
 
-def find_ci(query_variant,db_variant):
-
+def get_CIPOS_CEND(query_variant):
     ciA_query=[0,0]
     CIPOS=retrieve_key(query_variant[-1],"CIPOS")
     if CIPOS:
@@ -28,23 +27,12 @@ def find_ci(query_variant,db_variant):
         else:
             ciB_query=[int(CIPOS[0]),int(CIPOS[0])]
 
-    ciA_db=[0,0]
-    CIPOS=retrieve_key(db_variant[-1],"CIPOS")
-    if CIPOS:
-        CIPOS=CIPOS.split(",")
-        if len(CIPOS) == 2:
-            ciA_db=[int(CIPOS[0]),int(CIPOS[1])]
-        else:
-            ciA_db=[int(CIPOS[0]),int(CIPOS[0])]
+    return(ciA_query,ciB_query)
 
-    ciB_db=[0,0] 
-    CIPOS=retrieve_key(db_variant[-1],"CIEND")
-    if CIPOS:
-        CIPOS=CIPOS.split(",")
-        if len(CIPOS) == 2:
-            ciB_db=[int(CIPOS[0]),int(CIPOS[1])]
-        else:
-            ciB_db=[int(CIPOS[0]),int(CIPOS[0])]
+def find_ci(query_variant,db_variant):
+
+    ciA_query,ciB_query=get_CIPOS_CEND(query_variant)
+    ciA_db,ciB_db=get_CIPOS_CEND(db_variant)
 
     return(ciA_query,ciB_query,ciA_db,ciB_db)
 
