@@ -43,7 +43,8 @@ def evaluate_cluster(cluster,samples,chrA,chrB,args):
         variant_index=random.randint(0,len(cluster_list)-1)
         variant=cluster_list[variant_index]
         del cluster_list[variant_index];
-        overlapping=[]
+        overlapping=[samples[variant][-1]]
+        overlapped=[]
         for j in total_list:
             hit = False
             if j != variant:
@@ -55,16 +56,15 @@ def evaluate_cluster(cluster,samples,chrA,chrB,args):
                 else:
                     hit=SVDB_overlap_module.ci_overlap_two_sided(samples[variant][0],samples[variant][1],samples[variant][2],samples[variant][3],samples[j][0],samples[j][1],samples[j][2],samples[j][3])
                 if hit:
-                    overlapping.append(j)
-                    
+                    overlapping.append(samples[j][-1])
+                    overlapped.append(j)
         #delete all the matched variants, add a new entry into the processed cluster list
         overlapping=set(overlapping)
-        cluster_list=list(set(cluster_list)-overlapping)
-        processed_clusters.append(samples[variant]+[len(overlapping)+1])
+        cluster_list=list(set(cluster_list)-set(overlapped))
+        processed_clusters.append(samples[variant]+[len(overlapping)])
         #add sample id of all the matched variants
-        for j in list(overlapping):
-            processed_clusters[-1][-2] += "|" + samples[j][-1]
-      
+        processed_clusters[-1][-2]="|".join(list(overlapping))
+
     return(processed_clusters)
 
 #get all the variants, and store them as a dictionary    
@@ -79,7 +79,7 @@ def get_variant_files(samples):
         with open(sample) as variants:
             for line in variants:
                 if(line[0] != "#"):
-                    chrA,posA,chrB,posB,event_type =readVCF.readVCFLine(line);
+                    chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
                     if not chrA in variant_dictionary:
                         variant_dictionary[chrA]={}
                         if not chrA in chromosome_order:

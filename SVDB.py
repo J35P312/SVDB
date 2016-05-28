@@ -26,6 +26,7 @@ if __name__ == '__main__':
         parser.add_argument('--n', type=int,default=100, help="the number of iterations,default=100(used with sample_hist)")
         parser.add_argument('--bnd_distance', type=int,default= 10000,help="the maximum distance between two similar precise breakpoints(default = 10000)")
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
+        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args= parser.parse_args()
         if args.folder or args.files:
             SVDB_hist_module.main(args)
@@ -79,6 +80,7 @@ if __name__ == '__main__':
         parser.add_argument('--db'        , type=str, required=True, help="path to a SVDB vcf")
         parser.add_argument('--bnd_distance', type=int,default= 10000,help="the maximum distance between two similar precise breakpoints(default = 10000)")
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
+        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args= parser.parse_args()
         if args.samples or args.vcf or args.file:
             SVDB_purge_module.main(args)

@@ -32,7 +32,7 @@ def purge_variants(args):
     variants={}
     for line in open(args.vcf):
         if not line[0] == "#":
-            chrA,chrApos_query,chrB,chrBpos_query,event_type =readVCF.readVCFLine(line);
+            chrA,chrApos_query,chrB,chrBpos_query,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
             if not chrA in variants:
                 variants[chrA]={}
             if not chrB in variants[chrA]:
@@ -47,7 +47,7 @@ def purge_variants(args):
         else:
 
             line_found= False
-            chrA,chrApos_db,chrB,chrBpos_db,event_type =readVCF.readVCFLine(db_line);
+            chrA,chrApos_db,chrB,chrBpos_db,event_type,INFO,FORMAT =readVCF.readVCFLine(db_line);
             if chrA in variants:
                 if chrB in variants[chrA]:
                     if event_type in variants[chrA][chrB]:

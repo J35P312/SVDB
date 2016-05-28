@@ -99,7 +99,7 @@ def main(args):
                 if line[0] == "#":
                     pass
                 else:
-                    chrA,posA,chrB,posB,event_type =readVCF.readVCFLine(line);
+                    chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
                     if not chrA in variants:
                         variants[chrA]=[]
                     variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])

@@ -2,6 +2,17 @@ import sys, os, glob
 import SVDB_overlap_module
 import SVDB_build_module_cython
 
+def generate_format_field(sample_list,samples):
+    format=[]
+    samples=samples.split("|")
+    for sample in sample_list:
+        if sample in samples:
+            format.append("./.")
+        else:
+            format.append("0/0")
+
+    format="\t".join(format)
+    return(format)
 
 def clustered(variant_dictionary,chrA,chrB,args):
     clustered_variants=[]
@@ -39,8 +50,8 @@ def db_header():
     headerString+="##INFO=<ID=SAMPLES,Number=1,Type=Int,Description=\"the ID of the samples carrying this variant\">\n";
     headerString+="##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the vriant\">\n";
     headerString+="##INFO=<ID=samples,Number=1,Type=String,Description=\"the sample ID of each sample having this variant, seprated using |\">\n";
-    headerString+="##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
-    headerString+="#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO";
+    headerString+="##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">"
+
     return(headerString)
 
 def main(args):
@@ -67,6 +78,14 @@ def main(args):
     #print the variants in the same order as the contig order in the first vcf file
 
     ID=0
+    sample_IDs=[]
+    for sample in samples:
+        sample_IDs.append(sample.split("/")[-1].replace(".vcf",""))
+    sample_IDs=sorted(sample_IDs)
+    if not args.prefix: 
+        print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}".format("\t".join(sample_IDs)))
+    else:
+        f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}\n".format("\t".join(sample_IDs)))
     for chromosomeA in chromosome_order:
         for chromosomeB in processed_variants[chromosomeA]:
             for variant_type in processed_variants[chromosomeA][chromosomeB]:
@@ -85,9 +104,10 @@ def main(args):
                     else:
                         variant_tag= "<" + variant_type + ">"                        
                         INFO= "END={};".format(posB)+INFO
-                    
+
+                    FORMAT=generate_format_field(sample_IDs,variant[-2])
                         
                     if not args.prefix:   
-                        print("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO))
+                        print("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\tGT\t{}".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO,FORMAT))
                     else:
-                        f.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO))
+                        f.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\tGT\t{}\n".format(chromosomeA,posA,ID,"N",variant_tag,".","PASS",INFO,FORMAT))

@@ -53,32 +53,31 @@ def main(args):
                         f.write(line)
             else:
                 #in this case I need to store a query
-                chrA,posA,chrB,posB,event_type =readVCF.readVCFLine(line);
-                current_variation = [chrA, int(posA), chrB, int(posB),event_type, 0, line] # plus a counter and the variation
+                chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
+                current_variation = [chrA, int(posA), chrB, int(posB),event_type, FORMAT, line] # plus a counter and the variation
                 queries.append(current_variation)
                 
     # at this point queries contains an entry for each variation
     #now query each sample.db present in the given folder and store the occurences
     db_file=args.db
     DBvariants={}
+    db_size=1
     with open(db_file) as DB:
         for line in DB:
             if(line[0] != "#"):
-                chrA,posA,chrB,posB,event_type =readVCF.readVCFLine(line);
+                chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
                 if not chrA in DBvariants:
                     DBvariants[chrA]={}
                 if not chrB in DBvariants[chrA]:
                     DBvariants[chrA][chrB]=[]
                 info_field=line.split("\t")[7]
-                DBvariants[chrA][chrB].append([int(posA),int(posB),event_type,info_field])
+                DBvariants[chrA][chrB].append([int(posA),int(posB),event_type,FORMAT])
+                db_size=len(FORMAT["GT"])
 
-    db_size=1
+    
     for query in queries:
-        hits,db = isVariationInDB(DBvariants, query,args)
+        hits = isVariationInDB(DBvariants, query,args)
         query[5] = hits
-        if db != 0:
-            db_size=db
-
     for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
         vcf_entry = query[6].rstrip()
         content=vcf_entry.split("\t")
@@ -95,8 +94,6 @@ def isVariationInDB(DBvariants, Query_variant,args):
     chrB =Query_variant[2]
     chrBpos = Query_variant[3]
     variation_type=Query_variant[4]
-
-    db_size=0;
     samples=set([])
     if chrA in DBvariants:
         # now look if chrB is here
@@ -117,16 +114,10 @@ def isVariationInDB(DBvariants, Query_variant,args):
                         hit_tmp=SVDB_overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
 
                     if hit_tmp != None:
-                        hit_tag=event[-1].strip().split(";SAMPLES=")[-1]
-                        db_tag=event[-1].split("NSAMPLES=")[-1]
-                        
-                        hit_tag=hit_tag.split(";")[0];
-                        db_tag=db_tag.split(";")[0];
-                            
-                        for hit in hit_tag.split("|"):
-                            samples.add(hit)
-                        db_size=int(db_tag)
-    hits=len(samples);
-    if hits > db_size:
-        print samples
-    return hits,db_size
+                        genotype=event[-1]["GT"]
+                        for i in range(0,len(genotype)):
+                            GT=genotype[i]
+                            if not GT == "0|0" and not GT == "0/0": 
+                                samples = samples | set([i])
+    hits=len(samples)
+    return hits

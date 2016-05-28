@@ -1,6 +1,9 @@
 import sys,re
 
 def readVCFLine(line):
+    if line[0] == "#":
+        return(None)
+
     variation   = line.rstrip().split("\t")
     event_type=""
     chrA=variation[0].replace("chr","").replace("Chr","").replace("CHR","");
@@ -13,7 +16,25 @@ def readVCFLine(line):
         tag=tag.split("=")
         if(len(tag) > 1):
             description[tag[0]]=tag[1];
-            
+
+    format={}
+    format_keys={}
+    if len(variation) > 8:
+        format_string=variation[8].split(":")
+
+        i = 0;
+        for key in format_string:
+            format_keys[i]=key
+            format[key]=[]
+            i += 1
+        format_fields=variation[9:]
+        for sample in format_fields:
+            i=0
+            format_string= sample.split(":")
+            for i in range(0,len(format_keys)):
+                format[format_keys[i]].append(format_string[i])
+                i += 1
+           
     #Delly translocations
     if("TRA" in variation[4]):
         event_type="BND"
@@ -74,4 +95,4 @@ def readVCFLine(line):
                     posA=tmpPos                   
                 
         event_type="BND"
-    return( chrA, posA, chrB, posB,event_type);
+    return( chrA, posA, chrB, posB,event_type,description,format);

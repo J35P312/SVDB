@@ -69,6 +69,7 @@ def merge(variants,ci,overlap,bnd_distance,no_intra):
                     
                 if variants[chrA][i][0] == variants[chrA][j][0] and variants[chrA][i][1] == variants[chrA][j][1]:
                     if not no_intra or variants[chrA][i][-3] != variants[chrA][j][-3]:
+                        overlap = False
                         if not ci:
                             overlap=SVDB_overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap,bnd_distance)
                         else:
@@ -76,7 +77,7 @@ def merge(variants,ci,overlap,bnd_distance,no_intra):
                             overlap=SVDB_overlap_module.ci_overlap(variants[chrA][i][2],variants[chrA][i][3],ciA_query,ciB_query,variants[chrA][j][2],variants[chrA][j][3],ciA_db,ciB_db)
                         if overlap:
                             #add similar variants to the merge list and remove them
-                            merge.append(variants[chrA][j][-1].split("\t")[2])
+                            merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])
                             if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
                                 info=variants[chrA][j][-1].split("\t")[7]
                                 csq.append(info.split("CSQ=")[-1].split(";")[0])

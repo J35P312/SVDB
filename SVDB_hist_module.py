@@ -144,7 +144,6 @@ def sample_hist(args,samples):
                 
         
         print("{},{},{}".format(k,numpy.average(ones),numpy.std(ones)))
-        del hist[0]
         f=open("SVDB_hist_{}.csv".format(k),"w")
         f.write("frequency,variant_frequency\n")
         for val in sorted(hist):
