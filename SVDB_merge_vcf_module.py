@@ -44,7 +44,7 @@ def print_header(vcf_list):
                         break
                     
                     elif line[0] == line[1] and line[0] == "#" and "=" in line:
-                        if("ID" in line):
+                        if("ID=" in line):
                             field=line.split("=")[2].split(",")[0]
                             key= line.strip("#").split("=")[0]
                             if not key in header:
