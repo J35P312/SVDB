@@ -54,7 +54,7 @@ def merge_csq(info,csq):
 
     return(info)
 
-def merge(variants,ci,overlap,bnd_distance,no_intra):
+def merge(variants,ci,overlap_param,bnd_distance,no_intra):
     #search for similar variants
     to_be_printed={}
     for chrA in variants:
@@ -71,7 +71,7 @@ def merge(variants,ci,overlap,bnd_distance,no_intra):
                     if not no_intra or variants[chrA][i][-3] != variants[chrA][j][-3]:
                         overlap = False
                         if not ci:
-                            overlap=SVDB_overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap,bnd_distance)
+                            overlap=SVDB_overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap_param,bnd_distance)
                         else:
                             ciA_query,ciB_query,ciA_db,ciB_db=find_ci(variants[chrA][i],variants[chrA][j])
                             overlap=SVDB_overlap_module.ci_overlap(variants[chrA][i][2],variants[chrA][i][3],ciA_query,ciB_query,variants[chrA][j][2],variants[chrA][j][3],ciA_db,ciB_db)
