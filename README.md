@@ -2,7 +2,7 @@
 Dependencies:cython
 
 Install:
-
+the code may be compiled using cython, this will speed up the database construction:
 python setup.py build_ext --inplace
 
 for more info, run the SVDB script:

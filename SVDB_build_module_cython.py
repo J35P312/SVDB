@@ -21,7 +21,7 @@ def generate_cluster(n,indexes,unclustered,chrA,chrB,args):
                 if not i in cluster:
                     if not args.ci:
                         if chrA == chrB:
-                            hit=SVDB_overlap_module.isSameVariation(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.overlap)
+                            hit=SVDB_overlap_module.isSameVariation(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.overlap,args.bnd_distance)
                         else:
                             hit=SVDB_overlap_module.precise_overlap(unclustered[variant][0],unclustered[variant][1],unclustered[i][0],unclustered[i][1],args.bnd_distance)
                     else:
@@ -50,7 +50,7 @@ def evaluate_cluster(cluster,samples,chrA,chrB,args):
             if j != variant:
                 if not args.ci:
                     if chrA == chrB:
-                        hit=SVDB_overlap_module.isSameVariation(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.overlap)
+                        hit=SVDB_overlap_module.isSameVariation(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.overlap,args.bnd_distance)
                     else:
                         hit=SVDB_overlap_module.precise_overlap(samples[variant][0],samples[variant][1],samples[j][0],samples[j][1],args.bnd_distance)
                 else:

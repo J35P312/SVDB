@@ -108,7 +108,7 @@ def isVariationInDB(DBvariants, Query_variant,args):
                             hit_tmp=SVDB_overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
 
                         elif chrBpos >= event[0] and event[1] >= chrApos:
-                            hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap)
+                            hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
                     else:
                         ciA_query,ciB_query,ciA_db,ciB_db=SVDB_merge_vcf_module_cython.find_ci(Query_variant,Query_variant)
                         hit_tmp=SVDB_overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
