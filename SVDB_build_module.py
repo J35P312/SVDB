@@ -80,17 +80,25 @@ def populate_db(args):
     c.execute(tableListQuery)
     tables = map(lambda t: t[0], c.fetchall())
     new_db = False
+    
+    
+    
+    idx=0;
     if not "SVDB" in tables:
         new_db = True
-        A="CREATE TABLE SVDB (var TEXT,chrA TEXT, chrB TEXT,posA INT,posB INT, sample TEXT, idx INT)"
-        c.execute(A)
+        A="CREATE TABLE SVDB (var TEXT,chrA TEXT, chrB TEXT,posA INT,ci_A_lower INT,ci_A_upper INT,posB INT,ci_B_lower INT,ci_B_upper INT, sample TEXT, idx INT)"
+        c.execute(A) 
     else:
         A="DROP INDEX SV "
         c.execute(A)
         A="DROP INDEX IDX"
         c.execute(A)
-         
-    idx=0;
+        A="SELECT MAX(idx) FROM SVDB"
+        number_of_variants=0
+        for hit in c.execute(A):
+            number_of_variants=int(hit[0])
+        idx= 1+number_of_variants
+    
     #populate the tables
     for vcf in args.files:
         sample_name=vcf.split("/")[-1]
@@ -110,10 +118,38 @@ def populate_db(args):
             if line.startswith("#"):
                 continue
             chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line)
-            var.append((event_type,chrA,chrB,posA,posB,sample_name,idx))
+            ci_A_lower=0
+            ci_A_upper=0
+            ci_B_lower=0
+            ci_B_upper=0
+            if "CIPOS" in INFO:
+                ci=INFO["CIPOS"].split(",")
+                if len(ci) > 1:
+                    ci_A_lower = abs(int(ci[0]))
+                    ci_A_upper = abs(int(ci[1]))
+                    ci_B_lower = abs(int(ci[0]))
+                    ci_B_upper = abs(int(ci[1]))
+                else:
+                    ci_A_lower = abs(int(ci[0]))
+                    ci_A_upper = abs(int(ci[0]))
+                    ci_B_lower = abs(int(ci[0]))
+                    ci_B_upper = abs(int(ci[0]))
+            
+            
+            if "CIEND" in INFO:
+                ci=INFO["CIEND"].split(",")
+                if len(ci) > 1:
+                    ci_B_lower = abs(int(ci[0]))
+                    ci_B_upper = abs(int(ci[1]))
+                else:
+                    ci_B_lower = abs(int(ci[0]))
+                    ci_B_upper = abs(int(ci[0]))
+           
+            
+            var.append((event_type,chrA,chrB,posA,ci_A_lower,ci_A_upper,posB,ci_B_lower,ci_B_upper,sample_name,idx))
             idx += 1;
             #insert EVERYTHING into the database, the user may then query it in different ways(at least until the DB gets to large to function properly)
-        c.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?)',var)     
+        c.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)',var)     
         
 
     A="CREATE INDEX SV ON SVDB (var,chrA, chrB, posA , posA,posB,posB)"
@@ -146,16 +182,16 @@ def expand_chain(chain,c,distance,overlap,ci):
                 variant["chrA"]=hit[1]
                 variant["chrB"]=hit[2]
                 variant["posA"]=int( hit[3] )
-                variant["ci_A_start"]=0
-                variant["ci_A_end"]=0
-                variant["posB"]=int( hit[4] )
-                variant["ci_B_start"]=0
-                variant["ci_B_end"]=0
+                variant["ci_A_start"]= int(hit[4])
+                variant["ci_A_end"]= int(hit[5])
+                variant["posB"]=int( hit[6] )
+                variant["ci_B_start"]= int(hit[7])
+                variant["ci_B_end"]= int(hit[8])
                 
             if not ci:
                 A='SELECT * FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+distance, variant["posA"] -distance,variant["posB"] + distance, variant["posB"]-distance)
             else:
-                A='SELECT * FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+variant["ci_A_end"], variant["posA"] -variant["ci_A_start"],variant["posB"] + variant["ci_B_start"], variant["posA"]-variant["ci_B_end"])
+                A='SELECT * FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+variant["ci_A_end"], variant["posA"] -variant["ci_A_start"],variant["posB"] + variant["ci_B_end"], variant["posB"] - variant["ci_B_start"])
             
             similar_variants=[]
             hits = c.execute(A)
@@ -165,11 +201,11 @@ def expand_chain(chain,c,distance,overlap,ci):
                 var["chrA"]=hit[1]
                 var["chrB"]=hit[2]
                 var["posA"]=int( hit[3] )
-                var["ci_A_start"]=0
-                var["ci_A_end"]=0
-                var["posB"]=int( hit[4] )
-                var["ci_B_start"]=0
-                var["ci_B_end"]=0
+                var["ci_A_start"]=int(hit[4])
+                var["ci_A_end"]=int(hit[5])
+                var["posB"]=int( hit[6] )
+                var["ci_B_start"]= int(hit[7])
+                var["ci_B_end"]= int(hit[8])
                 var["sample_id"]=hit[-2]
                 var["index"]=int( hit[-1] )
                 similar_variants.append(var)
