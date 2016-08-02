@@ -57,7 +57,7 @@ if __name__ == '__main__':
         parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument('--files'        , type=str, nargs='*', help="create a db using the specified vcf files(cannot be used with --folder)")
         parser.add_argument('--folder', type=str, help="create a db using all the vcf files in the folders")
-        parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
+        parser.add_argument('--prefix', type=str,default="SVDB" ,help="the prefix of the output file, default = SVDB")
         args = parser.parse_args()
         if (args.files and args.folder):
             print("ERROR: only one DB build input source may be selected");

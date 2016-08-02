@@ -1,9 +1,11 @@
-import sys, os, glob
 import argparse
 import readVCF
 import SVDB_overlap_module
 import subprocess
 import sqlite3
+import glob
+import os
+
 
 def biggest_cluster(chain,chain_data):
     biggest=-1
@@ -32,7 +34,7 @@ def db_header():
     return(headerString)
 
 
-def print_to_vcf(cluster,id_tag,sample_IDs):
+def vcf_line(cluster,id_tag,sample_IDs):
     info_field="SVTYPE={};".format(cluster[0]["type"])
     vcf_line=[]
     vcf_line.append( cluster[0]["chrA"] )
@@ -72,7 +74,7 @@ def print_to_vcf(cluster,id_tag,sample_IDs):
 
 def populate_db(args):
     sample_IDs=[]
-    conn = sqlite3.connect(args.db)
+    conn = sqlite3.connect(args.db+".db")
     c = conn.cursor()
     tableListQuery = "SELECT name FROM sqlite_master WHERE type=\'table\'"
     c.execute(tableListQuery)
@@ -175,7 +177,7 @@ def expand_chain(chain,c,distance,overlap,ci):
             #ANCIENT CODE!
             
             for sv in similar_variants:
-                if not args.ci:
+                if not ci:
                     if sv["chrA"] == sv["chrB"]:
                         hit=SVDB_overlap_module.isSameVariation(variant["posA"],variant["posB"],sv["posA"],sv["posB"],overlap,distance)
                     else:
@@ -209,14 +211,9 @@ def cluster(c,chain,chain_data,distance,overlap,ci):
     return(clusters)
 
 def generate_chains(db,distance,overlap,ci,sample_IDs):
-
-    #memory_db=sqlite3.connect(':memory:')
-    conn = sqlite3.connect(db)
-    #db_dump="".join(line for line in conn.iterdump())
-    #memory_db.executescript(db_dump)
-    #conn.close
+    f = open(db+".vcf",'a')
+    conn = sqlite3.connect(db+".db")
     c = conn.cursor()
-    #c = memory_db.cursor()
 
     chains=[]
     A="SELECT MAX(idx) FROM SVDB"
@@ -233,28 +230,14 @@ def generate_chains(db,distance,overlap,ci,sample_IDs):
         chain, chain_data= expand_chain(chain,c,distance,overlap,ci)
         clusters=cluster(c,chain,chain_data,distance,overlap,ci)
         for clustered_variants in clusters:
-            print print_to_vcf(clustered_variants,"cluster_{}".format(i),sample_IDs )
+        
+            f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
             i += 1
         variant_list = variant_list - chain
-        #chains.append(chain)
-        #summed+=len(chains[-1])
-        #print "{} {} {} {}".format(len(chains), len(chains[-1]),summed,number_of_variants) 
-        
-    return(chains)
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser("""This scripts takes as input any number of vcf files and generates a structural variant database""")
-    parser.add_argument('--db', help="output database", type=str,default="SVDB.db")        
-    parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
-    parser.add_argument('--no_merge'       , help="skip the merging of variants", required=False, action="store_true")
-    parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
-    parser.add_argument('--bnd_distance', type=int,default= 2500,help="the maximum distance between two similar precise breakpoints(default = 2500)")
-    parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
-    parser.add_argument('--files' , type=str, nargs='*', help="create a db using the specified vcf files(cannot be used with --folder)")
-    parser.add_argument('--folder', type=str, help="create a db using all the vcf files in the folders")
-    parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
+    f.close()
     
-    args = parser.parse_args()
+def main(args):
+    args.db=args.prefix
     if(args.files):
         sample_IDs = populate_db(args)
     elif(args.folder):
@@ -262,9 +245,8 @@ if __name__ == '__main__':
         test=[];
         args.files=vcf_folder
         sample_IDs = populate_db(args)
-    else:
-        print("error: use the vcf or folder option to select the input vcf")
-        sys.exit()
-    print( db_header() )
-    print("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}".format("\t".join(sample_IDs)))
-    chains=generate_chains(args.db,args.bnd_distance,args.overlap,args.ci,sample_IDs )
+    f = open(args.db+".vcf",'w')
+    f.write( db_header()+"\n")
+    f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}\n".format("\t".join(sample_IDs)))
+    f.close()
+    generate_chains(args.db,args.bnd_distance,args.overlap,args.ci,sample_IDs )
