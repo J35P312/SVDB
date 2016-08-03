@@ -10,11 +10,11 @@ def build_db(args,samples,prefix):
     args.folder=False
     args.overlap=0.9
     args.bnd_distance=500
-    args.prefix=prefix;
+    args.prefix=prefix+".db";
     SVDB_build_module.main(args)
 
 def query_db(args,sample,db,prefix):
-    args.prefix=prefix;
+    args.prefix=prefix+".db";
     args.invert=False
     args.query_vcf=sample
     args.db=db
@@ -43,7 +43,7 @@ def get_frequencies(queried_vcf):
 
 def clear_db(prefix):
     os.remove(prefix+".db.vcf")
-
+    os.remove(prefix+".db.db")
 def similarity_matrix(args,samples):
     first= True;
     #print the header
@@ -142,7 +142,7 @@ def sample_hist(args,samples):
                         hist[val] = []
                     hist[val].append(frequency_hist[sample][val]/float(variants))
                 
-        
+            os.remove(prefix + ".db.db")                
         print("{},{},{}".format(k,numpy.average(ones),numpy.std(ones)))
         f=open("SVDB_hist_{}.csv".format(k),"w")
         f.write("frequency,variant_frequency\n")
