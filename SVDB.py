@@ -95,6 +95,8 @@ if __name__ == '__main__':
         parser.add_argument('--overlap', type=float, default = 0.95,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument('--ci', help="overides overlap and bnd_distance,merge based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         parser.add_argument('--no_intra', help="no merging of variants within the same vcf", required=False, action="store_true")
+        parser.add_argument('--no_var', help="variants of different type will be merged", required=False, action="store_true")
+        parser.add_argument('--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         args= parser.parse_args()        
         SVDB_merge_vcf_module.main(args)
     else:

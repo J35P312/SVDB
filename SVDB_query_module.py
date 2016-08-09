@@ -76,8 +76,20 @@ def main(args):
 
     
     for query in queries:
-        hits = isVariationInDB(DBvariants, query,args)
+        hits,similar = isVariationInDB(DBvariants, query,args)
         query[5] = hits
+        i=0
+        if len(similar) == 0:
+            continue
+            
+        samples=len(DBvariants[ query[0] ][ query[2] ])
+        while i < samples:
+            for variant in similar:
+                if variant == DBvariants[ query[0] ][ query[2] ][i]:
+                    del DBvariants[ query[0] ][ query[2] ][i]
+                    samples += -1
+                    break
+            i += 1
     for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
         vcf_entry = query[6].rstrip()
         content=vcf_entry.split("\t")
@@ -95,6 +107,7 @@ def isVariationInDB(DBvariants, Query_variant,args):
     chrBpos = Query_variant[3]
     variation_type=Query_variant[4]
     samples=set([])
+    similar=[]
     if chrA in DBvariants:
         # now look if chrB is here
         if chrB in DBvariants[chrA]:
@@ -115,9 +128,10 @@ def isVariationInDB(DBvariants, Query_variant,args):
 
                     if hit_tmp != None:
                         genotype=event[-1]["GT"]
+                        similar.append(event)
                         for i in range(0,len(genotype)):
                             GT=genotype[i]
                             if not GT == "0|0" and not GT == "0/0": 
                                 samples = samples | set([i])
     hits=len(samples)
-    return hits
+    return hits,similar

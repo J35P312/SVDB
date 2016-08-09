@@ -54,20 +54,38 @@ def merge_csq(info,csq):
 
     return(info)
 
-def merge(variants,ci,overlap_param,bnd_distance,no_intra):
+def merge(variants,ci,overlap_param,bnd_distance,no_intra,no_var,pass_only):
     #search for similar variants
     to_be_printed={}
     for chrA in variants:
 
         i=0;
-
         while i < len(variants[chrA]):
             merge=[]
             csq=[]
             j=i+1;
-            while j < len(variants[chrA]):
+            
+
                     
-                if variants[chrA][i][0] == variants[chrA][j][0] and variants[chrA][i][1] == variants[chrA][j][1]:
+            while j < len(variants[chrA]):
+            
+                if pass_only:
+                    filter_tag=variants[chrA][i][-1].split("\t")[6]
+                    if not filter_tag == "PASS":
+                        break
+                            
+                #only treat varints on the same pair of chromosomes    
+                if not variants[chrA][i][0] == variants[chrA][j][0]:
+                    j+=1
+                    continue
+            
+                if pass_only:
+                    filter_tag=variants[chrA][j][-1].split("\t")[6]
+                    if not filter_tag == "PASS":
+                        continue
+                        j+=1
+
+                if variants[chrA][i][1] == variants[chrA][j][1] or no_var:
                     if not no_intra or variants[chrA][i][-3] != variants[chrA][j][-3]:
                         overlap = False
                         if not ci:
