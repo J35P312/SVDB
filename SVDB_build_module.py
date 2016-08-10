@@ -7,14 +7,34 @@ import glob
 import os
 
 
-def biggest_cluster(chain,chain_data):
-    biggest=-1
-    biggest_cluster=-1
-    for index in chain:
-        if len(chain_data[index]) > biggest:
-            biggest=len(chain_data[index])
-            biggest_cluster=index
-    return(biggest_cluster)
+def fetch_index_variant(c,index):
+    A='SELECT var ,chrA , chrB ,posA ,ci_A_lower ,ci_A_upper ,posB ,ci_B_lower ,ci_B_upper FROM SVDB WHERE idx == \'{}\' '.format(index)
+    hits = c.execute(A)
+    variant={}
+    for hit in hits:
+        variant["type"]=hit[0]
+        variant["chrA"]=hit[1]
+        variant["chrB"]=hit[2]
+        variant["posA"]=int( hit[3] )
+        variant["ci_A_start"]= int(hit[4])
+        variant["ci_A_end"]= int(hit[5])
+        variant["posB"]=int( hit[6] )
+        variant["ci_B_start"]= int(hit[7])
+        variant["ci_B_end"]= int(hit[8])
+        
+    return(variant)
+
+def fetch_cluster_variant(c,index):
+    A='SELECT posA, posB, sample FROM SVDB WHERE idx == \'{}\' '.format(index)
+    hits = c.execute(A)
+    variant={}
+    for hit in hits:
+        variant["posA"]=int( hit[0] )
+        variant["posB"]=int( hit[1] )
+        variant["sample_id"]=hit[2]
+        
+    return(variant)
+
 
 def db_header():
     headerString="##fileformat=VCFv4.1\n";
@@ -50,7 +70,7 @@ def vcf_line(cluster,id_tag,sample_IDs):
         
     sample_set=set([])
     for variant in cluster[1]:
-        sample_set = sample_set | set([cluster[1][variant]["sample_id"]])
+        sample_set.add(cluster[1][variant]["sample_id"])
     info_field += "NSAMPLES={};OCC={};FRQ={};".format(len(sample_IDs),len(sample_set),round(len(sample_set)/float(len(sample_IDs)) ,2))
     variant_field="VARIANTS="
     for variant in cluster[1]:
@@ -152,7 +172,7 @@ def populate_db(args):
         c.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)',var)     
         
 
-    A="CREATE INDEX SV ON SVDB (var,chrA, chrB, posA , posA,posB,posB)"
+    A="CREATE INDEX SV ON SVDB (var,chrA, chrB, posA,posA,posB,posB)"
     c.execute(A)
     A="CREATE INDEX IDX ON SVDB (idx)"
     c.execute(A)
@@ -170,86 +190,67 @@ def expand_chain(chain,c,distance,overlap,ci):
     tested=set([])
     chain_data={}
     while not tested == chain:
-        
         to_be_tested=chain-tested
         for index in to_be_tested:
-            chain_data[index]={}
-            A='SELECT * FROM SVDB WHERE idx == \'{}\' '.format(index)
-            hits = c.execute(A)
-            variant={}
-            for hit in hits:
-                variant["type"]=hit[0]
-                variant["chrA"]=hit[1]
-                variant["chrB"]=hit[2]
-                variant["posA"]=int( hit[3] )
-                variant["ci_A_start"]= int(hit[4])
-                variant["ci_A_end"]= int(hit[5])
-                variant["posB"]=int( hit[6] )
-                variant["ci_B_start"]= int(hit[7])
-                variant["ci_B_end"]= int(hit[8])
-                
+            chain_data[index]=[]
+            variant=fetch_index_variant(c,index)
+            selection ="idx"
+            if variant["chrA"] == variant["chrB"]:
+                selection = "posA, posB, idx"
             if not ci:
-                A='SELECT * FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+distance, variant["posA"] -distance,variant["posB"] + distance, variant["posB"]-distance)
+                A='SELECT {} FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(selection,variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+distance, variant["posA"] -distance,variant["posB"] + distance, variant["posB"]-distance)
+                #print A
             else:
-                A='SELECT * FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+variant["ci_A_end"], variant["posA"] -variant["ci_A_start"],variant["posB"] + variant["ci_B_end"], variant["posB"] - variant["ci_B_start"])
+                A='SELECT idx FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+variant["ci_A_end"], variant["posA"] -variant["ci_A_start"],variant["posB"] + variant["ci_B_end"], variant["posB"] - variant["ci_B_start"])
             
-            similar_variants=[]
             hits = c.execute(A)
             for hit in hits:
-                var={}
-                var["type"]=hit[0]
-                var["chrA"]=hit[1]
-                var["chrB"]=hit[2]
-                var["posA"]=int( hit[3] )
-                var["ci_A_start"]=int(hit[4])
-                var["ci_A_end"]=int(hit[5])
-                var["posB"]=int( hit[6] )
-                var["ci_B_start"]= int(hit[7])
-                var["ci_B_end"]= int(hit[8])
-                var["sample_id"]=hit[-2]
-                var["index"]=int( hit[-1] )
-                similar_variants.append(var)
-            
-            #ANCIENT CODE!
-            
-            for sv in similar_variants:
-                if not ci:
-                    if sv["chrA"] == sv["chrB"]:
-                        hit=SVDB_overlap_module.isSameVariation(variant["posA"],variant["posB"],sv["posA"],sv["posB"],overlap,distance)
-                    else:
-                        hit=SVDB_overlap_module.precise_overlap(variant["posA"],variant["posB"],sv["posA"],sv["posB"],distance)
-                else:
-                    hit=SVDB_overlap_module.ci_overlap_two_sided(variant["posA"],variant["posB"],[variant["ci_A_start"],variant["ci_A_end"]],[variant["ci_B_start"],variant["ci_B_end"]],sv["posA"],sv["posB"],[ sv["ci_A_start"],sv["ci_A_end"] ],[sv["ci_B_start"],sv["ci_B_end"]])
+                if not ci and variant["chrA"] == variant["chrB"]:
+                    var={}
+                    var["posA"]=int( hit[0] )
+                    var["posB"]=int( hit[1] )
+                    var["index"]=int( hit[2] )
+                    similar=SVDB_overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
+                    if similar:
+                        chain_data[index].append(var["index"])
+                        chain.add( int( var["index"]) )
                     
-                        #print hit
-                if hit:
-                    chain_data[index][sv["index"]]=sv
-                    chain=chain | set([ sv["index"] ])
-            tested = tested | set([index])             
+                else:
+                    chain_data[index].append(int( hit[0] ))
+                    chain.add( int( hit[0] ) )
+
+            tested.add(index)             
             #print"{} {} {} {} {}".format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"],variant["posB"])
     return([chain,chain_data])
 
 def cluster(c,chain,chain_data,distance,overlap,ci):
     clusters=[]
-    A=chain  
-    while A:
-        var_A=biggest_cluster(A,chain_data)
-        current_cluster=[var_A]
-        variant=chain_data[var_A][var_A]
-        selected=[var_A]
-        for var in chain_data[var_A]:
-            selected.append(var)
-     
-        clusters.append( [ variant,chain_data[var_A]])
-        A=A-set(selected)
+    for index in sorted(chain_data, key=lambda index: len(chain_data[index]), reverse=True):
+        if not chain:
+            break
+        if not index in chain:
+            continue
+            
+        variant_dictionary={}
+        for var in chain_data[index]:
+            if var in chain:
+                chain.remove(var)
+            variant_dictionary[var]=fetch_cluster_variant(c,var)
+        variant=fetch_index_variant(c,index)
         
-    
+        clusters.append( [variant,variant_dictionary] )      
     return(clusters)
 
 def generate_chains(db,distance,overlap,ci,sample_IDs):
+
+    #memory_db=sqlite3.connect(':memory:')
     f = open(db+".vcf",'a')
     conn = sqlite3.connect(db+".db")
-    c = conn.cursor()
+    #db_dump="".join(line for line in conn.iterdump())
+    #memory_db.executescript(db_dump)
+    #conn.close
+    #c = memory_db.cursor()
+    c=conn.cursor()
 
     chains=[]
     A="SELECT MAX(idx) FROM SVDB"
@@ -264,12 +265,15 @@ def generate_chains(db,distance,overlap,ci,sample_IDs):
         chain= set([ min(variant_list) ])
         #find similar variants
         chain, chain_data= expand_chain(chain,c,distance,overlap,ci)
+        for index in chain:
+            if index in variant_list:
+                variant_list.remove(index)
+
         clusters=cluster(c,chain,chain_data,distance,overlap,ci)
-        for clustered_variants in clusters:
-        
+        for clustered_variants in clusters:        
             f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
             i += 1
-        variant_list = variant_list - chain
+            
     f.close()
     
 def main(args):
