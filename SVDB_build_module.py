@@ -24,16 +24,30 @@ def fetch_index_variant(c,index):
         
     return(variant)
 
+#def fetch_cluster_variant(c,index):
+#    A='SELECT posA, posB, sample FROM SVDB WHERE idx == \'{}\' '.format(index)
+#    hits = c.execute(A)
+#    variant={}
+#    for hit in hits:
+#        variant["posA"]=int( hit[0] )
+#        variant["posB"]=int( hit[1] )
+#        variant["sample_id"]=hit[2]
+#        
+#    return(variant)
+
 def fetch_cluster_variant(c,index):
-    A='SELECT posA, posB, sample FROM SVDB WHERE idx == \'{}\' '.format(index)
+    A='SELECT posA, posB, sample, idx FROM SVDB WHERE idx IN ({}) '.format( ", ".join([ str(idx) for idx in index ]) )
     hits = c.execute(A)
-    variant={}
+    
+    variant_dict={}
     for hit in hits:
+        variant={}
+        
         variant["posA"]=int( hit[0] )
         variant["posB"]=int( hit[1] )
         variant["sample_id"]=hit[2]
-        
-    return(variant)
+        variant_dict[ int( hit[3] ) ]=variant
+    return(variant_dict)
 
 
 def db_header():
@@ -230,12 +244,10 @@ def cluster(c,chain,chain_data,distance,overlap,ci):
             break
         if not index in chain:
             continue
-            
-        variant_dictionary={}
         for var in chain_data[index]:
             if var in chain:
                 chain.remove(var)
-            variant_dictionary[var]=fetch_cluster_variant(c,var)
+        variant_dictionary=fetch_cluster_variant(c,chain_data[index])
         variant=fetch_index_variant(c,index)
         
         clusters.append( [variant,variant_dictionary] )      
