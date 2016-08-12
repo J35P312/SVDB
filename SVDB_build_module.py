@@ -24,29 +24,16 @@ def fetch_index_variant(c,index):
         
     return(variant)
 
-#def fetch_cluster_variant(c,index):
-#    A='SELECT posA, posB, sample FROM SVDB WHERE idx == \'{}\' '.format(index)
-#    hits = c.execute(A)
-#    variant={}
-#    for hit in hits:
-#        variant["posA"]=int( hit[0] )
-#        variant["posB"]=int( hit[1] )
-#        variant["sample_id"]=hit[2]
-#        
-#    return(variant)
-
 def fetch_cluster_variant(c,index):
     A='SELECT posA, posB, sample, idx FROM SVDB WHERE idx IN ({}) '.format( ", ".join([ str(idx) for idx in index ]) )
     hits = c.execute(A)
     
     variant_dict={}
     for hit in hits:
-        variant={}
-        
-        variant["posA"]=int( hit[0] )
-        variant["posB"]=int( hit[1] )
-        variant["sample_id"]=hit[2]
-        variant_dict[ int( hit[3] ) ]=variant
+        variant_dict[ int( hit[3] ) ]={}
+        variant_dict[ int( hit[3] ) ]["posA"]=int( hit[0] )
+        variant_dict[ int( hit[3] ) ]["posB"]=int( hit[1] )
+        variant_dict[ int( hit[3] ) ]["sample_id"]=hit[2]
     return(variant_dict)
 
 
@@ -274,7 +261,7 @@ def generate_chains(db,distance,overlap,ci,sample_IDs):
     summed=0;
     i =1
     while variant_list:
-        chain= set([ min(variant_list) ])
+        chain = set([ variant_list.pop() ])
         #find similar variants
         chain, chain_data= expand_chain(chain,c,distance,overlap,ci)
         for index in chain:
