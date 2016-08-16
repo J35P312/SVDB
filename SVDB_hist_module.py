@@ -3,7 +3,18 @@ import SVDB_build_module
 import SVDB_query_module
 import glob,os
 import random
-import numpy
+import math
+
+def std(vector):
+    n=float( len(vector) )
+    avg=sum(vector)/n 
+    std=0
+    
+    for i in vector:
+        std += 1/n*(avg-i)*(avg-i)
+        
+    std=math.sqrt(std)    
+    return(std)
 
 def build_db(args,samples,prefix):
     args.files=samples
@@ -143,11 +154,11 @@ def sample_hist(args,samples):
                     hist[val].append(frequency_hist[sample][val]/float(variants))
                 
             os.remove(prefix + ".db.db")                
-        print("{},{},{}".format(k,numpy.average(ones),numpy.std(ones)))
+        print("{},{},{}".format(k, sum(ones)/float( len(ones) ), std(ones) ))
         f=open("SVDB_hist_{}.csv".format(k),"w")
         f.write("frequency,variant_frequency\n")
         for val in sorted(hist):
-            f.write("{},{}\n".format(int(val),numpy.mean(hist[val])))
+            f.write("{},{}\n".format(int(val),sum(hist[val])/float( len(hist[val]) ) ))
     os.remove(prefix+".db.vcf")  
             
 
