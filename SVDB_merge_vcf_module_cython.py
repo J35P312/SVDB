@@ -82,8 +82,8 @@ def merge(variants,ci,overlap_param,bnd_distance,no_intra,no_var,pass_only):
                 if pass_only:
                     filter_tag=variants[chrA][j][-1].split("\t")[6]
                     if not filter_tag == "PASS":
-                        continue
                         j+=1
+                        continue
 
                 if variants[chrA][i][1] == variants[chrA][j][1] or no_var:
                     if not no_intra or variants[chrA][i][-3] != variants[chrA][j][-3]:
