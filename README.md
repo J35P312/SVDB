@@ -61,7 +61,8 @@ Hist: This module is used to compare structural variant vcf files, either by gen
                      
          --folder FOLDER                get all vcf files in the folder as input
          
-        --k [K [K ...]]                 the sizes of the sampled databases,default = n=10*i < samples(used with sample_hist)
+        --k [K [K ...]]                 the sizes of the sampled databases
+                                        default = n=10*i < samples(used with sample_hist)
         
         --n N                           the number of iterations,default=100(used with sample_hist)
   
@@ -80,9 +81,37 @@ Query: The query module is used to query a structural variant database. Typicall
 
     print a help message
        python SVDB.py --query --help
-    Query a structural variant database, using a vcf file as query:   
+    Query a structural variant database, using a vcf file as query:  
+        python SVDB.py --query --query_vcf patient1.vcf --db control_db.vcf
     
-       
+    optional arguments:
+        -h, --help                      show this help message and exit
+
+        --hit_tag HIT_TAG               the tag used to describe the number of hits within the
+                                        info field of the output vcf(default=OCC)
+                                        
+        --frequency_tag FREQUENCY_TAG   the tag used to describe the frequency of the
+                                        variant(defualt=FRQ)
+                        
+        --prefix PREFIX                 the prefix of the output file, default = print to stdout
+
+        --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
+                                        (default = 10000)
+                        
+                        
+        --overlap OVERLAP               the overlap required to merge two events(0 means
+                                        anything that touches will be merged, 1 means that two
+                                        events must be identical to be merged), default = 0.6
+                                        
+        --no_var                        count overlaping variants of different type as hits
+        
+        --invert                        invert the sorting order so that high frequency
+                                        samples are present on top of the output vcf
+                              
+        --ci                            overides overlap and bnd_distance,determine hits based
+                                        on the confidence interval of the position fo the
+                                        variants(0 if no CIPOS or CIEND is vailable)
+
 Purge: The purge module is used to remove entries from a database:
 
     print a help message:
