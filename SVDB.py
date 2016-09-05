@@ -5,6 +5,8 @@ import SVDB_query_module
 import SVDB_hist_module
 import SVDB_purge_module
 import SVDB_merge_vcf_module
+import SVDB_query_module_SQLITE
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("""SVDB, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""",add_help=False)
@@ -36,7 +38,8 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser("""SVDB: query module""")
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required = True)
-        parser.add_argument('--db'        , type=str,  help="path to a SVDB vcf", required = True)
+        parser.add_argument('--db'        , type=str,  help="path to a SVDB db vcf ")
+        parser.add_argument('--sqdb'        , type=str,  help="path to a SVDB sqlite db")
         parser.add_argument('--hit_tag'        , type=str,default="OCC",help="the tag used to describe the number of hits within the info field of the output vcf(default=OCC)")
         parser.add_argument('--frequency_tag'        , type=str,default="FRQ",help="the tag used to describe the frequency of the variant(defualt=FRQ)")
         parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
@@ -47,7 +50,13 @@ if __name__ == '__main__':
         parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args = parser.parse_args()
 
-        SVDB_query_module.main(args)
+        if(args.db):
+            SVDB_query_module.main(args)
+        elif(args.sqdb):
+            args.db=args.sqdb
+            SVDB_query_module_SQLITE.main(args)
+        else:
+            print "invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db"
     elif(args.build):
         parser = argparse.ArgumentParser("""SVDB: build module""")
         parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
