@@ -2,22 +2,40 @@ import SVDB_overlap_module
 import readVCF
 
 #delete specified samples from the db
+
+def purge_samples_info_field(sample_info,samples):
+    new_sample_fields=""
+    for info in sample_info:
+        if not info.split(":")[0] in samples:
+            new_sample_fields += info + "|"
+
+    return(new_sample_fields)
+    
+
+
 def purge_sample(args):
+    db_size=0;
+    sample_pos_vector=[]
     for line in open(args.db):
         if not "#" == line[0]:
             content=line.strip().split("\t")
             info=content[7]
-            samples=info.split(";SAMPLES=")[-1];
+            samples=info.split(";VARIANTS=")[-1];
             samples=samples.split("|");
+            samples=purge_samples_info_field(samples,args.samples)
 
             sample_set=set(samples)-set(args.samples)
-            hits=len(sample_set)
-            db_size=info.split("NSAMPLES=")[-1]
-            db_size=float(db_size.split(";")[0])-len(args.samples)
-            frequency=hits/db_size
-            samples="|".join(list(sample_set))
-            variant_info="OCC={};NSAMPLES={};FRQ={};SAMPLES={}".format(hits,db_size,frequency,samples)
-            info=info.split("OCC")[0];
+            
+            
+            
+            for i in sorted(sample_pos_vector, reverse=True):
+                del content[i]
+               
+            hits=content.count("0/0")
+            hits=db_size-hits
+            frequency=round( hits/float(db_size) , 2)
+            variant_info="NSAMPLES={};OCC={};FRQ={};VARIANTS={}".format(int(db_size),hits,frequency,samples)
+            info=info.split("NSAMPLES")[0];
             info+= variant_info;
 
             content[7]=info
@@ -25,8 +43,20 @@ def purge_sample(args):
                 print("\t".join(content))
 
         else:
-            print(line.strip())         
-
+            if("#CHROM\t" in line):
+                content=line.split("\t")
+                #remove the position and info fields from the count
+                for sample in args.samples:
+                    if sample in content:
+                        sample_pos_vector.append(content.index(sample))
+                
+                for i in sorted(sample_pos_vector, reverse=True):
+                    del content[i]
+                
+                db_size=len(content)-9
+                print( "\t".join(content).strip() )         
+            else:
+                print(line.strip())
 #remove variants if they are found in the vcf
 def purge_variants(args):
     variants={}

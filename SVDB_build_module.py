@@ -87,7 +87,7 @@ def vcf_line(cluster,id_tag,sample_IDs):
     for variant in cluster[1]:
         zygosity_list[cluster[1][variant]["sample_id"]]="./."
     format=[]
-    for sample in zygosity_list:
+    for sample in sample_IDs:
         format.append(zygosity_list[sample])
     vcf_line.append("GT")
     vcf_line.append("\t".join(format))
