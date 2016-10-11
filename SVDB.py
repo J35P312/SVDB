@@ -6,7 +6,7 @@ import SVDB_hist_module
 import SVDB_purge_module
 import SVDB_merge_vcf_module
 import SVDB_query_module_SQLITE
-
+import SVDB_export_module
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("""SVDB, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""",add_help=False)
@@ -15,6 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--query'       , help="query a db", required=False, action="store_true")
     parser.add_argument('--purge'       , help="remove entries from a database", required=False, action="store_true")
     parser.add_argument('--merge'       , help="merge similar structural variants within a vcf file", required=False, action="store_true")
+    parser.add_argument('--export'       , help="export a database", required=False, action="store_true")
     args, unknown = parser.parse_known_args()
 
     if args.hist:
@@ -60,10 +61,6 @@ if __name__ == '__main__':
     elif(args.build):
         parser = argparse.ArgumentParser("""SVDB: build module""")
         parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
-        parser.add_argument('--no_merge'       , help="skip the merging of variants", required=False, action="store_true")
-        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
-        parser.add_argument('--bnd_distance', type=int,default= 2500,help="the maximum distance between two similar precise breakpoints(default = 2500)")
-        parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument('--files'        , type=str, nargs='*', help="create a db using the specified vcf files(cannot be used with --folder)")
         parser.add_argument('--folder', type=str, help="create a db using all the vcf files in the folders")
         parser.add_argument('--prefix', type=str,default="SVDB" ,help="the prefix of the output file, default = SVDB")
@@ -71,14 +68,29 @@ if __name__ == '__main__':
         if (args.files and args.folder):
             print("ERROR: only one DB build input source may be selected");
             quit()
-		#merging will be impossible
-        if args.no_merge:
-            args.overlap=float("inf")
-            args.bnd_distance=-1
+
         if args.folder or args.files:
             SVDB_build_module.main(args)
         else:
             print("error, use files or folder to provide input for the database creation algorithm")
+    elif args.export:
+        parser = argparse.ArgumentParser("""SVDB: build module""")
+        parser.add_argument('--export'       , help="create a db", required=False, action="store_true")
+        parser.add_argument('--no_merge'       , help="skip the merging of variants", required=False, action="store_true")
+        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
+        parser.add_argument('--bnd_distance', type=int,default= 2500,help="the maximum distance between two similar precise breakpoints(default = 2500)")
+        parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
+        parser.add_argument('--db'        , type=str, required=True, help="create a db using the specified vcf files(cannot be used with --folder)")
+        parser.add_argument('--prefix', type=str,default="SVDB" ,help="the prefix of the output file, default = same as input")
+        args = parser.parse_args()
+        
+        #merging will be impossible
+        if args.no_merge:
+            args.overlap=float("inf")
+            args.bnd_distance=-1
+        
+        
+        SVDB_export_module.main(args)
 
     elif args.purge:
         parser = argparse.ArgumentParser("""SVDB: purge module""")
