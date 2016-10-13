@@ -7,6 +7,7 @@ import SVDB_purge_module
 import SVDB_merge_vcf_module
 import SVDB_query_module_SQLITE
 import SVDB_export_module
+import SVDB_bed_annotation_module
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("""SVDB, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""",add_help=False)
@@ -16,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--purge'       , help="remove entries from a database", required=False, action="store_true")
     parser.add_argument('--merge'       , help="merge similar structural variants within a vcf file", required=False, action="store_true")
     parser.add_argument('--export'       , help="export a database", required=False, action="store_true")
+    parser.add_argument('--bed_annotation' , help="annotate a vcf file using information stored in a bed file", required=False, action="store_true")
     args, unknown = parser.parse_known_args()
 
     if args.hist:
@@ -120,6 +122,20 @@ if __name__ == '__main__':
         parser.add_argument('--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         args= parser.parse_args()        
         SVDB_merge_vcf_module.main(args)
+
+    elif args.bed_annotation:
+        parser = argparse.ArgumentParser("""SVDB: bed annotation module""")
+        parser.add_argument('--bed_annotation', help="merge structural variants", required=False, action="store_true")
+        parser.add_argument('--vcf'      , type=str, help="the input vcf file, this file will be annotated using the bed files",required=True)
+        parser.add_argument('--file'        , type=str,nargs='*', help="the bed files")
+        parser.add_argument('--tag'      , type=str, help="if the overlap is large enough, this tag will be added to the VCF, if no tag is chosen, SVDB will search the fourth column of the bed file and use that information for annotation")
+        parser.add_argument('--bnd_distance', type=int,default= 1000,help="the maximum distance between two similar precise breakpoints(default = 2000)")
+        parser.add_argument('--percentage', type=float, default = 0.75,help="if more than this percentage of the variant is located within the entry, the information of the entry will be added to the variant")       
+        args= parser.parse_args()
+        SVDB_bed_annotation_module.main(args)
+        
+                
+        
     else:
         parser.print_help()
 
