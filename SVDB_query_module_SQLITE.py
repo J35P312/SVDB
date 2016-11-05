@@ -116,6 +116,7 @@ def isVariationInDB(Query_variant,args,c):
             
     hits = c.execute(A)
     match=set([])
+    occurances=0
     for hit in hits:
         if not ci and variant["chrA"] == variant["chrB"]:
             var={}
@@ -129,5 +130,5 @@ def isVariationInDB(Query_variant,args,c):
         else:
             match.add(hit[0])
 
-        hits=len(match)
-    return hits
+    occurances=len(match)
+    return occurances
