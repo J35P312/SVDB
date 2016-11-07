@@ -61,13 +61,13 @@ def main(args):
     # at this point queries contains an entry for each variation
     #now query each sample.db present in the given folder and store the occurences
     db_file=args.db
-    memory_db=sqlite3.connect(':memory:')
+    #memory_db=sqlite3.connect(':memory:')
     conn = sqlite3.connect(args.db)
-    db_dump="".join(line for line in conn.iterdump())
-    memory_db.executescript(db_dump)
-    conn.close()
-    c = memory_db.cursor()
-    #c=conn.cursor()
+    #db_dump="".join(line for line in conn.iterdump())
+    #memory_db.executescript(db_dump)
+    #conn.close()
+    #c = memory_db.cursor()
+    c=conn.cursor()
     
     db_size=0
     A='SELECT DISTINCT sample FROM SVDB'
