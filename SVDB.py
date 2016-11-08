@@ -5,7 +5,6 @@ import SVDB_query_module
 import SVDB_hist_module
 import SVDB_purge_module
 import SVDB_merge_vcf_module
-import SVDB_query_module_SQLITE
 import SVDB_export_module
 import SVDB_bed_annotation_module
 
@@ -73,13 +72,16 @@ if __name__ == '__main__':
         else:
             print("error, use files or folder to provide input for the database creation algorithm")
     elif args.export:
-        parser = argparse.ArgumentParser("""SVDB: build module""")
+        parser = argparse.ArgumentParser("""SVDB: export module; export the variants of the SVDB sqlite database into a vcf file""")
         parser.add_argument('--export'       , help="create a db", required=False, action="store_true")
-        parser.add_argument('--no_merge'       , help="skip the merging of variants", required=False, action="store_true")
+        parser.add_argument('--db'        , type=str, required=True, help="The SQLite database")
+        parser.add_argument('--no_merge'       , help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int,default= 2500,help="the maximum distance between two similar precise breakpoints(default = 2500)")
         parser.add_argument('--overlap', type=float, default = 0.8,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
-        parser.add_argument('--db'        , type=str, required=True, help="create a db using the specified vcf files(cannot be used with --folder)")
+        parser.add_argument('--DBSCAN'       , help="use dbscan to cluster the variants", required=False, action="store_true")
+        parser.add_argument('--epsilon'       ,type=int, default = 500, help="used together with --DBSCAN; sets the epsilon paramter(default = 500)", required=False)
+        parser.add_argument('--min_pts'       ,type=int, default = 2, help="used together with 1--DBSCAN; sets the min_pts parameter(default = 2)", required=False)              
         parser.add_argument('--prefix', type=str,default="SVDB" ,help="the prefix of the output file, default = same as input")
         args = parser.parse_args()
         
