@@ -95,7 +95,9 @@ def populate_db(args):
     c.execute(A)
     A="CREATE INDEX IDX ON SVDB (idx)"
     c.execute(A)
-        
+    A="CREATE INDEX CHR ON SVDB (chrA, chrB)"
+    c.execute(A)
+    
     conn.commit()
     conn.close()
     return(sample_IDs)
