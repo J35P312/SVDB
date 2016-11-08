@@ -53,11 +53,8 @@ if __name__ == '__main__':
         parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args = parser.parse_args()
 
-        if(args.db):
+        if(args.db or args.sqdb):
             SVDB_query_module.main(args)
-        elif(args.sqdb):
-            args.db=args.sqdb
-            SVDB_query_module_SQLITE.main(args)
         else:
             print "invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db"
     elif(args.build):
