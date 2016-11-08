@@ -26,6 +26,8 @@ def populate_db(args):
         c.execute(A)
         A="DROP INDEX IDX"
         c.execute(A)
+        A="DROP INDEX CHR"
+        c.execute(A)        
         
         A='SELECT DISTINCT sample FROM SVDB'
         for sample in c.execute(A):

@@ -6,6 +6,13 @@ import sqlite3
 import glob
 import os
 
+from sklearn.cluster import DBSCAN
+from sklearn import metrics
+from sklearn.datasets.samples_generator import make_blobs
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+
+
 
 def fetch_index_variant(c,index):
     A='SELECT var ,chrA , chrB ,posA ,ci_A_lower ,ci_A_upper ,posB ,ci_B_lower ,ci_B_upper FROM SVDB WHERE idx == \'{}\' '.format(index)
@@ -142,6 +149,9 @@ def cluster(c,chain,chain_data,distance,overlap,ci):
                 chain.remove(var)
         variant_dictionary=fetch_cluster_variant(c,chain_data[index])
         variant=fetch_index_variant(c,index)
+       
+        
+        
         
         clusters.append( [variant,variant_dictionary] )      
     return(clusters)
@@ -179,8 +189,120 @@ def generate_chains(db,prefix,distance,overlap,ci,sample_IDs):
             f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
             i += 1
             
+            
     f.close()
+def dbscan_export(args,sample_IDs):
+    #memory_db=sqlite3.connect(':memory:')
+    f = open(args.prefix+".vcf",'a')
+    conn = sqlite3.connect(args.db)
+    #db_dump="".join(line for line in conn.iterdump())
+    #memory_db.executescript(db_dump)
+    #conn.close
+    #c = memory_db.cursor()
+    c=conn.cursor()
+
+        
+    chrA_list=[]    
+    for chrA in c.execute('SELECT DISTINCT chrA FROM SVDB'):
+        chrA_list.append(chrA[0])
+        
+    chrB_list=[]    
+    for chrB in c.execute('SELECT DISTINCT chrB FROM SVDB'):
+        chrB_list.append(chrB[0])
+    i=0;
+    for chrA in chrA_list:
+        for chrB in chrB_list:
+            chr_db={}            
+            for hit in c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE chrA == \'{}\' AND chrB == \'{}\''.format(chrA,chrB)):
+                if not hit[-1] in chr_db:
+                    chr_db[ hit[-1] ]={}
+                    chr_db[ hit[-1] ]["coordinates"]=[]
+                    chr_db[ hit[-1] ]["var_info"]=[]
+                    chr_db[ hit[-1] ]["index"]=[]
+                
+                chr_db[ hit[-1] ]["coordinates"].append([hit[0],hit[1]])
+                chr_db[ hit[-1] ]["var_info"].append(hit[2])
+                chr_db[hit[-1]]["index"].append(hit[-2])
+                  
+            for variant in chr_db:
+                chr_db[variant]["coordinates"]=np.array(chr_db[variant]["coordinates"])
+                chr_db[variant]["var_info"]=np.array(chr_db[variant]["var_info"])
+                chr_db[variant]["index"]=np.array(chr_db[variant]["index"])
+                  
+                db = DBSCAN(eps=500, min_samples=2).fit(chr_db[variant]["coordinates"])
+                
+                core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+                core_samples_mask[db.core_sample_indices_] = True
+                labels = db.labels_
+                #print variant
+                n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+                unique_labels = set(labels)
+                stats=[]
+                #print the unique variants
+                unique_xy=chr_db[variant]["coordinates"][  labels == -1 ]
+                unique_index=chr_db[variant]["index"][  labels == -1 ]
     
+                for j in range(0,len( chr_db[variant]["coordinates"][ labels == -1] ) ):
+                    xy = unique_xy[j]
+                    indexes=[ unique_index[j] ]
+                    
+                    
+                    variant_dictionary=fetch_cluster_variant(c,indexes)
+                        
+                    representing_var={}
+                    representing_var["type"]=variant
+                    representing_var["chrA"]=chrA
+                    representing_var["chrB"]=chrB
+                    representing_var["posA"]= xy[0]
+                    representing_var["ci_A_start"]=  xy[0]
+                    representing_var["ci_A_end"]= xy[0]
+                    representing_var["posB"]= xy[1]
+                    representing_var["ci_B_start"]= xy[1]
+                    representing_var["ci_B_end"]= xy[1]                      
+                        
+
+                    cluster=[representing_var,variant_dictionary] 
+                    f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
+                    i += 1
+                                        
+                #print the clusters
+                for k in unique_labels:
+                    class_member_mask = (labels == k)
+
+                    xy = chr_db[variant]["coordinates"][class_member_mask & core_samples_mask]
+                    indexes=chr_db[variant]["index"][class_member_mask & core_samples_mask]
+                    if k == -1:
+                        pass
+                    else:
+                        avg_point=np.array([np.mean(xy[:,0]),np.mean(xy[:,1])])
+                        
+                        distance=[]
+                        for point in xy:
+                            distance.append( ( sum((avg_point-point)**2))**0.5  )
+                        
+                        variant_dictionary=fetch_cluster_variant(c,indexes)
+                        
+                        representing_var={}
+                        representing_var["type"]=variant
+                        representing_var["chrA"]=chrA
+                        representing_var["chrB"]=chrB
+                        representing_var["posA"]= int(avg_point[0])
+                        representing_var["ci_A_start"]=  np.amin(xy[:,0])
+                        representing_var["ci_A_end"]= np.amax(xy[:,0])
+                        representing_var["posB"]= int(avg_point[1])
+                        representing_var["ci_B_start"]= np.amin(xy[:,1])
+                        representing_var["ci_B_end"]= np.amax(xy[:,1])                      
+                        
+                        cluster=[representing_var,variant_dictionary]   
+                        f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
+                        i += 1
+    f.close()
+
+
+
+
+ 
 def main(args):
     sample_IDs=[]
     if not args.prefix:
@@ -200,4 +322,7 @@ def main(args):
     f.write( db_header()+"\n")
     f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}\n".format("\t".join(sample_IDs)))
     f.close()
-    generate_chains(args.db,args.prefix,args.bnd_distance,args.overlap,args.ci,sample_IDs )
+    if args.DBSCAN:
+        dbscan_export(args,sample_IDs)
+    else:
+        generate_chains(args.db,args.prefix,args.bnd_distance,args.overlap,args.ci,sample_IDs )
