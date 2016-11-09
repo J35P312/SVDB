@@ -22,13 +22,22 @@ def populate_db(args):
         c.execute(A)
          
     else:
-        A="DROP INDEX SV "
-        c.execute(A)
-        A="DROP INDEX IDX"
-        c.execute(A)
-        A="DROP INDEX CHR"
-        c.execute(A)        
-        
+        try:
+            A="DROP INDEX SV "
+            c.execute(A)
+        except:
+            pass
+        try:
+            A="DROP INDEX IDX"
+            c.execute(A)
+        except:
+            pass
+        try:
+            A="DROP INDEX CHR"
+            c.execute(A)        
+        except:
+            pass
+            
         A='SELECT DISTINCT sample FROM SVDB'
         for sample in c.execute(A):
             sample_IDs.append(sample) 
@@ -53,6 +62,10 @@ def populate_db(args):
             
         if hits:
             continue        
+        
+        if not os.path.exists(vcf):
+            print("error: unnable to open {}".format(vcf))
+            continue
         
         var =[]
         for line in open(vcf):
@@ -90,9 +103,9 @@ def populate_db(args):
             var.append((event_type,chrA,chrB,posA,ci_A_lower,ci_A_upper,posB,ci_B_lower,ci_B_upper,sample_name,idx))
             idx += 1;
             #insert EVERYTHING into the database, the user may then query it in different ways(at least until the DB gets to large to function properly)
-        c.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)',var)     
+        if var:    
+            c.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)',var)     
         
-
     A="CREATE INDEX SV ON SVDB (var,chrA, chrB, posA,posA,posB,posB)"
     c.execute(A)
     A="CREATE INDEX IDX ON SVDB (idx)"

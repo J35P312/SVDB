@@ -156,16 +156,19 @@ def cluster(c,chain,chain_data,distance,overlap,ci):
         clusters.append( [variant,variant_dictionary] )      
     return(clusters)
 
-def generate_chains(db,prefix,distance,overlap,ci,sample_IDs):
+def generate_chains(db,prefix,distance,overlap,ci,sample_IDs,args):
 
-    #memory_db=sqlite3.connect(':memory:')
+    
     f = open(prefix+".vcf",'a')
     conn = sqlite3.connect(db)
-    #db_dump="".join(line for line in conn.iterdump())
-    #memory_db.executescript(db_dump)
-    #conn.close
-    #c = memory_db.cursor()
-    c=conn.cursor()
+    if args.memory:
+        memory_db=sqlite3.connect(':memory:')
+        db_dump="".join(line for line in conn.iterdump())
+        memory_db.executescript(db_dump)
+        conn.close
+        c = memory_db.cursor()
+    else:
+        c=conn.cursor()
 
     chains=[]
     A="SELECT MAX(idx) FROM SVDB"
@@ -192,14 +195,18 @@ def generate_chains(db,prefix,distance,overlap,ci,sample_IDs):
             
     f.close()
 def dbscan_export(args,sample_IDs):
-    #memory_db=sqlite3.connect(':memory:')
+
+    db=args.db
     f = open(args.prefix+".vcf",'a')
-    conn = sqlite3.connect(args.db)
-    #db_dump="".join(line for line in conn.iterdump())
-    #memory_db.executescript(db_dump)
-    #conn.close
-    #c = memory_db.cursor()
-    c=conn.cursor()
+    conn = sqlite3.connect(db)
+    if args.memory:
+        memory_db=sqlite3.connect(':memory:')
+        db_dump="".join(line for line in conn.iterdump())
+        memory_db.executescript(db_dump)
+        conn.close
+        c = memory_db.cursor()
+    else:
+        c=conn.cursor()
 
         
     chrA_list=[]    
@@ -325,4 +332,4 @@ def main(args):
     if args.DBSCAN:
         dbscan_export(args,sample_IDs)
     else:
-        generate_chains(args.db,args.prefix,args.bnd_distance,args.overlap,args.ci,sample_IDs )
+        generate_chains(args.db,args.prefix,args.bnd_distance,args.overlap,args.ci,sample_IDs,args )

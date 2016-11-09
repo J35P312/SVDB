@@ -5,6 +5,12 @@ from operator import itemgetter
 import SVDB_merge_vcf_module_cython
 import sqlite3
 
+from sklearn.cluster import DBSCAN
+from sklearn import metrics
+from sklearn.datasets.samples_generator import make_blobs
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+
 def main(args):
     #start by loading the variations
     queries = []
@@ -78,13 +84,16 @@ def main(args):
                 
     elif args.sqdb:
         db_file=args.sqdb
-        #memory_db=sqlite3.connect(':memory:')
         conn = sqlite3.connect(args.sqdb)
-        #db_dump="".join(line for line in conn.iterdump())
-        #memory_db.executescript(db_dump)
-        #conn.close()
-        #c = memory_db.cursor()
-        c=conn.cursor()
+        
+        if args.memory:
+            memory_db=sqlite3.connect(':memory:')
+            db_dump="".join(line for line in conn.iterdump())
+            memory_db.executescript(db_dump)
+            conn.close()
+            c = memory_db.cursor()
+        else:
+            c=conn.cursor()
     
         db_size=0
         A='SELECT DISTINCT sample FROM SVDB'
@@ -94,10 +103,15 @@ def main(args):
             print "error: no samples in the db"
             quit()
 
-        for query in queries:
-            hits = SQDB(query,args,c)
-            query[5] = hits    
-    
+        if not args.DBSCAN:
+            for query in queries:
+                hits = SQDB(query,args,c)
+                query[5] = hits    
+        else:
+            queries= DBSCAN_query(queries,args,c)
+            
+            
+            
     for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
         vcf_entry = query[6].rstrip()
         content=vcf_entry.split("\t")
@@ -106,6 +120,7 @@ def main(args):
             print(("\t").join(content))
         else:
             f.write(("\t").join(content)+"\n")
+
 
 
 def queryVCFDB(DBvariants, Query_variant,args):
@@ -184,4 +199,88 @@ def SQDB(Query_variant,args,c):
             match.add(hit[0])
 
     occurances=len(match)
-    return occurances    
+    return occurances
+    
+def DBSCAN_query(queries,args,c):
+    query_db={}
+    for i in range(0,len(queries)):
+        query = queries[i]
+        
+        if not query[0] in query_db:
+            query_db[query[0]] ={}
+        if not query[2] in query_db[query[0]]:
+            query_db[query[0]][query[2]] ={}
+        if not query[4] in query_db[query[0]][query[2]]:
+            query_db[query[0]][query[2]][query[4]] = []          
+        
+        query_db[query[0]][query[2]][query[4]].append([query[1],query[3], i,0])
+
+    for chrA in query_db:
+        for chrB in query_db[chrA]:
+            for variant in query_db[chrA][chrB]:
+                query_db[chrA][chrB][variant] = np.array(query_db[chrA][chrB][variant])
+
+    chrA_list=[]    
+    for chrA in c.execute('SELECT DISTINCT chrA FROM SVDB'):
+        chrA_list.append(chrA[0])
+        
+    chrB_list=[]    
+    for chrB in c.execute('SELECT DISTINCT chrB FROM SVDB'):
+        chrB_list.append(chrB[0])
+    
+    for chrA in chrA_list:
+        if not chrA in query_db:
+            continue
+        for chrB in chrB_list:
+            if not chrB in query_db[chrA]:
+                continue
+                   
+            chr_db={}            
+            for hit in c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE chrA == \'{}\' AND chrB == \'{}\''.format(chrA,chrB)):
+                if not hit[-1] in chr_db:
+                    chr_db[ hit[-1] ]={}
+                    chr_db[ hit[-1] ]["coordinates"]=[]
+                    chr_db[ hit[-1] ]["var_info"]=[]
+                    chr_db[ hit[-1] ]["index"]=[]
+                
+                chr_db[ hit[-1] ]["coordinates"].append([hit[0],hit[1],hit[2],-1])
+                chr_db[hit[-1]]["index"].append(hit[-2])        
+    
+    
+            for variant in chr_db:
+                if not variant in query_db[chrA][chrB]:
+                    continue            
+                db_size=len(chr_db[variant]["coordinates"])
+                chr_db[variant]["coordinates"]=np.array(chr_db[variant]["coordinates"])
+                chr_db[variant]["var_info"]=np.array(chr_db[variant]["var_info"])
+                chr_db[variant]["index"]=np.array(chr_db[variant]["index"])
+                  
+                variants=np.vstack( (chr_db[variant]["coordinates"],query_db[chrA][chrB][variant]) )                  
+                db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(variants[:,0:2])
+                
+                core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+                core_samples_mask[db.core_sample_indices_] = True
+                labels = db.labels_
+                #print variant
+                n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+                unique_labels = set(labels)
+                stats=[]
+                query_labels=labels[db_size-1:-1]
+
+                for i in range(0,len(query_db[chrA][chrB][variant])):
+                    variant_cluster=query_labels[i]
+                    if variant_cluster == -1:
+                        #no hits
+                        continue
+                    else:
+                        #compute the number of samples having this particular variant
+                        db_label_list=labels[0:db_size]
+                        query_db[chrA][chrB][variant][i][-1] = len( set(   variants[ np.where(db_label_list == variant_cluster) ][:,2] ) )
+
+    for chrA in query_db:
+        for chrB in query_db[chrA]:
+            for variant in query_db[chrA][chrB]:
+                for entry in query_db[chrA][chrB][variant]:
+                    queries[ entry[-2] ][5] = entry[-1]
+    return(queries)        
