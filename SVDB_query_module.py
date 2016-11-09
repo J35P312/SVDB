@@ -244,9 +244,7 @@ def DBSCAN_query(queries,args,c):
                     chr_db[ hit[-1] ]["index"]=[]
                 
                 chr_db[ hit[-1] ]["coordinates"].append([hit[0],hit[1],hit[2],-1])
-                chr_db[hit[-1]]["index"].append(hit[-2])        
-    
-    
+        
             for variant in chr_db:
                 if not variant in query_db[chrA][chrB]:
                     continue            
@@ -261,22 +259,20 @@ def DBSCAN_query(queries,args,c):
                 core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
                 core_samples_mask[db.core_sample_indices_] = True
                 labels = db.labels_
-                #print variant
-                n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
 
-                unique_labels = set(labels)
                 stats=[]
-                query_labels=labels[db_size-1:-1]
-
+                query_labels=labels[db_size:]
+                query_variants=variants[db_size:]
                 for i in range(0,len(query_db[chrA][chrB][variant])):
-                    variant_cluster=query_labels[i]
+                    variant_cluster= query_labels[i]
                     if variant_cluster == -1:
-                        #no hits
                         continue
                     else:
                         #compute the number of samples having this particular variant
                         db_label_list=labels[0:db_size]
                         query_db[chrA][chrB][variant][i][-1] = len( set(   variants[ np.where(db_label_list == variant_cluster) ][:,2] ) )
+                        if( len( set(   variants[ np.where(db_label_list == variant_cluster) ][:,2] ) ) == 0 ):
+                            print "ERROR"
 
     for chrA in query_db:
         for chrB in query_db[chrA]:
