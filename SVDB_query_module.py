@@ -236,7 +236,7 @@ def DBSCAN_query(queries,args,c):
                 continue
                    
             chr_db={}            
-            for hit in c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE chrA == \'{}\' AND chrB == \'{}\''.format(chrA,chrB)):
+            for hit in c.execute('SELECT posA,posB,sample,var FROM SVDB WHERE chrA == \'{}\' AND chrB == \'{}\''.format(chrA,chrB)):
                 if not hit[-1] in chr_db:
                     chr_db[ hit[-1] ]={}
                     chr_db[ hit[-1] ]["coordinates"]=[]
@@ -250,19 +250,12 @@ def DBSCAN_query(queries,args,c):
                     continue            
                 db_size=len(chr_db[variant]["coordinates"])
                 chr_db[variant]["coordinates"]=np.array(chr_db[variant]["coordinates"])
-                chr_db[variant]["var_info"]=np.array(chr_db[variant]["var_info"])
-                chr_db[variant]["index"]=np.array(chr_db[variant]["index"])
                   
                 variants=np.vstack( (chr_db[variant]["coordinates"],query_db[chrA][chrB][variant]) )                  
                 db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(variants[:,0:2])
-                
-                core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-                core_samples_mask[db.core_sample_indices_] = True
                 labels = db.labels_
 
-                stats=[]
                 query_labels=labels[db_size:]
-                query_variants=variants[db_size:]
                 for i in range(0,len(query_db[chrA][chrB][variant])):
                     variant_cluster= query_labels[i]
                     if variant_cluster == -1:
@@ -271,8 +264,6 @@ def DBSCAN_query(queries,args,c):
                         #compute the number of samples having this particular variant
                         db_label_list=labels[0:db_size]
                         query_db[chrA][chrB][variant][i][-1] = len( set(   variants[ np.where(db_label_list == variant_cluster) ][:,2] ) )
-                        if( len( set(   variants[ np.where(db_label_list == variant_cluster) ][:,2] ) ) == 0 ):
-                            print "ERROR"
 
     for chrA in query_db:
         for chrB in query_db[chrA]:
