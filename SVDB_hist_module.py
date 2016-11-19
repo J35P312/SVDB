@@ -28,11 +28,13 @@ def query_db(args,sample,db,prefix):
     args.prefix=prefix+".db";
     args.invert=False
     args.query_vcf=sample
-    args.db=db
+    args.db=False
+    args.sqdb=db
     args.hit_tag="OCC"
     args.frequency_tag="FRQ"
     args.prefix=prefix
     args.no_var=False
+    args.memory=False
     SVDB_query_module.main(args)
 
 def get_frequencies(queried_vcf):
@@ -53,8 +55,8 @@ def get_frequencies(queried_vcf):
     return(frequency_histogram,lines)
 
 def clear_db(prefix):
-    os.remove(prefix+".db.vcf")
     os.remove(prefix+".db.db")
+    
 def similarity_matrix(args,samples):
     first= True;
     #print the header
@@ -74,7 +76,7 @@ def similarity_matrix(args,samples):
     for query_sample in samples:
         for db_sample in samples:
             if not os.path.exists(query_sample+"_"+db_sample+"_query.vcf"):
-                query_db(args,samples[query_sample],db_sample+".db.vcf",query_sample+"_"+db_sample)
+                query_db(args,samples[query_sample],db_sample+".db.db",query_sample+"_"+db_sample)
 
     #generate each row of the matrix
     a=range(len(samples))
@@ -137,11 +139,11 @@ def sample_hist(args,samples):
         hist={}
         for n in range(0,args.n):
             db_samples=random.sample(sample_list,k)
-            
+            print db_samples
             build_db(args,db_samples,prefix)
             #use the database to query each sample
             for sample in db_samples:
-                query_db(args,sample,prefix+".db.vcf","tmp")
+                query_db(args,sample,prefix+".db.db","tmp")
                 frequency_hist[sample],variants=get_frequencies("tmp_query.vcf")                
                 os.remove("tmp_query.vcf")
 
@@ -153,13 +155,13 @@ def sample_hist(args,samples):
                         hist[val] = []
                     hist[val].append(frequency_hist[sample][val]/float(variants))
                 
-            os.remove(prefix + ".db.db")                
+            os.remove(prefix + ".db.db")
+                           
         print("{},{},{}".format(k, sum(ones)/float( len(ones) ), std(ones) ))
         f=open("SVDB_hist_{}.csv".format(k),"w")
-        f.write("frequency,variant_frequency\n")
+        f.write("hits,variant_frequency\n")
         for val in sorted(hist):
             f.write("{},{}\n".format(int(val),sum(hist[val])/float( len(hist[val]) ) ))
-    os.remove(prefix+".db.vcf")  
             
 
 def main(args):
