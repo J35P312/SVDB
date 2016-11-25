@@ -6,7 +6,9 @@ ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/
 #Install:
 Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn as well as numpy.
 These two packages may be installed using pip:
+
 pip install numpy
+
 pip install -U scikit-learn
 
 Optional: the code may be compiled using cython, this will speed up the database construction(this requires cython):
