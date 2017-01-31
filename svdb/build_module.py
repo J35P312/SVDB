@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import argparse
-import readVCF
-import SVDB_overlap_module
+from . import readVCF
+from . import overlap_module
 import subprocess
 import sqlite3
 import glob
