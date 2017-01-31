@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 #check the "overlap" of interchromosomaltranslocations
 def precise_overlap(chrApos_query,chrBpos_query,chrApos_db,chrBpos_db,distance):    
     Adist=abs(chrApos_query-chrApos_db);

@@ -1,6 +1,7 @@
-import SVDB_overlap_module
-import SVDB_build_module
-import SVDB_query_module
+from __future__ import absolute_import
+from . import overlap_module
+from . import build_module
+from . import query_module
 import glob,os
 import random
 import math
