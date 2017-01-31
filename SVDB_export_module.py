@@ -70,7 +70,7 @@ def vcf_line(cluster,id_tag,sample_IDs):
     vcf_line.append( id_tag )
     vcf_line.append( "N" )
     if cluster[0]["chrA"] == cluster[0]["chrB"]:
-        vcf_line.append( cluster[0]["type"] )
+        vcf_line.append( "<" + cluster[0]["type"] + ">"  )
         info_field += "END={};SVLEN={};".format(cluster[0]["posB"],abs(cluster[0]["posA"]-cluster[0]["posB"]))
     else:
         vcf_line.append( "N[{}:{}[".format(cluster[0]["chrB"],cluster[0]["posB"]) )
