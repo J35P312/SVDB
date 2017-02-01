@@ -1,5 +1,6 @@
-import readVCF
-import SVDB_merge_vcf_module_cython
+from __future__ import absolute_import
+from . import readVCF
+from . import merge_vcf_module_cython
 
 def check_input(vcf_list):
     number_test =[j for j in vcf_list if j.isdigit()]

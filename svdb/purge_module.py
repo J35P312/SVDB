@@ -1,5 +1,6 @@
-import SVDB_overlap_module
-import readVCF
+from __future__ import absolute_import
+from . import overlap_module
+from . import readVCF
 
 #delete specified samples from the db
 

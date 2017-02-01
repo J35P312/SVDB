@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import sys, os, glob
-import readVCF
-import SVDB_overlap_module
+from . import readVCF
+from . import overlap_module
 from operator import itemgetter
-import SVDB_merge_vcf_module_cython
+from . import merge_vcf_module_cython
 
 def update_tag_data(tag_data,entry):
     if not entry["tag_id"] in tag_data:

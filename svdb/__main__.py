@@ -1,14 +1,14 @@
 import argparse
-import SVDB_overlap_module
-import SVDB_build_module
-import SVDB_query_module
-import SVDB_hist_module
-import SVDB_purge_module
-import SVDB_merge_vcf_module
-import SVDB_export_module
-import SVDB_bed_annotation_module
+from . import overlap_module
+from . import build_module
+from . import query_module
+from . import hist_module
+from . import purge_module
+from . import merge_vcf_module
+from . import export_module
+from . import bed_annotation_module
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser("""SVDB, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""",add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--hist'        , help="generate histograms o the performance of a db", required=False, action="store_true")
@@ -148,3 +148,6 @@ if __name__ == '__main__':
     else:
         parser.print_help()
 
+
+if __name__ == '__main__':
+    main()

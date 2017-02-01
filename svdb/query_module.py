@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import sys, os, glob
-import readVCF
-import SVDB_overlap_module
+from . import readVCF
+from . import overlap_module
 from operator import itemgetter
-import SVDB_merge_vcf_module_cython
+from . import merge_vcf_module_cython
 import sqlite3
 
 from sklearn.cluster import DBSCAN
