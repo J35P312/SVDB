@@ -37,7 +37,7 @@ def main():
         parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args= parser.parse_args()
         if args.folder or args.files:
-            SVDB_hist_module.main(args)
+            hist_module.main(args)
         else:
             parser.print_help()
     elif args.query:
@@ -62,7 +62,7 @@ def main():
         args = parser.parse_args()
 
         if(args.db or args.sqdb):
-            SVDB_query_module.main(args)
+            query_module.main(args)
         else:
             print "invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db"
     elif(args.build):
@@ -77,7 +77,7 @@ def main():
             quit()
 
         if args.folder or args.files:
-            SVDB_build_module.main(args)
+            build_module.main(args)
         else:
             print("error, use files or folder to provide input for the database creation algorithm")
     elif args.export:
@@ -101,7 +101,7 @@ def main():
             args.bnd_distance=-1
         
         
-        SVDB_export_module.main(args)
+        export_module.main(args)
 
     elif args.purge:
         parser = argparse.ArgumentParser("""SVDB: purge module""")
@@ -115,7 +115,7 @@ def main():
         parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
         args= parser.parse_args()
         if args.samples or args.vcf or args.file:
-            SVDB_purge_module.main(args)
+            purge_module.main(args)
         else:
             print("use the samples or vcf option to remove entries from the db")
 
@@ -130,7 +130,7 @@ def main():
         parser.add_argument('--no_var', help="variants of different type will be merged", required=False, action="store_true")
         parser.add_argument('--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         args= parser.parse_args()        
-        SVDB_merge_vcf_module.main(args)
+        merge_vcf_module.main(args)
 
     elif args.bed_annotation:
         parser = argparse.ArgumentParser("""SVDB: bed annotation module""")
@@ -141,7 +141,7 @@ def main():
         parser.add_argument('--bnd_distance', type=int,default= 1000,help="the maximum distance between two similar precise breakpoints(default = 2000)")
         parser.add_argument('--percentage', type=float, default = 0.75,help="if more than this percentage of the variant is located within the entry, the information of the entry will be added to the variant")       
         args= parser.parse_args()
-        SVDB_bed_annotation_module.main(args)
+        bed_annotation_module.main(args)
         
                 
         

@@ -125,7 +125,7 @@ def expand_chain(chain,c,distance,overlap,ci):
                     var["posA"]=int( hit[0] )
                     var["posB"]=int( hit[1] )
                     var["index"]=int( hit[2] )
-                    similar=SVDB_overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
+                    similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
                     if similar:
                         chain_data[index].append(var["index"])
                         chain.add( int( var["index"]) )

@@ -83,7 +83,7 @@ def purge_variants(args):
                 if chrB in variants[chrA]:
                     if event_type in variants[chrA][chrB]:
                         for var in variants[chrA][chrB][event_type]:
-                            overlap=SVDB_overlap_module.variant_overlap(chrA,chrB,var[0],var[1],chrApos_db,chrBpos_db,args.overlap,args.bnd_distance)
+                            overlap=overlap_module.variant_overlap(chrA,chrB,var[0],var[1],chrApos_db,chrBpos_db,args.overlap,args.bnd_distance)
                             if overlap:
                                 line_found=True
 

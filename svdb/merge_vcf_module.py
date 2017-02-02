@@ -108,7 +108,7 @@ def main(args):
 
     print_header(vcf_list)
 
-    to_be_printed=SVDB_merge_vcf_module_cython.merge(variants,args.ci,args.overlap,args.bnd_distance,args.no_intra,args.no_var,args.pass_only)
+    to_be_printed=merge_vcf_module_cython.merge(variants,args.ci,args.overlap,args.bnd_distance,args.no_intra,args.no_var,args.pass_only)
     #print the variants in similar order as the input
     for chra in sorted(to_be_printed):
         for variant in sorted(to_be_printed[chra],key = lambda x: int(x[1])):
