@@ -55,8 +55,8 @@ def db_header():
     headerString+="##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n";
     headerString+="##INFO=<ID=END,Number=1,Type=String,Description=\"End of an intra-chromosomal variant\">\n";
     headerString+="##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n";
-    headerString+="##INFO=<ID=NSAMPLES,Number=1,Type=Int,Description=\"the number of samples within the database\">\n";
-    headerString+="##INFO=<ID=VARIANTS,Number=1,Type=Int,Description=\"a| separated list of the positions of the clustered variants\">\n";
+    headerString+="##INFO=<ID=NSAMPLES,Number=1,Type=Integer,Description=\"the number of samples within the database\">\n";
+    headerString+="##INFO=<ID=VARIANTS,Number=1,Type=Integer,Description=\"a| separated list of the positions of the clustered variants\">\n";
     headerString+="##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the vriant\">\n";
     headerString+="##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
     headerString+="##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"
