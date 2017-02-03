@@ -23,7 +23,7 @@ def build_db(args,samples,prefix):
     args.overlap=0.9
     args.bnd_distance=500
     args.prefix=prefix+".db";
-    SVDB_build_module.main(args)
+    build_module.main(args)
 
 def query_db(args,sample,db,prefix):
     args.prefix=prefix+".db";
@@ -36,7 +36,7 @@ def query_db(args,sample,db,prefix):
     args.prefix=prefix
     args.no_var=False
     args.memory=False
-    SVDB_query_module.main(args)
+    query_module.main(args)
 
 def get_frequencies(queried_vcf):
     frequency_histogram={}

@@ -90,10 +90,10 @@ def merge(variants,ci,overlap_param,bnd_distance,no_intra,no_var,pass_only):
                     if not no_intra or variants[chrA][i][-3] != variants[chrA][j][-3]:
                         overlap = False
                         if not ci:
-                            overlap=SVDB_overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap_param,bnd_distance)
+                            overlap=overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap_param,bnd_distance)
                         else:
                             ciA_query,ciB_query,ciA_db,ciB_db=find_ci(variants[chrA][i],variants[chrA][j])
-                            overlap=SVDB_overlap_module.ci_overlap(variants[chrA][i][2],variants[chrA][i][3],ciA_query,ciB_query,variants[chrA][j][2],variants[chrA][j][3],ciA_db,ciB_db)
+                            overlap=overlap_module.ci_overlap(variants[chrA][i][2],variants[chrA][i][3],ciA_query,ciB_query,variants[chrA][j][2],variants[chrA][j][3],ciA_db,ciB_db)
                         if overlap:
                             #add similar variants to the merge list and remove them
                             merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])

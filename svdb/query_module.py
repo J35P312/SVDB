@@ -141,13 +141,13 @@ def queryVCFDB(DBvariants, Query_variant,args):
                     hit_tmp = None
                     if not args.ci:
                         if not (chrA == chrB):
-                            hit_tmp=SVDB_overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
+                            hit_tmp=overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
 
                         elif chrBpos >= event[0] and event[1] >= chrApos:
-                            hit_tmp = SVDB_overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
+                            hit_tmp = overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
                     else:
-                        ciA_query,ciB_query,ciA_db,ciB_db=SVDB_merge_vcf_module_cython.find_ci(Query_variant,Query_variant)
-                        hit_tmp=SVDB_overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
+                        ciA_query,ciB_query,ciA_db,ciB_db=merge_vcf_module_cython.find_ci(Query_variant,Query_variant)
+                        hit_tmp=overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
 
                     if hit_tmp != None:
                         genotype=event[-1]["GT"]
@@ -192,7 +192,7 @@ def SQDB(Query_variant,args,c):
             var["posA"]=int( hit[0] )
             var["posB"]=int( hit[1] )
             var["index"]=hit[2]
-            similar=SVDB_overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
+            similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
             if similar:
                 match.add( var["index"] )
                     
