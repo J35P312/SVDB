@@ -13,7 +13,7 @@ pip install -U scikit-learn
 
 Optional: the code may be compiled using cython, this will speed up the database construction(this requires cython):
 
-python setup.py build_ext --inplace
+python setup.py install
 
 #modules:
 SVDB consists of five separate modules that are used to manage, query and create structural variant databases. These are the modules:
@@ -21,11 +21,11 @@ SVDB consists of five separate modules that are used to manage, query and create
 Build: This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants. These are the commands used to construct a structural variation database:
     
     print a help message
-        python SVDB.py --build --help  
+        svdb  --build --help  
     Construct a database, from a set of vcf files:
-        python SVDB.py --build --vcf sample1.vcf sample2.vcf sample3.vcf
+        svdb --build --vcf sample1.vcf sample2.vcf sample3.vcf
     construct a database from vcf files stored in a folder
-        python SVDB.py --build --folder SV_analysis_folder/
+        svdb --build --folder SV_analysis_folder/
         
     optional arguments:
         -h, --help                      show this help message and exit
@@ -87,7 +87,7 @@ Query: The query module is used to query a structural variant database. Typicall
     print a help message
        python SVDB.py --query --help
     Query a structural variant database, using a vcf file as query:  
-        python SVDB.py --query --query_vcf patient1.vcf --db control_db.vcf
+        svdb --query --query_vcf patient1.vcf --db control_db.vcf
     
     optional arguments:
         -h, --help                      show this help message and exit
@@ -122,9 +122,9 @@ Purge: The purge module is used to remove entries from a database:
     print a help message:
        python SVDB.py --purge --help
     Delete a sample from a DB, the sample id should be the same as the id written in the format columns of the db:
-        python SVDB.py --purge --sample patient2 --db my_svdb.vcf > cleaned_db.vcf
+        svdb --purge --sample patient2 --db my_svdb.vcf > cleaned_db.vcf
     Delete variants from a DB, the variants should be stored in a standard structural variant format:
-        python SVDB.py --purge --vcf delete_these_variants.vcf --db my_svdb.vcf > cleaned_db.vcf
+        svdb --purge --vcf delete_these_variants.vcf --db my_svdb.vcf > cleaned_db.vcf
     
     optional arguments:
         -h, --help                      show this help message and exit
@@ -147,7 +147,7 @@ Merge: The merge module merges variants within one or more vcf files. This could
     print a help message:
        python SVDB.py --merge --help
     merge vcf files:
-        python SVDB.py --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf > patient1_merged_callers.vcf 
+        svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf > patient1_merged_callers.vcf 
 
     optional arguments:
         -h, --help                      show this help message and exit
