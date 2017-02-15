@@ -8,12 +8,12 @@ except ImportError:
 
 if has_cython:
     ext_modules = cythonize([
-        "svdb/build_module.py",
-        "svdb/overlap_module.py",
-        "svdb/readVCF.py",
-        "svdb/merge_vcf_module_cython.py",
-        "svdb/hist_module.py",
-        "svdb/query_module.py"])
+        "SVDB_build_module.py",
+        "SVDB_overlap_module.py",
+        "SVDB_readVCF.py",
+        "SVDB_merge_vcf_module_cython.py",
+        "SVDB_hist_module.py",
+        "SVDB_query_module.py"])
 else:
     ext_modules = []
 
