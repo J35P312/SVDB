@@ -177,7 +177,7 @@ def generate_chains(db,prefix,distance,overlap,ci,sample_IDs,args):
     for hit in c.execute(A):
         number_of_variants=int(hit[0])
 
-    variant_list=set( range(0,number_of_variants) )
+    variant_list=set( range(0,number_of_variants+1) )
     summed=0;
     i =1
     while variant_list:

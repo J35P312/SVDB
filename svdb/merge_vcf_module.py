@@ -112,4 +112,4 @@ def main(args):
     #print the variants in similar order as the input
     for chra in sorted(to_be_printed):
         for variant in sorted(to_be_printed[chra],key = lambda x: int(x[1])):
-            print("\t".join(variant))
+            print("\t".join(variant).strip())

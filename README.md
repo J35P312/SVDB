@@ -11,14 +11,14 @@ pip install numpy
 
 pip install -U scikit-learn
 
-Optional: the code may be compiled using cython, this will speed up the database construction(this requires cython):
+SVDB is installed using the following command
 
 python setup.py install
 
 #modules:
 SVDB consists of five separate modules that are used to manage, query and create structural variant databases. These are the modules:
 
-Build: This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants. These are the commands used to construct a structural variation database:
+Build: This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
     
     print a help message
         svdb  --build --help  
@@ -30,19 +30,6 @@ Build: This module is used to construct structural variant databases from vcf fi
     optional arguments:
         -h, --help                      show this help message and exit
 
-        --no_merge                      skip the clustering of variants
-  
-        --ci                            overides overlap and bnd_distance,determine hits based
-                                        on the confidence interval of the position fo the
-                                        variants(0 if no CIPOS or CIEND is vailable)
-                                        
-        --bnd_distance BND_DISTANCE     the maximum distance between two similar precise
-                                        breakpoints(default = 2500) 
-                        
-        --overlap OVERLAP               the overlap required to merge two events(0 means
-                                        anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.8
-                                        
         --files [FILES [FILES ...]]      create a db using the specified vcf files(cannot be
                                          used with --folder)
                         
@@ -50,15 +37,43 @@ Build: This module is used to construct structural variant databases from vcf fi
         
         --prefix PREFIX                  the prefix of the output file, default = SVDB
 
-        
+
+Export: this module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorihms, overlap, DBSCAN, or CIPOS.
+ 
+    print a help message
+        svdb  --export --help  
+    Export the variants of the database database.db:
+        svdb --export --db database.db
+
+    optional arguments:
+        --no_merge            skip the merging of variants, print all variants in the db to a vcf file
+
+         --ci                  overides overlap and bnd_distance,determine hits based on the confidence interval of the position of the variants(0 if no CIPOS or CIEND is vailable)
+
+          --bnd_distance BND_DISTANCE  the maximum distance between two similar precise breakpoints(default = 2500)
+ 
+         --overlap OVERLAP     the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8
+
+         --DBSCAN              use dbscan to cluster the variants, overides the overlap based clustering algoritm
+
+          --epsilon EPSILON     used together with --DBSCAN; sets the epsilon paramter(default = 500bp)
+
+          --min_pts MIN_PTS     used together with 1--DBSCAN; sets the min_pts parameter(default = 2
+
+          --prefix PREFIX       the prefix of the output file, default = same as input
+
+
+          --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
+
+
 Hist: This module is used to compare structural variant vcf files, either by generating a similarity matrix, or by creating histograms of the efficency of databases of different sizes(based on input vcf files):
 
     print a help message
-        python SVDB.py --hist --help
+        svdb --hist --help
     Create histograms of different sizes, and compute their efficiency:
-        python --hist --sample_hist -folder input
+        svdb --hist --sample_hist -folder input
     Create a similarity matrix of the selected sampes:
-        python --hist --similarity_matrix -folder input
+        svdb --hist --similarity_matrix -folder input
     
     optional arguments:
     
@@ -88,7 +103,8 @@ Query: The query module is used to query a structural variant database. Typicall
        python SVDB.py --query --help
     Query a structural variant database, using a vcf file as query:  
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
-    
+        svdb --query --query_vcf patient1.vcf --sqdb control_db.db
+
     optional arguments:
         -h, --help                      show this help message and exit
 
