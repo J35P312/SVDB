@@ -4,13 +4,7 @@ The thousand genomes structural variant calls may also be used as a database:
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/
 
 #Install:
-Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn as well as numpy.
-These two packages may be installed using pip:
-
-pip install numpy
-
-pip install -U scikit-learn
-
+Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn v0.15.2 as well as numpy.
 SVDB is installed using the following command
 
 python setup.py install
@@ -101,7 +95,7 @@ Query: The query module is used to query a structural variant database. Typicall
 
     print a help message
        python SVDB.py --query --help
-    Query a structural variant database, using a vcf file as query:  
+    Query a structural variant database, using a vcf file as query:
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
         svdb --query --query_vcf patient1.vcf --sqdb control_db.db
 

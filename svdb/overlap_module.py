@@ -52,7 +52,7 @@ def ci_overlap_two_sided(chrApos_query,chrBpos_query,ciA_query,ciB_query,chrApos
 
 #check if intrachromosomal vaiants overlap
 def isSameVariation(chrApos_query,chrBpos_query,chrApos_db,chrBpos_db,ratio,distance): #event is in the DB, variation is the new variation I want to insert
-    if abs(chrApos_query-chrApos_db) < distance and abs(chrBpos_query-chrBpos_db) < distance:
+    if abs(chrApos_query-chrApos_db) <= distance and abs(chrBpos_query-chrBpos_db) <= distance:
         if(chrApos_query < chrApos_db):
             region_start=chrApos_query;
             overlap_start=chrApos_db;
