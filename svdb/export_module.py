@@ -237,7 +237,7 @@ def dbscan_export(args,sample_IDs):
                 chr_db[variant]["var_info"]=np.array(chr_db[variant]["var_info"])
                 chr_db[variant]["index"]=np.array(chr_db[variant]["index"])
                   
-                db = DBSCAN(eps=500, min_samples=2).fit(chr_db[variant]["coordinates"])
+                db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
                 
                 core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
                 core_samples_mask[db.core_sample_indices_] = True
