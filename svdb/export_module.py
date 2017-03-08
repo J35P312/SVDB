@@ -217,26 +217,29 @@ def dbscan_export(args,sample_IDs):
     chrB_list=[]    
     for chrB in c.execute('SELECT DISTINCT chrB FROM SVDB'):
         chrB_list.append(chrB[0])
+
+    var_list=[]
+    for variant in c.execute('SELECT DISTINCT var FROM SVDB'):
+        var_list.append(variant[0])
+
     i=0;
     for chrA in chrA_list:
         for chrB in chrB_list:
-            chr_db={}            
-            for hit in c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE chrA == \'{}\' AND chrB == \'{}\''.format(chrA,chrB)):
-                if not hit[-1] in chr_db:
-                    chr_db[ hit[-1] ]={}
-                    chr_db[ hit[-1] ]["coordinates"]=[]
-                    chr_db[ hit[-1] ]["var_info"]=[]
-                    chr_db[ hit[-1] ]["index"]=[]
-                
-                chr_db[ hit[-1] ]["coordinates"].append([hit[0],hit[1]])
-                chr_db[ hit[-1] ]["var_info"].append(hit[2])
-                chr_db[hit[-1]]["index"].append(hit[-2])
-                  
-            for variant in chr_db:
-                chr_db[variant]["coordinates"]=np.array(chr_db[variant]["coordinates"])
-                chr_db[variant]["var_info"]=np.array(chr_db[variant]["var_info"])
-                chr_db[variant]["index"]=np.array(chr_db[variant]["index"])
-                  
+            for variant in var_list:
+                chr_db={}
+                chr_db[ variant ]={}
+            
+                hits = c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(variant,chrA,chrB)).fetchall()
+                if not hits:
+                   continue
+
+                x=[v[0] for v in hits]
+                y=[v[1] for v in hits]
+
+                chr_db[variant]["coordinates"]=np.column_stack((x,y))
+                chr_db[variant]["var_info"]=np.array([v[2] for v in hits])
+                chr_db[variant]["index"]=np.array([v[3] for v in hits])
+
                 db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
                 
                 core_samples_mask = np.zeros_like(db.labels_, dtype=bool)

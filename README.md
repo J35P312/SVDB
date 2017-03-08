@@ -91,41 +91,33 @@ Hist: This module is used to compare structural variant vcf files, either by gen
                                         on the confidence interval of the position of the
                                         variants(0 if no CIPOS or CIEND is vailable)
 
-Query: The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database vcf:
+Query: The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
     print a help message
        python SVDB.py --query --help
     Query a structural variant database, using a vcf file as query:
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
+	The vcf may be a exported SVDB database or a multismple vcf. The frequencies used for each variant is computed from the format fields of the vcf.
+	The SVDB sqlite database may also be used for querying:
         svdb --query --query_vcf patient1.vcf --sqdb control_db.db
 
     optional arguments:
-        -h, --help                      show this help message and exit
 
-        --hit_tag HIT_TAG               the tag used to describe the number of hits within the
-                                        info field of the output vcf(default=OCC)
-                                        
-        --frequency_tag FREQUENCY_TAG   the tag used to describe the frequency of the
-                                        variant(defualt=FRQ)
-                        
-        --prefix PREFIX                 the prefix of the output file, default = print to stdout
+		-h, --help            show this help message and exit
+		--db DB               path to a SVDB db vcf
+		--sqdb SQDB           path to a SVDB sqlite db
+		--hit_tag HIT_TAG     the tag used to describe the number of hits within the info field of the output vcf(default=OCC)
+		--frequency_tag FREQUENCY_TAG the tag used to describe the frequency of the variant(defualt=FRQ)
+		--prefix PREFIX       the prefix of the output file, default = print to stdout --bnd_distance BND_DISTANCE the maximum distance between the breakpoints of two variantsbreakpoints(default = 10000)
+		--overlap OVERLAP     the overlap threshold for deciding if two variants are similar(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
+		--DBSCAN              use dbscan to cluster the variants, only available for the sqlite db, upon choosing DBSCAN, the overlap
+		--epsilon EPSILON     used together with --DBSCAN; sets the epsilon paramter(default = 500)
+		--min_pts MIN_PTS     used together with 1--DBSCAN; sets the min_pts parameter(default = 2)
+		--memory              load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
+		--no_var              count overlaping variants of different type as hits in the db
+		--invert              invert the sorting order so that high frequency samples are present on top of the output vcf
+		--ci				  overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)
 
-        --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
-                                        (default = 10000)
-                        
-                        
-        --overlap OVERLAP               the overlap required to merge two events(0 means
-                                        anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.6
-                                        
-        --no_var                        count overlaping variants of different type as hits
-        
-        --invert                        invert the sorting order so that high frequency
-                                        samples are present on top of the output vcf
-                              
-        --ci                            overides overlap and bnd_distance,determine hits based
-                                        on the confidence interval of the position fo the
-                                        variants(0 if no CIPOS or CIEND is vailable)
 
 Purge: The purge module is used to remove entries from a database:
 
