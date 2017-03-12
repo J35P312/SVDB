@@ -122,7 +122,8 @@ def main():
     elif args.merge:
         parser = argparse.ArgumentParser("""SVDB: vcf_merge module""")
         parser.add_argument('--merge', help="merge structural variants", required=False, action="store_true")
-        parser.add_argument('--vcf', nargs='*', type=str, help="remove all the entries within the DB that overlaps with any variant in the vcf",required=True)
+        parser.add_argument('--vcf', nargs='*', type=str, help="input vcf files, all input vcf files will be merged into one. Use the --prioriy flag to prioritize the callers/vcf files",required=True)
+        parser.add_argument('--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
         parser.add_argument('--bnd_distance', type=int,default= 2000,help="the maximum distance between two similar precise breakpoints(default = 2000)")
         parser.add_argument('--overlap', type=float, default = 0.95,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument('--ci', help="overides overlap and bnd_distance,merge based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")

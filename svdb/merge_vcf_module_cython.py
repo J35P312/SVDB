@@ -55,7 +55,14 @@ def merge_csq(info,csq):
 
     return(info)
 
-def merge(variants,ci,overlap_param,bnd_distance,no_intra,no_var,pass_only):
+def merge(variants,args):
+    ci=args.ci
+    overlap_param=args.overlap
+    bnd_distance=args.bnd_distance
+    no_intra=args.no_intra
+    no_var=args.no_var
+    pass_only=args.pass_only
+
     #search for similar variants
     to_be_printed={}
     for chrA in variants:
@@ -64,44 +71,63 @@ def merge(variants,ci,overlap_param,bnd_distance,no_intra,no_var,pass_only):
         while i < len(variants[chrA]):
             merge=[]
             csq=[]
-            j=i+1;
-            
 
-                    
+            j=i+1;
+                   
             while j < len(variants[chrA]):
             
                 if pass_only:
                     filter_tag=variants[chrA][i][-1].split("\t")[6]
-                    if not filter_tag == "PASS":
+                    if not filter_tag == "PASS" and not filter_tag == ".":
                         break
+
+                    filter_tag=variants[chrA][j][-1].split("\t")[6]
+                    if not filter_tag == "PASS" and not filter_tag == ".":
+                        j+=1
+                        continue
                             
                 #only treat varints on the same pair of chromosomes    
                 if not variants[chrA][i][0] == variants[chrA][j][0]:
                     j+=1
                     continue
-            
+
+                #if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag=variants[chrA][j][-1].split("\t")[6]
                     if not filter_tag == "PASS":
                         j+=1
                         continue
 
-                if variants[chrA][i][1] == variants[chrA][j][1] or no_var:
-                    if not no_intra or variants[chrA][i][-3] != variants[chrA][j][-3]:
-                        overlap = False
-                        if not ci:
-                            overlap=overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap_param,bnd_distance)
-                        else:
-                            ciA_query,ciB_query,ciA_db,ciB_db=find_ci(variants[chrA][i],variants[chrA][j])
-                            overlap=overlap_module.ci_overlap(variants[chrA][i][2],variants[chrA][i][3],ciA_query,ciB_query,variants[chrA][j][2],variants[chrA][j][3],ciA_db,ciB_db)
-                        if overlap:
-                            #add similar variants to the merge list and remove them
-                            merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])
-                            if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
-                                info=variants[chrA][j][-1].split("\t")[7]
-                                csq.append(info.split("CSQ=")[-1].split(";")[0])
-                            del variants[chrA][j]
-                            j += -1
+                #dont merge variants of different type
+                if not variants[chrA][i][1] == variants[chrA][j][1] and not no_var:
+                    j+=1
+                    continue
+
+                #if no_intra is chosen, variants may only be merged if they belong to different input files
+                if no_intra and variants[chrA][i][-3] == variants[chrA][j][-3]:
+                    j+=1
+                    continue
+
+                overlap = False
+                if not ci:
+                    overlap=overlap_module.variant_overlap(chrA,variants[chrA][i][0],variants[chrA][i][2],variants[chrA][i][3],variants[chrA][j][2],variants[chrA][j][3],overlap_param,bnd_distance)
+                else:
+                    ciA_query,ciB_query,ciA_db,ciB_db=find_ci(variants[chrA][i],variants[chrA][j])
+                    overlap=overlap_module.ci_overlap(variants[chrA][i][2],variants[chrA][i][3],ciA_query,ciB_query,variants[chrA][j][2],variants[chrA][j][3],ciA_db,ciB_db)
+
+                if overlap:
+                    #add similar variants to the merge list and remove them
+                    if args.priority:
+                        merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3])
+                    else:
+                        merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])
+
+                    if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
+                        info=variants[chrA][j][-1].split("\t")[7]
+                        csq.append(info.split("CSQ=")[-1].split(";")[0])
+                    del variants[chrA][j]
+                    j += -1
+
                 j+=1
             line=variants[chrA][i][-1].split("\t")
             line[7] += ";VARID=" + "|".join(merge)

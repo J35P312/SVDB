@@ -149,7 +149,16 @@ Merge: The merge module merges variants within one or more vcf files. This could
     print a help message:
        python SVDB.py --merge --help
     merge vcf files:
-        svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf > patient1_merged_callers.vcf 
+        svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf > patient1_merged_callers.vcf
+
+    Similar variants will be merged, and presented according to the order of the input vcf files. I.e If lumpy and cnvnator calls the same variant in the top example,
+    the variant will be printed as the lumpy call. In most cases, the order should be set according to the accuracy or detail of the info field of the different callers.
+    The order could also be set using the --priority flag:
+        svdb --merge --vcf patient1_lumpy.vcf:one patient1_cnvnator.vcf:2 patient1_TIDDIT.vcf:tiddit --priority tiddit,2,one > patient1_merged_callers.vcf
+
+    In this example, tiddit will have the highest order, cnvnator second etc.
+
+
 
     optional arguments:
         -h, --help                      show this help message and exit
@@ -160,6 +169,9 @@ Merge: The merge module merges variants within one or more vcf files. This could
         --overlap OVERLAP               the overlap required to merge two events(0 means
                                         anything that touches will be merged, 1 means that two
                                         events must be identical to be merged), default = 0.6
+
+
+        --priority                      prioritise the input vcf files
                               
         --ci                            overides overlap and bnd_distance,determine hits based
                                         on the confidence interval of the position fo the
@@ -170,3 +182,5 @@ Merge: The merge module merges variants within one or more vcf files. This could
         --no_var                        variants of different type will be merged
         
         --pass_only                     merge only variants labeled PASS
+
+

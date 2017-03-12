@@ -84,7 +84,6 @@ def print_header(vcf_list):
         print(subheader[entry].strip())
     print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
     print( "\t".join(columns) )
-    return("nada")
 
 def main(args):
     variants={}
@@ -95,6 +94,25 @@ def main(args):
         print("invalid input, either supply the vcf files, or add a number after each vcf name to asign the order manually")
         return(-1)
     else:
+        if args.priority:
+            priority_list=[]
+            priority_dictionary={}
+            vcf_dictionary={}
+            for vcf in vcf_list:
+                priority_dictionary[vcf.split(":")[-1]]=vcf.split(":")[0]
+                vcf_dictionary[vcf.split(":")[0]] = vcf.split(":")[-1]
+            for tag in args.priority.split(","):
+                if tag in priority_dictionary:
+                    priority_list.append(tag)
+
+            if not len(priority_list) == len(priority_dictionary):
+                print ("error tag/vcf mismatch, make sure that there is one tag per input vcf, or skip the --priority flag")
+                return(-1)
+
+            vcf_list=[]
+            for tag in priority_list:
+                vcf_list.append(priority_dictionary[tag])
+                
         for vcf in vcf_list:
             for line in open(vcf):
                 if line[0] == "#":
@@ -103,12 +121,15 @@ def main(args):
                     chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
                     if not chrA in variants:
                         variants[chrA]=[]
-                    variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])
+                    if args.priority:
+                        variants[chrA].append([chrB,event_type,posA,posB, vcf_dictionary[vcf],i,line.strip()])
+                    else:
+                        variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])
                     i+=1;
 
     print_header(vcf_list)
 
-    to_be_printed=merge_vcf_module_cython.merge(variants,args.ci,args.overlap,args.bnd_distance,args.no_intra,args.no_var,args.pass_only)
+    to_be_printed=merge_vcf_module_cython.merge(variants,args)
     #print the variants in similar order as the input
     for chra in sorted(to_be_printed):
         for variant in sorted(to_be_printed[chra],key = lambda x: int(x[1])):
