@@ -130,6 +130,7 @@ def main():
         parser.add_argument('--no_intra', help="no merging of variants within the same vcf", required=False, action="store_true")
         parser.add_argument('--no_var', help="variants of different type will be merged", required=False, action="store_true")
         parser.add_argument('--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
+        parser.add_argument('--same_order', help="Across all input vcf files, the order of the sample columns are the same", required=False, action="store_true")
         args= parser.parse_args()        
         merge_vcf_module.main(args)
 

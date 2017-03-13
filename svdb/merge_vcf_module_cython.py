@@ -37,6 +37,7 @@ def find_ci(query_variant,db_variant):
 
     return(ciA_query,ciB_query,ciA_db,ciB_db)
 
+#merge the csg fields of bnd variants
 def merge_csq(info,csq):
     var_csq=info.split("CSQ=")[-1].split(";")[0]
     csq.append(var_csq);
@@ -55,7 +56,42 @@ def merge_csq(info,csq):
 
     return(info)
 
-def merge(variants,args):
+def sort_format_field(line,samples,sample_order,priority_order,files,representing_file,args):
+    tmp_format=[]
+    var_samples=[]
+    i=0
+    #sort the format fields
+    if not args.same_order:
+        for sample in sorted(samples):
+            try:
+                sample_position=sample_order[sample][representing_file]
+                tmp_format.append( line[9+sample_position] )
+            except:
+                print("ERROR: The input file {} lacks sample {}, use the --same_order setting to disregard the sample ids").format(representing_file,sample)
+                quit()
+        for format_column in tmp_format:
+            line[9+i] = format_column
+            i+=1
+
+    #generate a union of the info fields
+    info_union=[]
+    tags_in_info=[]
+    for input_file in priority_order:
+        if not input_file in files:
+            continue
+        INFO=files[input_file].strip().split("\t")[7]
+        INFO_content=INFO.split(";")
+        for content in INFO_content:
+            tag=content.split("=")[0]
+            if not tag in tags_in_info:
+                tags_in_info.append(tag)
+                info_union.append(content)
+    new_info=";".join(info_union)     
+    line[7] = new_info
+
+    return(line)
+
+def merge(variants,samples,sample_order,priority_order,args):
     ci=args.ci
     overlap_param=args.overlap
     bnd_distance=args.bnd_distance
@@ -73,18 +109,15 @@ def merge(variants,args):
             csq=[]
 
             j=i+1;
-                   
+            files={}
             while j < len(variants[chrA]):
-            
+
+                #if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag=variants[chrA][i][-1].split("\t")[6]
                     if not filter_tag == "PASS" and not filter_tag == ".":
                         break
 
-                    filter_tag=variants[chrA][j][-1].split("\t")[6]
-                    if not filter_tag == "PASS" and not filter_tag == ".":
-                        j+=1
-                        continue
                             
                 #only treat varints on the same pair of chromosomes    
                 if not variants[chrA][i][0] == variants[chrA][j][0]:
@@ -94,7 +127,7 @@ def merge(variants,args):
                 #if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag=variants[chrA][j][-1].split("\t")[6]
-                    if not filter_tag == "PASS":
+                    if not filter_tag == "PASS" and not filter_tag == ".":
                         j+=1
                         continue
 
@@ -118,8 +151,10 @@ def merge(variants,args):
                 if overlap:
                     #add similar variants to the merge list and remove them
                     if args.priority:
+                        files[variants[chrA][j][-3]] = variants[chrA][j][-1]
                         merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3])
                     else:
+                        files[ variants[chrA][j][-3].replace(".vcf","").split("/")[-1] ] = variants[chrA][j][-1]
                         merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])
 
                     if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
@@ -135,7 +170,17 @@ def merge(variants,args):
                 line[7]=merge_csq(line[7],csq)
             if not line[0] in to_be_printed:
                 to_be_printed[line[0]]=[]
-            to_be_printed[line[0]].append(line)
+            if args.same_order:
+                to_be_printed[line[0]].append(line)
+            else:
+                if args.priority:
+                    files[variants[chrA][i][-3]] = "\t".join(line)
+                    representing_file = variants[chrA][i][-3]
+                else:
+                    files[ variants[chrA][i][-3].replace(".vcf","").split("/")[-1] ] = "\t".join(line)
+                    representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
+                line=sort_format_field(line,samples,sample_order,priority_order,files, representing_file,args)
+                to_be_printed[line[0]].append(line)
             i +=1
 
     return(to_be_printed)
