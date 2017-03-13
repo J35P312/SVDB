@@ -12,25 +12,25 @@ from sklearn import metrics
 from sklearn.datasets.samples_generator import make_blobs
 from sklearn.preprocessing import StandardScaler
 import numpy as np
-
+import time
 
 
 def fetch_index_variant(c,index):
-    A='SELECT var ,chrA , chrB ,posA ,ci_A_lower ,ci_A_upper ,posB ,ci_B_lower ,ci_B_upper, sample, idx  FROM SVDB WHERE idx IN ({}) '.format( ", ".join([ str(idx) for idx in index ]) )
+    A='SELECT posA ,ci_A_lower ,ci_A_upper ,posB ,ci_B_lower ,ci_B_upper, sample FROM SVDB WHERE idx IN ({}) '.format( ", ".join([ str(idx) for idx in index ]) )
     hits = c.execute(A) 
     variant={}
+    i=0
     for hit in hits:
-        variant[ int(hit[10])]={}
-        variant[ int(hit[10])]["type"]=hit[0]
-        variant[ int(hit[10])]["chrA"]=hit[1]
-        variant[ int(hit[10])]["chrB"]=hit[2]
-        variant[ int(hit[10])]["posA"]=int( hit[3] )
-        variant[ int(hit[10])]["ci_A_start"]= int(hit[4])
-        variant[ int(hit[10])]["ci_A_end"]= int(hit[5])
-        variant[ int(hit[10])]["posB"]=int( hit[6] )
-        variant[ int(hit[10])]["ci_B_start"]= int(hit[7])
-        variant[ int(hit[10])]["ci_B_end"]= int(hit[8])
-        variant[ int(hit[10])]["sample_id"]= hit[9]
+        variant[i]={}
+        variant[i]["posA"]=int( hit[0] )
+        variant[i]["ci_A_start"]= int(hit[1])
+        variant[i]["ci_A_end"]= int(hit[2])
+        variant[i]["posB"]=int( hit[3] )
+        variant[i]["ci_B_start"]= int(hit[4])
+        variant[i]["ci_B_end"]= int(hit[5])
+        variant[i]["sample_id"]= hit[6]
+        i += 1
+
     return(variant)
 
 def fetch_cluster_variant(c,index):
@@ -102,42 +102,47 @@ def vcf_line(cluster,id_tag,sample_IDs):
     vcf_line.append("\t".join(format))
     return( "\t".join(vcf_line) )
 
-def expand_chain(chain,distance,overlap,ci):
-
+def expand_chain(chain,chrA,chrB,distance,overlap,ci):
     chain_data={}
-    for index in chain:
-        variant=chain[index]
-        chain_data[index]=[]
-        for var_index in chain:
-            var=chain[var_index]
+    similarity_matrix=np.zeros( (len(chain),len(chain)) )
+
+    for i in range(0,len(chain)):
+        variant=chain[i]
+
+        for j in range(0,len(chain)):
+            var=chain[j]
 
             similar = False              
             if ci and var["posA"] >= variant["ci_A_start"]  and variant["ci_A_end"] >= var["posA"] and var["posB"] >= variant["ci_B_start"] and variant["ci_B_end"] >= var["posB"]:
                 similar=True
             else:
-                if variant["chrA"] == variant["chrB"]:
+                if chrA == chrB:
                      similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
                 else:
                      similar=overlap_module.precise_overlap(variant["posA"],variant["posB"],var["posA"],var["posB"],distance)
             if similar:
-                chain_data[index].append(var_index)
+                similarity_matrix[i][j]=1
 
-    return(chain_data)
+    return(similarity_matrix)
 
-def cluster_variants(variant_dictionary,chain,chain_data):
+def cluster_variants(variant_dictionary,similarity_matrix):
+    
+    cluster_sizes=[]
+    for i in range(0,len(variant_dictionary)):
+        cluster_sizes.append([i,len(similarity_matrix[i])])
+    
     clusters=[]
-    for index in sorted(chain_data, key=lambda index: len(chain_data[index]), reverse=True):
-        if not chain:
-            break
-        if not index in chain:
+    for index in sorted(cluster_sizes,key=lambda x: (x[1]), reverse=True):
+        i=index[0]
+        if similarity_matrix[i][0] == -1:
             continue
 
         cluster_dictionary={}
-        for var in chain_data[index]:
-            if var in chain:
-                chain.remove(var)
+        clustered_samples=similarity_matrix[i].nonzero()
+        for var in list(clustered_samples[0]):
+            similarity_matrix[var][0] = -1
             cluster_dictionary[var]=variant_dictionary[var]
-        variant=variant_dictionary[index]
+        variant=variant_dictionary[i]
        
         clusters.append( [variant,cluster_dictionary] )      
     return(clusters)
@@ -259,9 +264,12 @@ def export(args,sample_IDs):
                         i += 1
                     else:
                         variant_dictionary=fetch_index_variant(c,indexes)
-                        chain_data=expand_chain(variant_dictionary,args.bnd_distance,args.overlap,args.ci)
-                        clusters=cluster_variants(variant_dictionary,set(indexes),chain_data)
+                        similarity_matrix=expand_chain(variant_dictionary,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
+                        clusters=cluster_variants(variant_dictionary,similarity_matrix)
                         for clustered_variants in clusters:
+                            clustered_variants[0]["type"]=variant
+                            clustered_variants[0]["chrA"]=chrA
+                            clustered_variants[0]["chrB"]=chrB
                             f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
                             i += 1
                         
