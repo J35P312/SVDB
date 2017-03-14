@@ -132,6 +132,10 @@ def main(args):
             priority_order = priority_list
 
         for vcf in vcf_list:
+            if not args.priority:
+                vcf_dictionary[ vcf ]=vcf.split(".vcf")[0].split("/")[-1]
+                priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
+
             for line in open(vcf):
                 if line[0] == "#":
                     pass
@@ -142,8 +146,6 @@ def main(args):
                     if args.priority:
                         variants[chrA].append([chrB,event_type,posA,posB, vcf_dictionary[vcf],i,line.strip()])
                     else:
-                        vcf_dictionary[ vcf ]=vcf.split(".vcf")[0].split("/")[-1]
-                        priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
                         variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])
                     i+=1;
 

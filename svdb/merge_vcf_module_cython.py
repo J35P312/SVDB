@@ -76,19 +76,25 @@ def sort_format_field(line,samples,sample_order,priority_order,files,representin
     #generate a union of the info fields
     info_union=[]
     tags_in_info=[]
+    #print "TEST"
+    #print priority_order
     for input_file in priority_order:
+
         if not input_file in files:
             continue
         INFO=files[input_file].strip().split("\t")[7]
         INFO_content=INFO.split(";")
+        
         for content in INFO_content:
             tag=content.split("=")[0]
             if not tag in tags_in_info:
                 tags_in_info.append(tag)
                 info_union.append(content)
+
     new_info=";".join(info_union)     
     line[7] = new_info
-
+    
+    
     return(line)
 
 def merge(variants,samples,sample_order,priority_order,args):
@@ -103,15 +109,20 @@ def merge(variants,samples,sample_order,priority_order,args):
     to_be_printed={}
     for chrA in variants:
 
-        i=0;
-        while i < len(variants[chrA]):
+        analysed_variants=set([])
+        for i in range(0,len(variants[chrA])):
+            if i in analysed_variants:
+                continue
+            
             merge=[]
             csq=[]
 
-            j=i+1;
             files={}
-            while j < len(variants[chrA]):
-
+            for j in range(i+1,len(variants[chrA])):
+                if j in analysed_variants:
+                    continue
+                #print "i:{}".format(i)
+                #print "j:{}".format(j)
                 #if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag=variants[chrA][i][-1].split("\t")[6]
@@ -121,24 +132,20 @@ def merge(variants,samples,sample_order,priority_order,args):
                             
                 #only treat varints on the same pair of chromosomes    
                 if not variants[chrA][i][0] == variants[chrA][j][0]:
-                    j+=1
                     continue
 
                 #if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag=variants[chrA][j][-1].split("\t")[6]
                     if not filter_tag == "PASS" and not filter_tag == ".":
-                        j+=1
                         continue
 
                 #dont merge variants of different type
                 if not variants[chrA][i][1] == variants[chrA][j][1] and not no_var:
-                    j+=1
                     continue
 
                 #if no_intra is chosen, variants may only be merged if they belong to different input files
                 if no_intra and variants[chrA][i][-3] == variants[chrA][j][-3]:
-                    j+=1
                     continue
 
                 overlap = False
@@ -160,10 +167,8 @@ def merge(variants,samples,sample_order,priority_order,args):
                     if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
                         info=variants[chrA][j][-1].split("\t")[7]
                         csq.append(info.split("CSQ=")[-1].split(";")[0])
-                    del variants[chrA][j]
-                    j += -1
-
-                j+=1
+                    analysed_variants.add(j)
+            
             line=variants[chrA][i][-1].split("\t")
             line[7] += ";VARID=" + "|".join(merge)
             if csq:
@@ -173,14 +178,19 @@ def merge(variants,samples,sample_order,priority_order,args):
             if args.same_order:
                 to_be_printed[line[0]].append(line)
             else:
+                
                 if args.priority:
                     files[variants[chrA][i][-3]] = "\t".join(line)
                     representing_file = variants[chrA][i][-3]
                 else:
                     files[ variants[chrA][i][-3].replace(".vcf","").split("/")[-1] ] = "\t".join(line)
                     representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
+                
                 line=sort_format_field(line,samples,sample_order,priority_order,files, representing_file,args)
+                
                 to_be_printed[line[0]].append(line)
-            i +=1
+            
+            analysed_variants.add(i)
+
 
     return(to_be_printed)
