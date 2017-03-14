@@ -8,7 +8,9 @@ Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn v
 SVDB is installed using the following command
 
 python setup.py install
-
+or 
+python setup.py -q install
+for quiet install
 #modules:
 SVDB consists of five separate modules that are used to manage, query and create structural variant databases. These are the modules:
 
