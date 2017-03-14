@@ -104,10 +104,9 @@ def vcf_line(cluster,id_tag,sample_IDs):
 
 def expand_chain(chain,chrA,chrB,distance,overlap,ci):
     chain_data={}
-    similarity_matrix=np.zeros( (len(chain),len(chain)) )
-
     for i in range(0,len(chain)):
         variant=chain[i]
+        chain_data[i]=[]
 
         for j in range(0,len(chain)):
             var=chain[j]
@@ -121,9 +120,9 @@ def expand_chain(chain,chrA,chrB,distance,overlap,ci):
                 else:
                      similar=overlap_module.precise_overlap(variant["posA"],variant["posB"],var["posA"],var["posB"],distance)
             if similar:
-                similarity_matrix[i][j]=1
+                chain_data[i].append(j)
 
-    return(similarity_matrix)
+    return(chain_data)
 
 def cluster_variants(variant_dictionary,similarity_matrix):
     
@@ -138,8 +137,7 @@ def cluster_variants(variant_dictionary,similarity_matrix):
             continue
 
         cluster_dictionary={}
-        clustered_samples=similarity_matrix[i].nonzero()
-        for var in list(clustered_samples[0]):
+        for var in similarity_matrix[i]:
             similarity_matrix[var][0] = -1
             cluster_dictionary[var]=variant_dictionary[var]
         variant=variant_dictionary[i]
