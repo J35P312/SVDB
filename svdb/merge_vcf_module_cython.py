@@ -159,10 +159,10 @@ def merge(variants,samples,sample_order,priority_order,args):
                     #add similar variants to the merge list and remove them
                     if args.priority:
                         files[variants[chrA][j][-3]] = variants[chrA][j][-1]
-                        merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3])
+                        merge.append(variants[chrA][j][-1].split("\t")[2].replace(";","_")+":"+variants[chrA][j][-3])
                     else:
                         files[ variants[chrA][j][-3].replace(".vcf","").split("/")[-1] ] = variants[chrA][j][-1]
-                        merge.append(variants[chrA][j][-1].split("\t")[2]+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])
+                        merge.append(variants[chrA][j][-1].split("\t")[2].replace(";","_")+":"+variants[chrA][j][-3].replace(".vcf","").split("/")[-1])
 
                     if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
                         info=variants[chrA][j][-1].split("\t")[7]
@@ -170,7 +170,9 @@ def merge(variants,samples,sample_order,priority_order,args):
                     analysed_variants.add(j)
             
             line=variants[chrA][i][-1].split("\t")
-            line[7] += ";VARID=" + "|".join(merge)
+            if merge:
+                line[7] += ";VARID=" + "|".join(merge)
+
             if csq:
                 line[7]=merge_csq(line[7],csq)
             if not line[0] in to_be_printed:
