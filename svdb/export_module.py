@@ -145,10 +145,109 @@ def cluster_variants(variant_dictionary,similarity_matrix):
         clusters.append( [variant,cluster_dictionary] )      
     return(clusters)
 
+def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
+    f = open(args.prefix+".vcf",'a')
+    chr_db={}
+    chr_db[ variant ]={}
+            
+    hits = c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(variant,chrA,chrB)).fetchall()
+    if not hits:
+        f.close()
+        return i
+
+    x=[v[0] for v in hits]
+    y=[v[1] for v in hits]
+
+    chr_db[variant]["coordinates"]=np.column_stack((x,y))
+    chr_db[variant]["var_info"]=np.array([v[2] for v in hits])
+    chr_db[variant]["index"]=np.array([v[3] for v in hits])
+
+    if args.DBSCAN:
+        db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
+    else:
+        db = DBSCAN(eps=args.bnd_distance, min_samples=2).fit(chr_db[variant]["coordinates"])
+
+        core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+        core_samples_mask[db.core_sample_indices_] = True
+        labels = db.labels_
+        #print variant
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+        unique_labels = set(labels)
+        stats=[]
+        #print the unique variants
+        unique_xy=chr_db[variant]["coordinates"][  labels == -1 ]
+        unique_index=chr_db[variant]["index"][  labels == -1 ]
+    
+        for j in range(0,len( chr_db[variant]["coordinates"][ labels == -1] ) ):
+            xy = unique_xy[j]
+            indexes=[ unique_index[j] ]
+                    
+                    
+            variant_dictionary=fetch_cluster_variant(c,indexes)
+                        
+            representing_var={}
+            representing_var["type"]=variant
+            representing_var["chrA"]=chrA
+            representing_var["chrB"]=chrB
+            representing_var["posA"]= xy[0]
+            representing_var["ci_A_start"]=  xy[0]
+            representing_var["ci_A_end"]= xy[0]
+            representing_var["posB"]= xy[1]
+            representing_var["ci_B_start"]= xy[1]
+            representing_var["ci_B_end"]= xy[1]                      
+                        
+
+            cluster=[representing_var,variant_dictionary] 
+            f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
+            i += 1
+                                        
+        #print the clusters
+        for k in unique_labels:
+            class_member_mask = (labels == k)
+            xy = chr_db[variant]["coordinates"][class_member_mask & core_samples_mask]
+            indexes=chr_db[variant]["index"][class_member_mask & core_samples_mask]
+            if k == -1:
+                continue
+            elif args.DBSCAN:
+                avg_point=np.array([np.mean(xy[:,0]),np.mean(xy[:,1])])
+                        
+                distance=[]
+                for point in xy:
+                    distance.append( ( sum((avg_point-point)**2))**0.5  )
+                        
+                variant_dictionary=fetch_cluster_variant(c,indexes)
+ 
+                representing_var={}
+                representing_var["type"]=variant
+                representing_var["chrA"]=chrA
+                representing_var["chrB"]=chrB
+                representing_var["posA"]= int(avg_point[0])
+                representing_var["ci_A_start"]=  np.amin(xy[:,0])
+                representing_var["ci_A_end"]= np.amax(xy[:,0])
+                representing_var["posB"]= int(avg_point[1])
+                representing_var["ci_B_start"]= np.amin(xy[:,1])
+                representing_var["ci_B_end"]= np.amax(xy[:,1])                      
+                            
+                cluster=[representing_var,variant_dictionary]   
+                f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
+                i += 1
+            else:
+                variant_dictionary=fetch_index_variant(c,indexes)
+                similarity_matrix=expand_chain(variant_dictionary,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
+                clusters=cluster_variants(variant_dictionary,similarity_matrix)
+                for clustered_variants in clusters:
+                    clustered_variants[0]["type"]=variant
+                    clustered_variants[0]["chrA"]=chrA
+                    clustered_variants[0]["chrB"]=chrB
+                    f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
+                    i += 1
+    f.close()
+    return i
+
 def export(args,sample_IDs):
 
     db=args.db
-    f = open(args.prefix+".vcf",'a')
     conn = sqlite3.connect(db)
     if args.memory:
         memory_db=sqlite3.connect(':memory:')
@@ -176,105 +275,7 @@ def export(args,sample_IDs):
     for chrA in chrA_list:
         for chrB in chrB_list:
             for variant in var_list:
-                chr_db={}
-                chr_db[ variant ]={}
-            
-                hits = c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(variant,chrA,chrB)).fetchall()
-                if not hits:
-                   continue
-
-                x=[v[0] for v in hits]
-                y=[v[1] for v in hits]
-
-                chr_db[variant]["coordinates"]=np.column_stack((x,y))
-                chr_db[variant]["var_info"]=np.array([v[2] for v in hits])
-                chr_db[variant]["index"]=np.array([v[3] for v in hits])
-
-                if args.DBSCAN:
-                    db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
-                else:
-                    db = DBSCAN(eps=args.bnd_distance, min_samples=2).fit(chr_db[variant]["coordinates"])
-
-                core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-                core_samples_mask[db.core_sample_indices_] = True
-                labels = db.labels_
-                #print variant
-                n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-
-                unique_labels = set(labels)
-                stats=[]
-                #print the unique variants
-                unique_xy=chr_db[variant]["coordinates"][  labels == -1 ]
-                unique_index=chr_db[variant]["index"][  labels == -1 ]
-    
-                for j in range(0,len( chr_db[variant]["coordinates"][ labels == -1] ) ):
-                    xy = unique_xy[j]
-                    indexes=[ unique_index[j] ]
-                    
-                    
-                    variant_dictionary=fetch_cluster_variant(c,indexes)
-                        
-                    representing_var={}
-                    representing_var["type"]=variant
-                    representing_var["chrA"]=chrA
-                    representing_var["chrB"]=chrB
-                    representing_var["posA"]= xy[0]
-                    representing_var["ci_A_start"]=  xy[0]
-                    representing_var["ci_A_end"]= xy[0]
-                    representing_var["posB"]= xy[1]
-                    representing_var["ci_B_start"]= xy[1]
-                    representing_var["ci_B_end"]= xy[1]                      
-                        
-
-                    cluster=[representing_var,variant_dictionary] 
-                    f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
-                    i += 1
-                                        
-                #print the clusters
-                for k in unique_labels:
-                    class_member_mask = (labels == k)
-                    xy = chr_db[variant]["coordinates"][class_member_mask & core_samples_mask]
-                    indexes=chr_db[variant]["index"][class_member_mask & core_samples_mask]
-                    if k == -1:
-                        pass
-                    elif args.DBSCAN:
-                        avg_point=np.array([np.mean(xy[:,0]),np.mean(xy[:,1])])
-                        
-                        distance=[]
-                        for point in xy:
-                            distance.append( ( sum((avg_point-point)**2))**0.5  )
-                        
-                        variant_dictionary=fetch_cluster_variant(c,indexes)
- 
-                        representing_var={}
-                        representing_var["type"]=variant
-                        representing_var["chrA"]=chrA
-                        representing_var["chrB"]=chrB
-                        representing_var["posA"]= int(avg_point[0])
-                        representing_var["ci_A_start"]=  np.amin(xy[:,0])
-                        representing_var["ci_A_end"]= np.amax(xy[:,0])
-                        representing_var["posB"]= int(avg_point[1])
-                        representing_var["ci_B_start"]= np.amin(xy[:,1])
-                        representing_var["ci_B_end"]= np.amax(xy[:,1])                      
-                            
-                        cluster=[representing_var,variant_dictionary]   
-                        f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
-                        i += 1
-                    else:
-                        variant_dictionary=fetch_index_variant(c,indexes)
-                        similarity_matrix=expand_chain(variant_dictionary,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
-                        clusters=cluster_variants(variant_dictionary,similarity_matrix)
-                        for clustered_variants in clusters:
-                            clustered_variants[0]["type"]=variant
-                            clustered_variants[0]["chrA"]=chrA
-                            clustered_variants[0]["chrB"]=chrB
-                            f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
-                            i += 1
-                        
-    f.close()
-
-
-
+                i=svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i)                        
 
  
 def main(args):
