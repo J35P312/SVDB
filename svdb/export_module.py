@@ -19,6 +19,7 @@ def fetch_index_variant(c,index):
     A='SELECT posA ,ci_A_lower ,ci_A_upper ,posB ,ci_B_lower ,ci_B_upper, sample FROM SVDB WHERE idx IN ({}) '.format( ", ".join([ str(idx) for idx in index ]) )
     hits = c.execute(A) 
     variant={}
+    coordinates=[]
     i=0
     for hit in hits:
         variant[i]={}
@@ -29,9 +30,10 @@ def fetch_index_variant(c,index):
         variant[i]["ci_B_start"]= int(hit[4])
         variant[i]["ci_B_end"]= int(hit[5])
         variant[i]["sample_id"]= hit[6]
+        coordinates.append([i,int(hit[1]),int(hit[2])])
         i += 1
 
-    return(variant)
+    return(variant, np.array(coordinates) )
 
 def fetch_cluster_variant(c,index):
     A='SELECT posA, posB, sample, idx FROM SVDB WHERE idx IN ({}) '.format( ", ".join([ str(idx) for idx in index ]) )
@@ -102,23 +104,32 @@ def vcf_line(cluster,id_tag,sample_IDs):
     vcf_line.append("\t".join(format))
     return( "\t".join(vcf_line) )
 
-def expand_chain(chain,chrA,chrB,distance,overlap,ci):
+def expand_chain(chain,coordinates,chrA,chrB,distance,overlap,ci):
     chain_data={}
     for i in range(0,len(chain)):
         variant=chain[i]
         chain_data[i]=[]
 
-        for j in range(0,len(chain)):
-            var=chain[j]
 
+        if ci:
+            rows=coordinates[ ( variant["ci_A_start"] >= abs(coordinates[1] - variant["posA"])  ) & ( variant["ci_B_start"] >= abs(coordinates[2] - variant["posB"])  )]
+
+        elif chrA == chrB:
+            rows=coordinates[ ( distance >= abs(coordinates[1] - variant["posA"])  ) & ( distance >= abs(coordinates[2] - variant["posB"])  ) & ( variant["posB"] >=  coordinates[1] )  & (coordinates[2] >= variant["posB"] ) ]
+
+        else:
+            rows=coordinates[ ( distance >= abs(coordinates[1] - variant["posA"])  ) & ( distance >= abs(coordinates[2] - variant["posB"])  )]
+
+        candidates= rows[:,0]
+
+        for j in candidates:
+
+            var=chain[j]
             similar = False              
-            if ci and var["posA"] >= variant["ci_A_start"]  and variant["ci_A_end"] >= var["posA"] and var["posB"] >= variant["ci_B_start"] and variant["ci_B_end"] >= var["posB"]:
+            if ci or chrA != chrB:
                 similar=True
             else:
-                if chrA == chrB:
-                     similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
-                else:
-                     similar=overlap_module.precise_overlap(variant["posA"],variant["posB"],var["posA"],var["posB"],distance)
+                similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
             if similar:
                 chain_data[i].append(j)
 
@@ -233,8 +244,9 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
                 f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
                 i += 1
             else:
-                variant_dictionary=fetch_index_variant(c,indexes)
-                similarity_matrix=expand_chain(variant_dictionary,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
+
+                variant_dictionary,coordinates=fetch_index_variant(c,indexes)
+                similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
                 clusters=cluster_variants(variant_dictionary,similarity_matrix)
                 for clustered_variants in clusters:
                     clustered_variants[0]["type"]=variant
