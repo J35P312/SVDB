@@ -30,7 +30,7 @@ def fetch_index_variant(c,index):
         variant[i]["ci_B_start"]= int(hit[4])
         variant[i]["ci_B_end"]= int(hit[5])
         variant[i]["sample_id"]= hit[6]
-        coordinates.append([i,int(hit[1]),int(hit[2])])
+        coordinates.append([i,int(hit[0]),int(hit[3])])
         i += 1
 
     return(variant, np.array(coordinates) )
@@ -62,6 +62,8 @@ def db_header():
     headerString+="##INFO=<ID=VARIANTS,Number=1,Type=Integer,Description=\"a| separated list of the positions of the clustered variants\">\n";
     headerString+="##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the vriant\">\n";
     headerString+="##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
+    headerString+="##INFO=<ID=CIPOS,Number=2,Type=Integer,Description=\"Confidence interval around POS\">\n"
+    headerString+="##INFO=<ID=CIEND,Number=2,Type=Integer,Description=\"Confidence interval around END\">\n"
     headerString+="##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"
     return(headerString)
 
@@ -73,7 +75,7 @@ def vcf_line(cluster,id_tag,sample_IDs):
     vcf_line.append( str(cluster[0]["posA"]) )
     vcf_line.append( id_tag )
     vcf_line.append( "N" )
-    if cluster[0]["chrA"] == cluster[0]["chrB"]:
+    if cluster[0]["chrA"] == cluster[0]["chrB"] and not cluster[0]["type"] == "BND":
         vcf_line.append( "<" + cluster[0]["type"] + ">"  )
         info_field += "END={};SVLEN={};".format(cluster[0]["posB"],abs(cluster[0]["posA"]-cluster[0]["posB"]))
     else:
@@ -81,9 +83,21 @@ def vcf_line(cluster,id_tag,sample_IDs):
         
         
     sample_set=set([])
+    CIPOS=[]
+    CIEND=[]
+
     for variant in cluster[1]:
+        CIPOS.append(cluster[1][variant]["posA"])
+        CIEND.append(cluster[1][variant]["posB"])
         sample_set.add(cluster[1][variant]["sample_id"])
-    info_field += "NSAMPLES={};OCC={};FRQ={};".format(len(sample_IDs),len(sample_set),round(len(sample_set)/float(len(sample_IDs)) ,2))
+
+    CIPOS_start=-abs(cluster[0]["posA"]-min(CIPOS))
+    CIPOS_end=abs(cluster[0]["posA"]-max(CIPOS))
+
+    CIEND_start=-abs(cluster[0]["posB"]-min(CIEND))
+    CIEND_end=abs(cluster[0]["posB"]-max(CIEND))
+
+    info_field += "NSAMPLES={};OCC={};FRQ={};CIPOS={},{};CIEND={},{};".format(len(sample_IDs),len(sample_set),round(len(sample_set)/float(len(sample_IDs)) ,2),CIPOS_start,CIPOS_end,CIEND_start,CIEND_end)
     variant_field="VARIANTS="
     for variant in cluster[1]:
         variant_field +="|{}:{}:{}".format(cluster[1][variant]["sample_id"],cluster[1][variant]["posA"],cluster[1][variant]["posB"])
@@ -110,23 +124,19 @@ def expand_chain(chain,coordinates,chrA,chrB,distance,overlap,ci):
         variant=chain[i]
         chain_data[i]=[]
 
-
-        if ci:
-            rows=coordinates[ ( variant["ci_A_start"] >= abs(coordinates[1] - variant["posA"])  ) & ( variant["ci_B_start"] >= abs(coordinates[2] - variant["posB"])  )]
-
-        elif chrA == chrB:
-            rows=coordinates[ ( distance >= abs(coordinates[1] - variant["posA"])  ) & ( distance >= abs(coordinates[2] - variant["posB"])  ) & ( variant["posB"] >=  coordinates[1] )  & (coordinates[2] >= variant["posB"] ) ]
+        if chrA == chrB and not ci:
+            rows=coordinates[ ( distance >= abs(coordinates[:,1] - variant["posA"])  ) & ( distance >= abs(coordinates[:,2] - variant["posB"])  ) & ( variant["posB"] >=  coordinates[:,1] )  & (coordinates[:,2] >= variant["posB"] ) ]
 
         else:
-            rows=coordinates[ ( distance >= abs(coordinates[1] - variant["posA"])  ) & ( distance >= abs(coordinates[2] - variant["posB"])  )]
-
+            rows=coordinates[ ( distance >= abs(coordinates[:,1] - variant["posA"])  ) & ( distance >= abs(coordinates[:,2] - variant["posB"])  ) ]
         candidates= rows[:,0]
-
         for j in candidates:
 
             var=chain[j]
-            similar = False              
-            if ci or chrA != chrB:
+            similar = False
+            if ci:
+                similar=overlap_module.ci_overlap(variant["posA"],variant["posB"],[variant["ci_A_start"],variant["ci_A_end"]],[variant["ci_B_start"],variant["ci_B_end"]],var["posA"],var["posB"],[0,0],[0,0])
+            elif chrA != chrB:
                 similar=True
             else:
                 similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
@@ -160,7 +170,7 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
     f = open(args.prefix+".vcf",'a')
     chr_db={}
     chr_db[ variant ]={}
-            
+           
     hits = c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(variant,chrA,chrB)).fetchall()
     if not hits:
         f.close()
@@ -177,7 +187,6 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
         db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
     else:
         db = DBSCAN(eps=args.bnd_distance, min_samples=2).fit(chr_db[variant]["coordinates"])
-
         core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
         core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
@@ -244,7 +253,6 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
                 f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
                 i += 1
             else:
-
                 variant_dictionary,coordinates=fetch_index_variant(c,indexes)
                 similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
                 clusters=cluster_variants(variant_dictionary,similarity_matrix)
@@ -258,6 +266,7 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
     return i
 
 def export(args,sample_IDs):
+    print "connecting to db"
 
     db=args.db
     conn = sqlite3.connect(db)
@@ -284,13 +293,15 @@ def export(args,sample_IDs):
         var_list.append(variant[0])
 
     i=0;
+    print "clustering"
     for chrA in chrA_list:
         for chrB in chrB_list:
             for variant in var_list:
-                i=svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i)                        
+                i=svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i)
 
  
 def main(args):
+    print "initiating"
     sample_IDs=[]
     if not args.prefix:
         args.prefix=args.db.replace(".db","")

@@ -69,8 +69,6 @@ def readVCFLine(line):
         if "<" in variation[4] and ">" in variation[4]:
             if "DUP" in event_type:
                 event_type="DUP"
-            if "INS" in event_type:
-                event_type="BND"
         else:
             if "SVTYPE" in description:
                 event_type=description["SVTYPE"];

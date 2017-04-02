@@ -79,6 +79,10 @@ def main(args):
             info_field=line.split("\t")[7]
             DBvariants[chrA][chrB].append([int(posA),int(posB),event_type,FORMAT])
             db_size=len(FORMAT["GT"])
+        for chrA in DBvariants:
+            for chrB in DBvariants[chrA]:
+                 DBvariants[chrA][chrB]=np.array(DBvariants[chrA][chrB])
+
         for query in queries:
             hits = queryVCFDB(DBvariants, query,args)
             query[5] = hits            
@@ -114,7 +118,7 @@ def main(args):
             
             
     for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
-        vcf_entry = query[6].rstrip()
+        vcf_entry = query[6].strip()
         content=vcf_entry.split("\t")
         content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
         if not args.prefix:
@@ -131,30 +135,34 @@ def queryVCFDB(DBvariants, Query_variant,args):
     chrBpos = Query_variant[3]
     variation_type=Query_variant[4]
     samples=set([])
-    if chrA in DBvariants:
-        # now look if chrB is here
-        if chrB in DBvariants[chrA]:
-            # check if this variation is already present
-            for event in DBvariants[chrA][chrB]:
-                #check if the variant type of the events is the same
-                if(event[2] == variation_type or args.no_var):
-                    hit_tmp = None
-                    if not args.ci:
-                        if not (chrA == chrB):
-                            hit_tmp=overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
 
-                        elif chrBpos >= event[0] and event[1] >= chrApos:
-                            hit_tmp = overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
-                    else:
-                        ciA_query,ciB_query,ciA_db,ciB_db=merge_vcf_module_cython.find_ci(Query_variant,Query_variant)
-                        hit_tmp=overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
+    if not chrA in DBvariants:
+        return 0
+    if not chrB in DBvariants[chrA]:
+        return 0
 
-                    if hit_tmp != None:
-                        genotype=event[-1]["GT"]
-                        for i in range(0,len(genotype)):
-                            GT=genotype[i]
-                            if not GT == "0|0" and not GT == "0/0": 
-                                samples = samples | set([i])
+    candidates=DBvariants[chrA][chrB][ ( args.bnd_distance >= abs(DBvariants[chrA][chrB][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][:,1] - chrBpos)  ) ]    
+    # check if this variation is already present
+    for event in candidates:
+    #check if the variant type of the events is the same
+        if(event[2] == variation_type or args.no_var):
+            hit_tmp = None
+            if not args.ci:
+                if not (chrA == chrB):
+                    hit_tmp=overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
+
+                elif chrBpos >= event[0] and event[1] >= chrApos:
+                    hit_tmp = overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
+            else:
+                ciA_query,ciB_query,ciA_db,ciB_db=merge_vcf_module_cython.find_ci(Query_variant,Query_variant)
+                hit_tmp=overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
+
+            if hit_tmp:
+                genotype=event[-1]["GT"]
+                for i in range(0,len(genotype)):
+                    GT=genotype[i]
+                    if not GT == "0|0" and not GT == "0/0": 
+                        samples = samples | set([i])
     hits=len(samples)
     return hits
     
