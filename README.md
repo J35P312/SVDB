@@ -96,7 +96,7 @@ Hist: This module is used to compare structural variant vcf files, either by gen
 Query: The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
     print a help message
-       python SVDB.py --query --help
+       svdb --query --help
     Query a structural variant database, using a vcf file as query:
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
 	The vcf may be a exported SVDB database or a multismple vcf. The frequencies used for each variant is computed from the format fields of the vcf.
@@ -124,7 +124,7 @@ Query: The query module is used to query a structural variant database. Typicall
 Purge: The purge module is used to remove entries from a database:
 
     print a help message:
-       python SVDB.py --purge --help
+       svdb --purge --help
     Delete a sample from a DB, the sample id should be the same as the id written in the format columns of the db:
         svdb --purge --sample patient2 --db my_svdb.vcf > cleaned_db.vcf
     Delete variants from a DB, the variants should be stored in a standard structural variant format:
