@@ -67,22 +67,32 @@ def main(args):
         db_file=args.db
         DBvariants={}
         db_size=1
+
         for line in open(db_file):
+
             if line[0] == "#":
                 continue
             
-            chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
+            chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line);
             if not chrA in DBvariants:
                 DBvariants[chrA]={}
             if not chrB in DBvariants[chrA]:
-                DBvariants[chrA][chrB]=[]
-            info_field=line.split("\t")[7]
-            DBvariants[chrA][chrB].append([int(posA),int(posB),event_type,FORMAT])
+                DBvariants[chrA][chrB]={}
+            if not event_type in DBvariants[chrA][chrB]:
+                DBvariants[chrA][chrB][event_type]={}
+                DBvariants[chrA][chrB][event_type]["samples"]=[]
+                DBvariants[chrA][chrB][event_type]["coordinates"]=[]
+
+            DBvariants[chrA][chrB][event_type]["coordinates"].append(np.array([int(posA),int(posB)]))
+            DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
             db_size=len(FORMAT["GT"])
+
         for chrA in DBvariants:
             for chrB in DBvariants[chrA]:
-                 DBvariants[chrA][chrB]=np.array(DBvariants[chrA][chrB])
-
+                for var in DBvariants[chrA][chrB]:
+                    DBvariants[chrA][chrB][var]["coordinates"]=np.array(DBvariants[chrA][chrB][var]["coordinates"])                
+                    DBvariants[chrA][chrB][var]["samples"]=np.array(DBvariants[chrA][chrB][var]["samples"])
+                 
         for query in queries:
             hits = queryVCFDB(DBvariants, query,args)
             query[5] = hits            
@@ -140,12 +150,19 @@ def queryVCFDB(DBvariants, Query_variant,args):
         return 0
     if not chrB in DBvariants[chrA]:
         return 0
+    for var in DBvariants[chrA][chrB]:
+        if not args.no_var and variation_type != var:
+            continue
 
-    candidates=DBvariants[chrA][chrB][ ( args.bnd_distance >= abs(DBvariants[chrA][chrB][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][:,1] - chrBpos)  ) ]    
-    # check if this variation is already present
-    for event in candidates:
-    #check if the variant type of the events is the same
-        if(event[2] == variation_type or args.no_var):
+        #candidates=DBvariants[chrA][chrB][var]["coordinates"][ ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,1] - chrBpos)  ) ]
+        candidates=np.where( ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,1] - chrBpos)  ) ) 
+        if not len(candidates[0]):
+            return 0
+        # check if this variation is already present
+        for candidate in candidates[0]:
+            event=DBvariants[chrA][chrB][var]["coordinates"][candidate]
+            sample_list=DBvariants[chrA][chrB][var]["samples"][candidate]
+            #check if the variant type of the events is the same
             hit_tmp = None
             if not args.ci:
                 if not (chrA == chrB):
@@ -158,9 +175,8 @@ def queryVCFDB(DBvariants, Query_variant,args):
                 hit_tmp=overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
 
             if hit_tmp:
-                genotype=event[-1]["GT"]
-                for i in range(0,len(genotype)):
-                    GT=genotype[i]
+                for i in range(0,len(sample_list)):
+                    GT=sample_list[i]
                     if not GT == "0|0" and not GT == "0/0": 
                         samples = samples | set([i])
     hits=len(samples)

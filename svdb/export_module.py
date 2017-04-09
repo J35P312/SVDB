@@ -142,7 +142,7 @@ def expand_chain(chain,coordinates,chrA,chrB,distance,overlap,ci):
                 similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
             if similar:
                 chain_data[i].append(j)
-
+        chain_data[i]=np.array(chain_data[i])
     return(chain_data)
 
 def cluster_variants(variant_dictionary,similarity_matrix):
@@ -166,15 +166,13 @@ def cluster_variants(variant_dictionary,similarity_matrix):
         clusters.append( [variant,cluster_dictionary] )      
     return(clusters)
 
-def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
-    f = open(args.prefix+".vcf",'a')
+def fetch_variants(variant,chrA,chrB,c):
     chr_db={}
     chr_db[ variant ]={}
            
     hits = c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(variant,chrA,chrB)).fetchall()
     if not hits:
-        f.close()
-        return i
+        return False
 
     x=[v[0] for v in hits]
     y=[v[1] for v in hits]
@@ -182,6 +180,16 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
     chr_db[variant]["coordinates"]=np.column_stack((x,y))
     chr_db[variant]["var_info"]=np.array([v[2] for v in hits])
     chr_db[variant]["index"]=np.array([v[3] for v in hits])
+    return chr_db
+
+
+def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
+    f = open(args.prefix+".vcf",'a')
+
+    chr_db=fetch_variants(variant,chrA,chrB,c)
+    if not chr_db:
+        f.close()
+        return i
 
     if args.DBSCAN:
         db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
@@ -198,7 +206,7 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
     #print the unique variants
     unique_xy=chr_db[variant]["coordinates"][  labels == -1 ]
     unique_index=chr_db[variant]["index"][  labels == -1 ]
-    
+    del db
     for j in range(0,len( chr_db[variant]["coordinates"][ labels == -1] ) ):
         xy = unique_xy[j]
         indexes=[ unique_index[j] ]
@@ -221,7 +229,9 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
         cluster=[representing_var,variant_dictionary] 
         f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
         i += 1
-                                        
+    del unique_xy
+    del unique_index
+                      
     #print the clusters
     for k in unique_labels:
         class_member_mask = (labels == k)
@@ -230,28 +240,28 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
         if k == -1:
             continue
         elif args.DBSCAN:
-            avg_point=np.array([np.mean(xy[:,0]),np.mean(xy[:,1])])
+             avg_point=np.array([np.mean(xy[:,0]),np.mean(xy[:,1])])
                         
-            distance=[]
-            for point in xy:
+             distance=[]
+             for point in xy:
                 distance.append( ( sum((avg_point-point)**2))**0.5  )
                         
-            variant_dictionary=fetch_cluster_variant(c,indexes)
+             variant_dictionary=fetch_cluster_variant(c,indexes)
  
-            representing_var={}
-            representing_var["type"]=variant
-            representing_var["chrA"]=chrA
-            representing_var["chrB"]=chrB
-            representing_var["posA"]= int(avg_point[0])
-            representing_var["ci_A_start"]=  np.amin(xy[:,0])
-            representing_var["ci_A_end"]= np.amax(xy[:,0])
-            representing_var["posB"]= int(avg_point[1])
-            representing_var["ci_B_start"]= np.amin(xy[:,1])
-            representing_var["ci_B_end"]= np.amax(xy[:,1])                      
+             representing_var={}
+             representing_var["type"]=variant
+             representing_var["chrA"]=chrA
+             representing_var["chrB"]=chrB
+             representing_var["posA"]= int(avg_point[0])
+             representing_var["ci_A_start"]=  np.amin(xy[:,0])
+             representing_var["ci_A_end"]= np.amax(xy[:,0])
+             representing_var["posB"]= int(avg_point[1])
+             representing_var["ci_B_start"]= np.amin(xy[:,1])
+             representing_var["ci_B_end"]= np.amax(xy[:,1])                      
                             
-            cluster=[representing_var,variant_dictionary]   
-            f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
-            i += 1
+             cluster=[representing_var,variant_dictionary]   
+             f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
+             i += 1
         else:
             variant_dictionary,coordinates=fetch_index_variant(c,indexes)
             similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap,args.ci)

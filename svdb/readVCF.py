@@ -4,7 +4,7 @@ def readVCFLine(line):
     if line[0] == "#":
         return(None)
 
-    variation   = line.rstrip().split("\t")
+    variation   = line.strip().split("\t")
     event_type=""
     chrA=variation[0].replace("chr","").replace("Chr","").replace("CHR","");
     posA=int(variation[1]);
