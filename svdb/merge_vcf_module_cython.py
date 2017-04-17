@@ -56,22 +56,64 @@ def merge_csq(info,csq):
 
     return(info)
 
-def sort_format_field(line,samples,sample_order,priority_order,files,representing_file,args):
+def sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files,representing_file,args):
     tmp_format=[]
     var_samples=[]
-    i=0
+
     #sort the format fields
+    format_columns={}
+    format_entries=[]
+    format_entry_length=[]
     if not args.same_order:
+        for input_file in priority_order:
+            if not input_file in files:
+                continue
+            for sample in sorted(samples):
+                if not sample in format_columns and input_file in sample_order[sample]:
+
+                    vcf_line= files[input_file].strip().split("\t")
+                    sample_position=sample_order[sample][input_file]
+                    format_columns[sample]={}
+                    entries=vcf_line[8].split(":")
+                    sample_entries=vcf_line[9+sample_position].split(":")
+
+                    i=0
+                    for entry in entries:
+                        format_columns[sample][entry]=sample_entries[i]
+                        if not entry in format_entries:
+                            n=sample_entries[i].count(",")
+                            format_entries.append(entry)
+                            format_entry_length.append(n)
+                        i+=1
+
+        format_string=[]    
+        line[8]=":".join(format_entries)
+        del line[9:]
         for sample in sorted(samples):
-            try:
-                sample_position=sample_order[sample][representing_file]
-                tmp_format.append( line[9+sample_position] )
-            except:
-                print("ERROR: The input file {} lacks sample {}, use the --same_order setting to disregard the sample ids").format(representing_file,sample)
-                quit()
-        for format_column in tmp_format:
-            line[9+i] = format_column
-            i+=1
+            format_string=[]             
+            for entry in format_entries:
+                j=0
+                if sample in format_columns:
+                    if entry in format_columns[sample]:
+                        format_string.append(format_columns[sample][ entry ])
+                    elif entry == "GT":
+                        format_string.append("./.")
+                    else:
+                        sub_entry=[]
+                        for i in range(0,format_entry_length[j]+1):
+                            sub_entry.append(".")
+                        format_string.append(",".join(sub_entry))
+                else:
+                    if entry == "GT":
+                        format_string.append("0/0")
+                    else:
+                        sub_entry=[]
+                        for i in range(0,format_entry_length[j]+1):
+                            sub_entry.append(".")
+                        format_string.append(",".join(sub_entry))
+                j+=1
+                            
+            line.append(":".join(format_string))
 
     #generate a union of the info fields
     info_union=[]
@@ -97,7 +139,7 @@ def sort_format_field(line,samples,sample_order,priority_order,files,representin
     
     return(line)
 
-def merge(variants,samples,sample_order,priority_order,args):
+def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
     ci=args.ci
     overlap_param=args.overlap
     bnd_distance=args.bnd_distance
@@ -170,8 +212,6 @@ def merge(variants,samples,sample_order,priority_order,args):
                     analysed_variants.add(j)
             
             line=variants[chrA][i][-1].split("\t")
-            if merge:
-                line[7] += ";VARID=" + "|".join(merge)
 
             if csq:
                 line[7]=merge_csq(line[7],csq)
@@ -188,8 +228,9 @@ def merge(variants,samples,sample_order,priority_order,args):
                     files[ variants[chrA][i][-3].replace(".vcf","").split("/")[-1] ] = "\t".join(line)
                     representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
                 
-                line=sort_format_field(line,samples,sample_order,priority_order,files, representing_file,args)
-                
+                line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
+                if merge:
+                    line[7] += ";VARID=" + "|".join(merge)                
                 to_be_printed[line[0]].append(line)
             
             analysed_variants.add(i)

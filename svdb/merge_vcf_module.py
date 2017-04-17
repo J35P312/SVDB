@@ -25,21 +25,18 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
                 if("#CHROM\tPOS" in line):
                     vcf_columns=line.strip().split("\t")
                     for column in vcf_columns:
-                        if not column in columns and len(vcf_columns) > len(columns):
-                            columns.append(column.strip())                    
-                            if not column.strip() in sample_order and column.strip() != "FORMAT":
-                                sample_order[column.strip()]={}
-                                samples.append(column.strip())
+                        if not column in columns:
+                            columns.append(column)                    
+                            if not column in sample_order and column != "FORMAT":
+                                sample_order[column]={}
+                                samples.append(column)
 
                     if len(vcf_columns) > 8 and not args.same_order:
                         i=0
-                        for sample in vcf_columns[9:]:
-                            try:                            
-                                sample_order[sample][vcf_dictionary[vcf]]=i
-                                i += 1
-                            except:
-                                print "sample mismatch! check the samples of the vcf files, or use --same_order"
-                                quit()
+                        for sample in vcf_columns[9:]:                           
+                            sample_order[sample][vcf_dictionary[vcf]]=i
+                            i += 1
+
                 elif line[0] == line[1] and "=" in line:
                     if("ID=" in line and not "##contig=<ID=" in line):
                         field=line.split("=")[2].split(",")[0]
@@ -94,12 +91,18 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
         print(subheader[entry].strip())
     print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
     print("##svdbcmdline={}".format(" ".join(command_line)))
+    sample_print_order={}
     if sample_ids:
         sorted_samples=sorted(list(sample_ids))
         print( "\t".join(columns+sorted_samples) )
+        i=0
+        for sample in sorted(list(sample_ids)):
+            sample_print_order[sample]=i
+            i+=1	
     else:
         print( "\t".join(columns) )
-    return (samples,sample_order)
+    return (samples,sample_order,sample_print_order)
+
 def main(args):
     variants={}
     #add all the variants into a dictionary
@@ -149,9 +152,9 @@ def main(args):
                         variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])
                     i+=1;
 
-    samples,sample_order=print_header(vcf_list,vcf_dictionary,args,sys.argv)
+    samples,sample_order,sample_print_order=print_header(vcf_list,vcf_dictionary,args,sys.argv)
 
-    to_be_printed=merge_vcf_module_cython.merge(variants,samples,sample_order,priority_order,args)
+    to_be_printed=merge_vcf_module_cython.merge(variants,samples,sample_order,sample_print_order,priority_order,args)
     #print the variants in similar order as the input
     for chra in sorted(to_be_printed):
         for variant in sorted(to_be_printed[chra],key = lambda x: int(x[1])):
