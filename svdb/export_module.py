@@ -6,6 +6,7 @@ import subprocess
 import sqlite3
 import glob
 import os
+import sys
 
 from sklearn.cluster import DBSCAN
 from sklearn import metrics
@@ -48,7 +49,7 @@ def fetch_cluster_variant(c,index):
     return(variant_dict)
 
 
-def db_header():
+def db_header(args):
     headerString="##fileformat=VCFv4.1\n";
     headerString+="##source=SVDB\n";
     headerString+="##ALT=<ID=DEL,Description=\"Deletion\">\n";
@@ -57,14 +58,15 @@ def db_header():
     headerString+="##ALT=<ID=BND,Description=\"Break end\">\n";
     headerString+="##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n";
     headerString+="##INFO=<ID=END,Number=1,Type=String,Description=\"End of an intra-chromosomal variant\">\n";
-    headerString+="##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n";
+    headerString+="##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurences of the event in the database\">\n";
     headerString+="##INFO=<ID=NSAMPLES,Number=1,Type=Integer,Description=\"the number of samples within the database\">\n";
     headerString+="##INFO=<ID=VARIANTS,Number=1,Type=Integer,Description=\"a| separated list of the positions of the clustered variants\">\n";
-    headerString+="##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the vriant\">\n";
+    headerString+="##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the variant\">\n";
     headerString+="##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
     headerString+="##INFO=<ID=CIPOS,Number=2,Type=Integer,Description=\"Confidence interval around POS\">\n"
     headerString+="##INFO=<ID=CIEND,Number=2,Type=Integer,Description=\"Confidence interval around END\">\n"
-    headerString+="##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"
+    headerString+="##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
+    headerString+="##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv))
     return(headerString)
 
 
@@ -327,7 +329,7 @@ def main(args):
     conn.close()
 
     f = open(args.prefix+".vcf",'w')
-    f.write( db_header()+"\n")
+    f.write( db_header(args)+"\n")
     f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}\n".format("\t".join(sample_IDs)))
     f.close()
     export(args,sample_IDs)

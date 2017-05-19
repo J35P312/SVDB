@@ -18,6 +18,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     sample_order={}
     print("##fileformat=VCFv4.1")
     print("##source=MergeVCF")
+    print "##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv))
     samples=[]
     for vcf in vcf_list:
         for line in open(vcf):

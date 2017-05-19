@@ -48,7 +48,11 @@ def main(args):
                 #there should only be one feature tag per vf file
                 if(line == "INFO=<ID={},Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">".format(args.hit_tag)):
                     noOCCTag=0
+
+
             else:
+                if line[1] != "#":
+                    print "##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv))
                 if not args.prefix:
                     sys.stdout.write(line)
                 else:
@@ -67,10 +71,16 @@ def main(args):
         db_file=args.db
         DBvariants={}
         db_size=1
-
+        Use_OCC_tag=False
+        OCC_tag="OCC"
+        FRQ_tag="FRQ"
         for line in open(db_file):
 
             if line[0] == "#":
+                if " occur" in line and "INFO" in line:
+                    OCC_tag=line.split("##INFO=<ID=")[-1].split(",Number=1,Type=")[0]
+                elif " frequency" in line and "INFO" in line:
+                    FRQ_tag=line.split("##INFO=<ID=")[-1].split(",Number=1,Type=")[0]
                 continue
             
             chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line);
@@ -84,8 +94,14 @@ def main(args):
                 DBvariants[chrA][chrB][event_type]["coordinates"]=[]
 
             DBvariants[chrA][chrB][event_type]["coordinates"].append(np.array([int(posA),int(posB)]))
-            DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
-            db_size=len(FORMAT["GT"])
+            if "GT" in FORMAT:
+                DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
+                db_size=len(FORMAT["GT"])
+            else:
+                OCC=int( line.split("{}=".format(OCC_tag))[-1].split(";")[0].split("\t")[0] )
+                FRQ=float( line.split("{}=".format(FRQ_tag))[-1].split(";")[0].split("\t")[0] )
+                DBvariants[chrA][chrB][event_type]["samples"].append([OCC,FRQ])
+                Use_OCC_tag=True
 
         for chrA in DBvariants:
             for chrB in DBvariants[chrA]:
@@ -94,8 +110,22 @@ def main(args):
                     DBvariants[chrA][chrB][var]["samples"]=np.array(DBvariants[chrA][chrB][var]["samples"])
                  
         for query in queries:
-            hits = queryVCFDB(DBvariants, query,args)
-            query[5] = hits            
+            hits = queryVCFDB(DBvariants, query,args,Use_OCC_tag)
+            query[5] = hits
+
+        for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
+            vcf_entry = query[6].strip()
+            content=vcf_entry.split("\t")
+            if not Use_OCC_tag:
+                content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
+            else:
+                content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, int(query[5][0]),args.frequency_tag,query[5][1])                
+            if not args.prefix:
+                print(("\t").join(content))
+            else:
+                f.write(("\t").join(content)+"\n")
+        return()
+            
                 
     elif args.sqdb:
         db_file=args.sqdb
@@ -138,18 +168,25 @@ def main(args):
 
 
 
-def queryVCFDB(DBvariants, Query_variant,args):
+def queryVCFDB(DBvariants, Query_variant,args,Use_OCC_tag):
     chrA = Query_variant[0]
     chrApos = Query_variant[1]
     chrB =Query_variant[2]
     chrBpos = Query_variant[3]
     variation_type=Query_variant[4]
     samples=set([])
-
+    frequency=[]
+    occ=[]
     if not chrA in DBvariants:
-        return 0
+        if Use_OCC_tag:
+            return([0,0])
+        else:
+            return 0
     if not chrB in DBvariants[chrA]:
-        return 0
+        if Use_OCC_tag:
+            return([0,0])
+        else:
+            return 0
     for var in DBvariants[chrA][chrB]:
         if not args.no_var and variation_type != var:
             continue
@@ -157,7 +194,10 @@ def queryVCFDB(DBvariants, Query_variant,args):
         #candidates=DBvariants[chrA][chrB][var]["coordinates"][ ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,1] - chrBpos)  ) ]
         candidates=np.where( ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,1] - chrBpos)  ) ) 
         if not len(candidates[0]):
-            return 0
+            if Use_OCC_tag:
+                return([0,0])
+            else:
+                return 0
         # check if this variation is already present
         for candidate in candidates[0]:
             event=DBvariants[chrA][chrB][var]["coordinates"][candidate]
@@ -175,11 +215,23 @@ def queryVCFDB(DBvariants, Query_variant,args):
                 hit_tmp=overlap_module.ci_overlap(chrApos,chrBpos,ciA_query,ciB_query,event[0],event[1],[0,0],[0,0])
 
             if hit_tmp:
-                for i in range(0,len(sample_list)):
-                    GT=sample_list[i]
-                    if not GT == "0|0" and not GT == "0/0": 
-                        samples = samples | set([i])
-    hits=len(samples)
+                if Use_OCC_tag:
+                    occ.append(sample_list[0])
+                    frequency.append(sample_list[1])
+                else:
+                    for i in range(0,len(sample_list)):
+                        GT=sample_list[i]
+                        if not GT == "0|0" and not GT == "0/0": 
+                            samples = samples | set([i])
+    if Use_OCC_tag:
+        if occ:
+            idx=occ.index(max(occ))
+            hits=[ occ[idx],frequency[idx] ]
+        else:
+            hits=[0,0]
+    else:
+        hits=len(samples)
+    
     return hits
     
 
