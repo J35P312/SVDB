@@ -193,7 +193,7 @@ def queryVCFDB(DBvariants, Query_variant,args,Use_OCC_tag):
 
         #candidates=DBvariants[chrA][chrB][var]["coordinates"][ ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,1] - chrBpos)  ) ]
         candidates=np.where( ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,0] - chrApos)  ) & ( args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:,1] - chrBpos)  ) ) 
-        if not len(candidates[0]):
+        if not len(candidates[0]) and not args.no_var:
             if Use_OCC_tag:
                 return([0,0])
             else:
