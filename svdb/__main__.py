@@ -9,7 +9,7 @@ from . import export_module
 from . import bed_annotation_module
 
 def main():
-    version = "1.0.6"
+    version = "1.0.7"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--hist'        , help="generate histograms o the performance of a db", required=False, action="store_true")
@@ -127,6 +127,7 @@ def main():
     elif args.merge:
         parser = argparse.ArgumentParser("""SVDB-{}: vcf_merge module""".format(version))
         parser.add_argument('--merge', help="merge structural variants", required=False, action="store_true")
+        parser.add_argument('--notag', help="Do not add the the VARID and set entries to the info field", required=False, action="store_true")
         parser.add_argument('--vcf', nargs='*', type=str, help="input vcf files, all input vcf files will be merged into one. Use the --prioriy flag to prioritize the callers/vcf files",required=True)
         parser.add_argument('--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
         parser.add_argument('--bnd_distance', type=int,default= 2000,help="the maximum distance between two similar precise breakpoints(default = 2000)")

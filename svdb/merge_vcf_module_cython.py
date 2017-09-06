@@ -9,6 +9,31 @@ def retrieve_key(line,key):
             return(False)
     return(item)
 
+def determine_set_tag(priority_order,files):
+    n_filtered=0
+    n_pass=0
+
+    filtered=[]
+    for sample in priority_order:
+        if sample in files:
+            if files[sample].split("\t")[6] == "PASS" or files[sample].split("\t")[6] == ".":
+                n_pass+=1
+            else:
+                n_filtered += 1
+    if n_pass == len(priority_order):
+        return("Intersection")
+    elif n_filtered == len(priority_order):
+        return("FilteredInAll")
+    else:
+        for sample in priority_order:
+            if not sample in files:
+                continue
+            elif files[sample].split("\t")[6] == "PASS" or files[sample].split("\t")[6] == ".":
+                filtered.append(sample)                
+            else:
+                filtered.append("filterIn" + sample)  
+        return("-".join(filtered))
+
 def get_CIPOS_CEND(query_variant):
     ciA_query=[0,0]
     CIPOS=retrieve_key(query_variant[-1],"CIPOS")
@@ -105,7 +130,7 @@ def sort_format_field(line,samples,sample_order,sample_print_order,priority_orde
                         format_string.append(",".join(sub_entry))
                 else:
                     if entry == "GT":
-                        format_string.append("0/0")
+                        format_string.append("./.")
                     else:
                         sub_entry=[]
                         for i in range(0,format_entry_length[j]+1):
@@ -229,8 +254,16 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
                     representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
                 
                 line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
-                if merge:
-                    line[7] += ";VARID=" + "|".join(merge)                
+                if merge and not args.notag:
+                    line[7] += ";VARID=" + "|".join(merge)
+                #print "printing"
+                #print samples
+                #print priority_order
+                #print files
+                #print representing_file
+                if not args.notag:
+                    set_tag=determine_set_tag(priority_order,files)
+                    line[7] += ";set={}".format(set_tag);                
                 to_be_printed[line[0]].append(line)
             
             analysed_variants.add(i)

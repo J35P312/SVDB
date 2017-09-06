@@ -37,7 +37,8 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
                         for sample in vcf_columns[9:]:                           
                             sample_order[sample][vcf_dictionary[vcf]]=i
                             i += 1
-
+                elif "<ID=VARID," in line or "<ID=set," in line:
+                    continue
                 elif line[0] == line[1] and "=" in line:
                     if("ID=" in line and not "##contig=<ID=" in line):
                         field=line.split("=")[2].split(",")[0]
@@ -90,7 +91,9 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     #print subheaders
     for entry in sorted(subheader):
         print(subheader[entry].strip())
-    print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
+    if not args.notag:
+        print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
+        print("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
     print("##svdbcmdline={}".format(" ".join(command_line)))
     sample_print_order={}
     if sample_ids:
