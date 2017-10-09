@@ -9,7 +9,7 @@ from . import export_module
 from . import bed_annotation_module
 
 def main():
-    version = "1.0.7"
+    version = "1.0.8"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--hist'        , help="generate histograms o the performance of a db", required=False, action="store_true")
@@ -48,6 +48,7 @@ def main():
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required = True)
         parser.add_argument('--db'        , type=str,  help="path to a SVDB db vcf ")
         parser.add_argument('--sqdb'        , type=str,  help="path to a SVDB sqlite db")
+        parser.add_argument('--bedpedb'        , type=str,  help="path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency")
         parser.add_argument('--hit_tag'        , type=str,default="OCC",help="the tag used to describe the number of hits within the info field of the output vcf(default=OCC)")
         parser.add_argument('--frequency_tag'        , type=str,default="FRQ",help="the tag used to describe the frequency of the variant(defualt=FRQ)")
         parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
@@ -64,7 +65,7 @@ def main():
         args = parser.parse_args()
         args.version=version
 
-        if(args.db or args.sqdb):
+        if(args.db or args.sqdb or args.bedpedb):
             query_module.main(args)
         else:
             print "invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db"

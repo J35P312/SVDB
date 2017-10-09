@@ -67,7 +67,8 @@ def main(args):
     # at this point queries contains an entry for each variation
     #now query each sample.db present in the given folder and store the occurences
     
-    if args.db:
+    if args.bedpedb or args.db:
+        args.db=args.bedpedb
         db_file=args.db
         DBvariants={}
         db_size=1
@@ -83,7 +84,20 @@ def main(args):
                     FRQ_tag=line.split("##INFO=<ID=")[-1].split(",Number=1,Type=")[0]
                 continue
             
-            chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line);
+            if args.bedpedb:
+                content=line.strip().split()
+                chrA=content[0]
+                posA=int(content[1])
+                chrB=content[2]
+                posB=int(content[3])
+                event_type=content[4]
+                hits=int(content[5])
+                frequency=float(content[6])
+                FORMAT=[False]
+
+            else:
+                chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line)
+                
             if not chrA in DBvariants:
                 DBvariants[chrA]={}
             if not chrB in DBvariants[chrA]:
@@ -97,6 +111,10 @@ def main(args):
             if "GT" in FORMAT:
                 DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
                 db_size=len(FORMAT["GT"])
+            elif args.bedpedb:
+                DBvariants[chrA][chrB][event_type]["samples"].append([hits,frequency])
+                Use_OCC_tag=True
+   
             else:
                 OCC=int( line.split("{}=".format(OCC_tag))[-1].split(";")[0].split("\t")[0] )
                 FRQ=float( line.split("{}=".format(FRQ_tag))[-1].split(";")[0].split("\t")[0] )
