@@ -68,7 +68,8 @@ def main(args):
     #now query each sample.db present in the given folder and store the occurences
     
     if args.bedpedb or args.db:
-        args.db=args.bedpedb
+        if args.bedpedb:
+            args.db=args.bedpedb
         db_file=args.db
         DBvariants={}
         db_size=1
@@ -135,9 +136,12 @@ def main(args):
             vcf_entry = query[6].strip()
             content=vcf_entry.split("\t")
             if not Use_OCC_tag:
-                content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
+                if query[5]:
+                    content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
             else:
-                content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, int(query[5][0]),args.frequency_tag,query[5][1])                
+                if query[5][0]:
+                    content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, int(query[5][0]),args.frequency_tag,query[5][1])    
+            
             if not args.prefix:
                 print(("\t").join(content))
             else:
@@ -178,7 +182,8 @@ def main(args):
     for query in sorted(queries, key=itemgetter(5),reverse=args.invert):
         vcf_entry = query[6].strip()
         content=vcf_entry.split("\t")
-        content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
+        if query[5]:
+            content[7]="{};{}={};{}={}".format(content[7],args.hit_tag, query[5],args.frequency_tag,(query[5]/float(db_size ) ))
         if not args.prefix:
             print(("\t").join(content))
         else:
