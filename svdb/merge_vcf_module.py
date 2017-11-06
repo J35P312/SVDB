@@ -20,13 +20,19 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     print("##source=MergeVCF")
     print "##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv))
     samples=[]
+    first=True
+    first_vcf_header=""
     for vcf in vcf_list:
         for line in open(vcf):
             if(line[0] == "#"):
                 if("#CHROM\tPOS" in line):
+                    if first:
+                        first_vcf_header=line.strip()
+                        first=False
                     vcf_columns=line.strip().split("\t")
                     for column in vcf_columns:
                         if not column in columns:
+                            
                             columns.append(column)                    
                             if not column in sample_order and column != "FORMAT":
                                 sample_order[column]={}
@@ -58,6 +64,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
                 if header["CONTIGS"]:
                     contigs = True
                 break
+
     #print the mandatory header lines in the correct order
     for entry in sorted(header["ALT"]):
         print(header["ALT"][entry].strip())
@@ -96,13 +103,15 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
         print("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
     print("##svdbcmdline={}".format(" ".join(command_line)))
     sample_print_order={}
-    if sample_ids:
+    if sample_ids and not args.same_order:
         sorted_samples=sorted(list(sample_ids))
         print( "\t".join(columns+sorted_samples) )
         i=0
         for sample in sorted(list(sample_ids)):
             sample_print_order[sample]=i
             i+=1	
+    elif args.same_order:
+        print first_vcf_header
     else:
         print( "\t".join(columns) )
     return (samples,sample_order,sample_print_order)
