@@ -185,6 +185,18 @@ def fetch_variants(variant,chrA,chrB,c):
     return chr_db
 
 
+def overlap_cluster(c,indexes,variant,chrA,chrB,sample_IDs,args,f,i):
+    variant_dictionary,coordinates=fetch_index_variant(c,indexes)
+    similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
+    clusters=cluster_variants(variant_dictionary,similarity_matrix)
+    for clustered_variants in clusters:
+        clustered_variants[0]["type"]=variant
+        clustered_variants[0]["chrA"]=chrA
+        clustered_variants[0]["chrB"]=chrB
+        f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
+        i += 1
+    return i
+
 def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
     f = open(args.prefix+".vcf",'a')
 
@@ -265,15 +277,7 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
              f.write( vcf_line(cluster,"cluster_{}".format(i),sample_IDs )+"\n")
              i += 1
         else:
-            variant_dictionary,coordinates=fetch_index_variant(c,indexes)
-            similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
-            clusters=cluster_variants(variant_dictionary,similarity_matrix)
-            for clustered_variants in clusters:
-                clustered_variants[0]["type"]=variant
-                clustered_variants[0]["chrA"]=chrA
-                clustered_variants[0]["chrB"]=chrB
-                f.write( vcf_line(clustered_variants,"cluster_{}".format(i),sample_IDs )+"\n")
-                i += 1
+            i=overlap_cluster(c,indexes,variant,chrA,chrB,sample_IDs,args,f,i)
     f.close()
     return i
 
