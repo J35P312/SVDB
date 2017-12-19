@@ -7,11 +7,8 @@ import sqlite3
 import glob
 import os
 import sys
+from . import DBSCAN
 
-from sklearn.cluster import DBSCAN
-from sklearn import metrics
-from sklearn.datasets.samples_generator import make_blobs
-from sklearn.preprocessing import StandardScaler
 import numpy as np
 import time
 
@@ -206,22 +203,16 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
         return i
 
     if args.DBSCAN:
-        db = DBSCAN(eps=args.epsilon, min_samples=args.min_pts).fit(chr_db[variant]["coordinates"])
+        db=DBSCAN.main(chr_db[variant]["coordinates"],args.epsilon,args.min_pts)
     else:
-        db = DBSCAN(eps=args.bnd_distance, min_samples=2).fit(chr_db[variant]["coordinates"])
-    core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-    core_samples_mask[db.core_sample_indices_] = True
-    labels = db.labels_
-    #print variant
-    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        db=DBSCAN.main(chr_db[variant]["coordinates"],args.bnd_distance,2)
 
-    unique_labels = set(labels)
+    unique_labels = set(db)
     stats=[]
     #print the unique variants
-    unique_xy=chr_db[variant]["coordinates"][  labels == -1 ]
-    unique_index=chr_db[variant]["index"][  labels == -1 ]
-    del db
-    for j in range(0,len( chr_db[variant]["coordinates"][ labels == -1] ) ):
+    unique_xy=chr_db[variant]["coordinates"][  db == -1 ]
+    unique_index=chr_db[variant]["index"][ db == -1 ]
+    for j in range(0,len(unique_xy) ):
         xy = unique_xy[j]
         indexes=[ unique_index[j] ]
                     
@@ -248,12 +239,13 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
                       
     #print the clusters
     for k in unique_labels:
-        class_member_mask = (labels == k)
-        xy = chr_db[variant]["coordinates"][class_member_mask & core_samples_mask]
-        indexes=chr_db[variant]["index"][class_member_mask & core_samples_mask]
         if k == -1:
             continue
-        elif args.DBSCAN:
+        class_member_mask = (db == k)
+        xy = chr_db[variant]["coordinates"][class_member_mask]
+        indexes=chr_db[variant]["index"][class_member_mask]
+
+        if args.DBSCAN:
              avg_point=np.array([np.mean(xy[:,0]),np.mean(xy[:,1])])
                         
              distance=[]

@@ -10,6 +10,7 @@ if has_cython:
     ext_modules = cythonize([
         "svdb/build_module.py",
         "svdb/overlap_module.py",
+        "svdb/DBSCAN.py",
         "svdb/readVCF.py",
         "svdb/merge_vcf_module_cython.py",
         "svdb/hist_module.py",

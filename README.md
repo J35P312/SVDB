@@ -1,18 +1,22 @@
 # SVDB
 SVDB is a toolkit for constructing and querying structural variant databases. The databases are constructed using the output vcf files from structural variant callers such as TIDDIT, Manta, Fermikit or Delly.
-The thousand genomes structural variant calls may also be used as a database:
+
+Additionally, the thousand genomes structural variant calls may also be used as a database:
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/
 
+or the swegen SVDB:
+
+https://swefreq.nbis.se/
+
+
 #Install:
-Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn v0.15.2 as well as numpy.
+Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn as well as numpy.
 SVDB is installed using the following command
 
-python setup.py install
-or 
-python setup.py -q install
-for quiet install
+pip install -e .
+
 #modules:
-SVDB consists of five separate modules that are used to manage, query and create structural variant databases. These are the modules:
+SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
 
 Build: This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
     
@@ -159,7 +163,6 @@ Merge: The merge module merges variants within one or more vcf files. This could
         svdb --merge --vcf patient1_lumpy.vcf:one patient1_cnvnator.vcf:2 patient1_TIDDIT.vcf:tiddit --priority tiddit,2,one > patient1_merged_callers.vcf
 
     In this example, tiddit will have the highest order, cnvnator second etc.
-
 
 
     optional arguments:
