@@ -111,34 +111,35 @@ def sort_format_field(line,samples,sample_order,sample_print_order,priority_orde
                             format_entry_length.append(n)
                         i+=1
 
-        format_string=[]    
-        line[8]=":".join(format_entries)
-        del line[9:]
-        for sample in sorted(samples):
-            format_string=[]             
-            for entry in format_entries:
-                j=0
-                if sample in format_columns:
-                    if entry in format_columns[sample]:
-                        format_string.append(format_columns[sample][ entry ])
-                    elif entry == "GT":
-                        format_string.append("./.")
+        if len(line) > 8:
+            format_string=[]    
+            line[8]=":".join(format_entries)
+            del line[9:]
+            for sample in sorted(samples):
+                format_string=[]             
+                for entry in format_entries:
+                    j=0
+                    if sample in format_columns:
+                        if entry in format_columns[sample]:
+                            format_string.append(format_columns[sample][ entry ])
+                        elif entry == "GT":
+                            format_string.append("./.")
+                        else:
+                            sub_entry=[]
+                            for i in range(0,format_entry_length[j]+1):
+                                sub_entry.append(".")
+                            format_string.append(",".join(sub_entry))
                     else:
-                        sub_entry=[]
-                        for i in range(0,format_entry_length[j]+1):
-                            sub_entry.append(".")
-                        format_string.append(",".join(sub_entry))
-                else:
-                    if entry == "GT":
-                        format_string.append("./.")
-                    else:
-                        sub_entry=[]
-                        for i in range(0,format_entry_length[j]+1):
-                            sub_entry.append(".")
-                        format_string.append(",".join(sub_entry))
-                j+=1
+                        if entry == "GT":
+                            format_string.append("./.")
+                        else:
+                            sub_entry=[]
+                            for i in range(0,format_entry_length[j]+1):
+                                sub_entry.append(".")
+                            format_string.append(",".join(sub_entry))
+                    j+=1
                             
-            line.append(":".join(format_string))
+                line.append(":".join(format_string))
 
     #generate a union of the info fields
     info_union=[]
@@ -256,11 +257,7 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
                 line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
                 if merge and not args.notag:
                     line[7] += ";VARID=" + "|".join(merge)
-                #print "printing"
-                #print samples
-                #print priority_order
-                #print files
-                #print representing_file
+
                 if not args.notag:
                     set_tag=determine_set_tag(priority_order,files)
                     line[7] += ";set={}".format(set_tag);                

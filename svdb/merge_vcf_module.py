@@ -13,6 +13,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     contigs=False
     reference=""
     subheader={}
+    contigs_list=[]
     columns=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO"]
     sample_ids=set([])
     sample_order={}
@@ -66,6 +67,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
                 break
 
     #print the mandatory header lines in the correct order
+    
     for entry in sorted(header["ALT"]):
         print(header["ALT"][entry].strip())
     del header["ALT"]
@@ -77,6 +79,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
         print reference.strip()
     for entry in header["CONTIGS"]:
         print(entry.strip())
+        contigs_list.append(entry.strip())
     del header["CONTIGS"]
     for entry in sorted(header["FILTER"]):
         print(header["FILTER"][entry].strip())
@@ -114,13 +117,14 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
         print first_vcf_header
     else:
         print( "\t".join(columns) )
-    return (samples,sample_order,sample_print_order)
+    return (samples,sample_order,sample_print_order,contigs_list)
 
 def main(args):
     variants={}
     #add all the variants into a dictionary
     i=0;
     vcf_list=args.vcf
+
     if vcf_list == 0:
         print("invalid input, either supply the vcf files, or add a number after each vcf name to asign the order manually")
         return(-1)
@@ -165,10 +169,24 @@ def main(args):
                         variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])
                     i+=1;
 
-    samples,sample_order,sample_print_order=print_header(vcf_list,vcf_dictionary,args,sys.argv)
-
+    samples,sample_order,sample_print_order,contigs=print_header(vcf_list,vcf_dictionary,args,sys.argv)
     to_be_printed=merge_vcf_module_cython.merge(variants,samples,sample_order,sample_print_order,priority_order,args)
+
+    #use the contig order as defined in the header, or use lexiographic order
+    if contigs:
+        for i in range(0,len(contigs)):
+            contigs[i]=contigs[i].split("##contig=<ID=")[-1].split(",length=")[0]
+    else:
+        contigs=sorted(to_be_printed.keys())
+
+    #make sure all chromosomes were printed in the header
+    for chromosome in to_be_printed:
+        if not chromosome in contigs:
+            contigs.append(chromosome)
+
     #print the variants in similar order as the input
-    for chra in sorted(to_be_printed):
+    for chra in contigs:
+        if not chra in to_be_printed:
+            continue
         for variant in sorted(to_be_printed[chra],key = lambda x: int(x[1])):
             print("\t".join(variant).strip())
