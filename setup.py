@@ -21,9 +21,9 @@ else:
 
 setup(
     name = 'svdb',
-    version = '1.0.12',
+    version = '1.1.0',
     ext_modules = ext_modules,
     packages = ['svdb'],
-    install_requires = ['numpy', 'scikit-learn', 'scipy'],
+    install_requires = ['numpy'],
     entry_points = {'console_scripts': ['svdb = svdb.__main__:main']},
 )

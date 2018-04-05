@@ -9,7 +9,7 @@ from . import export_module
 from . import bed_annotation_module
 
 def main():
-    version = "1.0.12"
+    version = "1.1.0"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--hist'        , help="generate histograms o the performance of a db", required=False, action="store_true")
@@ -54,9 +54,6 @@ def main():
         parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
         parser.add_argument('--bnd_distance', type=int,default= 10000,help="the maximum distance between two similar precise breakpoints(default = 10000)")
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
-        parser.add_argument('--DBSCAN'       , help="use dbscan to cluster the variants, only available for the sqlite db", required=False, action="store_true")
-        parser.add_argument('--epsilon'       ,type=float, default = 500, help="used together with --DBSCAN; sets the epsilon paramter(default = 500)", required=False)
-        parser.add_argument('--min_pts'       ,type=int, default = 2, help="used together with 1--DBSCAN; sets the min_pts parameter(default = 2)", required=False)  
         parser.add_argument('--memory'       , help="load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)", required=False, action="store_true")        
         
         parser.add_argument('--no_var',help="count overlaping variants of different type as hits in the db", required=False, action="store_true")

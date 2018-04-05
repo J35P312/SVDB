@@ -10,7 +10,7 @@ https://swefreq.nbis.se/
 
 
 #Install:
-Dependencies: SVDB has been tested on python 2.7.11, and requires sciKit-learn as well as numpy.
+Dependencies: SVDB has been tested on python 2.7.11, and requires numpy.
 SVDB is installed using the following command
 
 pip install -e .
@@ -116,9 +116,6 @@ Query: The query module is used to query a structural variant database. Typicall
 		--frequency_tag FREQUENCY_TAG the tag used to describe the frequency of the variant(defualt=FRQ)
 		--prefix PREFIX       the prefix of the output file, default = print to stdout --bnd_distance BND_DISTANCE the maximum distance between the breakpoints of two variantsbreakpoints(default = 10000)
 		--overlap OVERLAP     the overlap threshold for deciding if two variants are similar(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
-		--DBSCAN              use dbscan to cluster the variants, only available for the sqlite db, upon choosing DBSCAN, the overlap
-		--epsilon EPSILON     used together with --DBSCAN; sets the epsilon paramter(default = 500)
-		--min_pts MIN_PTS     used together with 1--DBSCAN; sets the min_pts parameter(default = 2)
 		--memory              load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
 		--no_var              count overlaping variants of different type as hits in the db
 		--invert              invert the sorting order so that high frequency samples are present on top of the output vcf

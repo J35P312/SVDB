@@ -30,7 +30,6 @@ def x_coordinate_clustering(data,epsilon,m):
 					clusters[j]=cluster_id
 		else:
 			cluster=False
-
 	return(clusters,cluster_id)
 
 def y_coordinate_clustering(data,epsilon,m,cluster_id,clusters):
@@ -97,3 +96,13 @@ def main(data,epsilon,m):
 	clusters,cluster_id=y_coordinate_clustering(data,epsilon,m,cluster_id,clusters)
 
 	return(clusters)
+
+
+data=numpy.array([[1,1],[10481823,10483880],[10481947,10483785],[10481947,1],[10481947,1],[10481947,1],[10482033,10483984],[10482079,10483801],[10482111,10483972],[10482121,10483788],[10482125,10483769],[10482126,10484204],[10482163,10483811],[10482177,10483909],[10482186,10483906],[10482191,10483836],[10482202,10484150],[10482262,10483947],[10482285,10483797],[10482342,10483968],[10483770,10482390],[10482390,10483814],[10483770,10482405],[10483769,10482428],[10483770,10482405],[10483770,10482405],[10483770,1],[10483770,1],[10483770,1],[10483770,1]])
+
+
+#data=data[numpy.lexsort((data[:,1],data[:,0]))]
+#print data
+#data=numpy.array([[1,2],[1,3],[1,4],[1,5],[5,100],[5,100],[10,2],[10,3],[10,4],[10,5],[20,100]])
+#print main(data,398,3)
+
