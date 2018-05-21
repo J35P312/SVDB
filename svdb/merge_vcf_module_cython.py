@@ -82,9 +82,9 @@ def merge_csq(info,csq):
     return(info)
 
 def sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files,representing_file,args):
+    #print sample_order
     tmp_format=[]
     var_samples=[]
-
     #sort the format fields
     format_columns={}
     format_entries=[]
@@ -115,7 +115,8 @@ def sort_format_field(line,samples,sample_order,sample_print_order,priority_orde
             format_string=[]    
             line[8]=":".join(format_entries)
             del line[9:]
-            for sample in sorted(samples):
+            for sample in samples:
+				
                 format_string=[]             
                 for entry in format_entries:
                     j=0
@@ -140,7 +141,8 @@ def sort_format_field(line,samples,sample_order,sample_print_order,priority_orde
                     j+=1
                             
                 line.append(":".join(format_string))
-
+                #print sample
+                #print line
     #generate a union of the info fields
     info_union=[]
     tags_in_info=[]
@@ -253,7 +255,6 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
                 else:
                     files[ variants[chrA][i][-3].replace(".vcf","").split("/")[-1] ] = "\t".join(line)
                     representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
-                
                 line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
                 if merge and not args.notag:
                     line[7] += ";VARID=" + "|".join(merge)

@@ -15,7 +15,6 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     subheader={}
     contigs_list=[]
     columns=["#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO"]
-    sample_ids=set([])
     sample_order={}
     print("##fileformat=VCFv4.1")
     print("##source=MergeVCF")
@@ -106,14 +105,8 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
         print("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
     print("##svdbcmdline={}".format(" ".join(command_line)))
     sample_print_order={}
-    if sample_ids and not args.same_order:
-        sorted_samples=sorted(list(sample_ids))
-        print( "\t".join(columns+sorted_samples) )
-        i=0
-        for sample in sorted(list(sample_ids)):
-            sample_print_order[sample]=i
-            i+=1	
-    elif args.same_order:
+
+    if args.same_order:
         print first_vcf_header
     else:
         print( "\t".join(columns) )

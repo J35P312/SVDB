@@ -58,7 +58,7 @@ def readVCFLine(line):
         elif "SVLEN" in description:
             posB=posA+int(description["SVLEN"]);
         else:
-            print line
+            posB=posA
         #sometimes the fermikit intra chromosomal events are inverted i.e the end pos is a lower position than the start pos
         if(posB < posA):
             tmp=posB
@@ -72,8 +72,6 @@ def readVCFLine(line):
         else:
             if "SVTYPE" in description:
                 event_type=description["SVTYPE"];
-                if "INS" in event_type:
-                    event_type = "BND"
     #if the variant is given as a breakpoint, it is stored as a precise variant in the db
     else:
         B=variation[4];
