@@ -56,7 +56,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
                         header["CONTIGS"].append(line)
                     elif "##reference=" in line and not contigs:
                         reference=line
-                    elif not "##source=" in line and not "##file" in line and not "##reference=" in line:
+                    elif not "##source=" in line and not "##file" in line and not "##reference=" in line and not "##contig=<ID=" in line:
                         key=line.strip("#").split("=")[0]
                         if not key in subheader:
                                 subheader[key]=line
@@ -168,7 +168,10 @@ def main(args):
     #use the contig order as defined in the header, or use lexiographic order
     if contigs:
         for i in range(0,len(contigs)):
-            contigs[i]=contigs[i].split("##contig=<ID=")[-1].split(",length=")[0]
+            contig=contigs[i].split("##contig=<ID=")[-1].split(",length=")[0]
+            if not contig in contigs:
+                contigs[i]=contig
+
     else:
         contigs=sorted(to_be_printed.keys())
 

@@ -178,7 +178,6 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
     #search for similar variants
     to_be_printed={}
     for chrA in variants:
-
         analysed_variants=set([])
         for i in range(0,len(variants[chrA])):
             if i in analysed_variants:
@@ -261,10 +260,9 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
 
                 if not args.notag:
                     set_tag=determine_set_tag(priority_order,files)
-                    line[7] += ";set={}".format(set_tag);                
+                    line[7] += ";set={}".format(set_tag);              
                 to_be_printed[line[0]].append(line)
             
             analysed_variants.add(i)
-
 
     return(to_be_printed)
