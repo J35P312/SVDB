@@ -140,7 +140,6 @@ def sample_hist(args,samples):
         hist={}
         for n in range(0,args.n):
             db_samples=random.sample(sample_list,k)
-            print db_samples
             build_db(args,db_samples,prefix)
             #use the database to query each sample
             for sample in db_samples:
