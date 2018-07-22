@@ -2,9 +2,12 @@ from __future__ import absolute_import
 from . import overlap_module
 from . import build_module
 from . import query_module
+from . import export_module
+
 import glob,os
 import random
 import math
+import time
 
 def std(vector):
     n=float( len(vector) )
@@ -20,17 +23,21 @@ def std(vector):
 def build_db(args,samples,prefix):
     args.files=samples
     args.folder=False
-    args.overlap=0.9
-    args.bnd_distance=500
-    args.prefix=prefix+".db";
+    args.prefix=prefix
     build_module.main(args)
 
+    args.db=prefix+".db"
+    
+    args.memory=False
+    export_module.main(args)    
+
 def query_db(args,sample,db,prefix):
-    args.prefix=prefix+".db";
+    args.prefix=prefix+".query";
     args.invert=False
     args.query_vcf=sample
-    args.db=False
-    args.sqdb=db
+    args.db=db
+    args.bedpedb=False
+    args.sqdb=False
     args.hit_tag="OCC"
     args.frequency_tag="FRQ"
     args.prefix=prefix
@@ -47,9 +54,12 @@ def get_frequencies(queried_vcf):
             content=line.split("\t")
             if not line[0] == "#":
                 lines+=1
-                info=line.split("\t")[7]
-                frequency=info.split(";OCC=")[-1];
-                frequency=float(frequency.split(";")[0])
+                if not "OCC=" in line:
+                    frequency=0
+                else:
+                    info=line.split("\t")[7]
+                    frequency=info.split(";OCC=")[-1];
+                    frequency=float(frequency.split(";")[0])
                 if not frequency in frequency_histogram:
                     frequency_histogram[frequency]=0
                 frequency_histogram[frequency] += 1
@@ -69,15 +79,10 @@ def similarity_matrix(args,samples):
             header += "," + sample
     print(header)
 
-    #generate a db per sample
-    for sample in samples:
-        build_db(args,[samples[sample]],sample)
-
     #each sample will query each db
     for query_sample in samples:
         for db_sample in samples:
-            if not os.path.exists(query_sample+"_"+db_sample+"_query.vcf"):
-                query_db(args,samples[query_sample],db_sample+".db.db",query_sample+"_"+db_sample)
+                query_db(args,samples[query_sample],samples[db_sample],query_sample+"_"+db_sample)
 
     #generate each row of the matrix
     a=range(len(samples))
@@ -118,9 +123,6 @@ def similarity_matrix(args,samples):
         for column_sample in sorted(samples):
             if os.path.exists(row_sample+"_"+column_sample+"_query.vcf"):
                 os.remove(row_sample+"_"+column_sample+"_query.vcf")
-    #clear all the db files
-    for sample in samples:
-        clear_db(sample)
 
 def sample_hist(args,samples):
     sample_list=[]
@@ -143,7 +145,7 @@ def sample_hist(args,samples):
             build_db(args,db_samples,prefix)
             #use the database to query each sample
             for sample in db_samples:
-                query_db(args,sample,prefix+".db.db","tmp")
+                query_db(args,sample,prefix+".vcf","tmp")
                 frequency_hist[sample],variants=get_frequencies("tmp_query.vcf")                
                 os.remove("tmp_query.vcf")
 
@@ -155,7 +157,7 @@ def sample_hist(args,samples):
                         hist[val] = []
                     hist[val].append(frequency_hist[sample][val]/float(variants))
                 
-            os.remove(prefix + ".db.db")
+            os.remove(prefix + ".db")
                            
         print("{},{},{}".format(k, sum(ones)/float( len(ones) ), std(ones) ))
         f=open("SVDB_hist_{}.csv".format(k),"w")

@@ -274,7 +274,6 @@ def svdb_cluster_main(chrA,chrB,variant,sample_IDs,args,c,i):
     return i
 
 def export(args,sample_IDs):
-    print "connecting to db"
 
     db=args.db
     conn = sqlite3.connect(db)
@@ -301,7 +300,6 @@ def export(args,sample_IDs):
         var_list.append(variant[0])
 
     i=0;
-    print "clustering"
     for chrA in chrA_list:
         for chrB in chrB_list:
             for variant in var_list:
@@ -309,7 +307,6 @@ def export(args,sample_IDs):
 
  
 def main(args):
-    print "initiating"
     sample_IDs=[]
     if not args.prefix:
         args.prefix=args.db.replace(".db","")
