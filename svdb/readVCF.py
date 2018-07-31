@@ -75,25 +75,23 @@ def readVCFLine(line):
     #if the variant is given as a breakpoint, it is stored as a precise variant in the db
     else:
         B=variation[4];
-
         B=re.split("[],[]",B);
-        for string in B:
-            if string.count(":"):
-                lst=string.split(":");
-                chrB=lst[0].replace("chr","").replace("Chr","").replace("CHR","")
-                posB=int(lst[1]);
-                if chrA > chrB:
-                    chrT = chrA
-                    chrA = chrB
-                    chrB = chrT
+        chr_and_pos=B[1]
+        chrB=":".join(chr_and_pos.split(":")[:-1]).replace("chr","").replace("Chr","").replace("CHR","")
+        pos=int(chr_and_pos.split(":")[-1])
+        if chrA > chrB:
+           chrT = chrA
+           chrA = chrB
+           chrB = chrT
                         
-                    tmpPos=posB
-                    posB=posA
-                    posA=tmpPos
-                elif chrA == chrB and posA > posB:
-                    tmpPos=posB
-                    posB=posA
-                    posA=tmpPos                   
+           tmpPos=posB
+           posB=posA
+           posA=tmpPos
+
+        elif chrA == chrB and posA > posB:
+             tmpPos=posB
+             posB=posA
+             posA=tmpPos                   
                 
         event_type="BND"
     return( chrA, posA, chrB, posB,event_type,description,format);

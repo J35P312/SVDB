@@ -9,7 +9,7 @@ from . import export_module
 from . import bed_annotation_module
 
 def main():
-    version = "1.2.0"
+    version = "1.2.1"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--hist'        , help="generate histograms o the performance of a db", required=False, action="store_true")
