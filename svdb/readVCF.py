@@ -78,7 +78,7 @@ def readVCFLine(line):
         B=re.split("[],[]",B);
         chr_and_pos=B[1]
         chrB=":".join(chr_and_pos.split(":")[:-1]).replace("chr","").replace("Chr","").replace("CHR","")
-        pos=int(chr_and_pos.split(":")[-1])
+        posB=int(chr_and_pos.split(":")[-1])
         if chrA > chrB:
            chrT = chrA
            chrA = chrB
@@ -94,4 +94,5 @@ def readVCFLine(line):
              posA=tmpPos                   
                 
         event_type="BND"
+
     return( chrA, posA, chrB, posB,event_type,description,format);
