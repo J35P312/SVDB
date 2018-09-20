@@ -244,24 +244,21 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
                 line[7]=merge_csq(line[7],csq)
             if not line[0] in to_be_printed:
                 to_be_printed[line[0]]=[]
-            if args.same_order:
-                to_be_printed[line[0]].append(line)
-            else:
-                
-                if args.priority:
-                    files[variants[chrA][i][-3]] = "\t".join(line)
-                    representing_file = variants[chrA][i][-3]
-                else:
-                    files[ variants[chrA][i][-3].replace(".vcf","").split("/")[-1] ] = "\t".join(line)
-                    representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
-                line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
-                if merge and not args.notag:
-                    line[7] += ";VARID=" + "|".join(merge)
 
-                if not args.notag:
-                    set_tag=determine_set_tag(priority_order,files)
-                    line[7] += ";set={}".format(set_tag);              
-                to_be_printed[line[0]].append(line)
+            if args.priority:
+                files[variants[chrA][i][-3]] = "\t".join(line)
+                representing_file = variants[chrA][i][-3]
+            else:
+                files[ variants[chrA][i][-3].replace(".vcf","").split("/")[-1] ] = "\t".join(line)
+                representing_file = variants[chrA][i][-3].replace(".vcf","").split("/")[-1]
+            line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
+            if merge and not args.notag:
+                line[7] += ";VARID=" + "|".join(merge)
+
+            if not args.notag:
+                set_tag=determine_set_tag(priority_order,files)
+                line[7] += ";set={}".format(set_tag);              
+            to_be_printed[line[0]].append(line)
             
             analysed_variants.add(i)
 

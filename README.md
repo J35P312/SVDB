@@ -120,32 +120,6 @@ Query: The query module is used to query a structural variant database. Typicall
 		--no_var              count overlaping variants of different type as hits in the db
 		--invert              invert the sorting order so that high frequency samples are present on top of the output vcf
 		--ci				  overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)
-
-
-Purge: The purge module is used to remove entries from a database:
-
-    print a help message:
-       svdb --purge --help
-    Delete a sample from a DB, the sample id should be the same as the id written in the format columns of the db:
-        svdb --purge --sample patient2 --db my_svdb.vcf > cleaned_db.vcf
-    Delete variants from a DB, the variants should be stored in a standard structural variant format:
-        svdb --purge --vcf delete_these_variants.vcf --db my_svdb.vcf > cleaned_db.vcf
-    
-    optional arguments:
-        -h, --help                      show this help message and exit
-        
-        --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
-                                        (default = 10000)
-                        
-        --overlap OVERLAP               the overlap required to merge two events(0 means
-                                        anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.6
-                              
-        --ci                            overides overlap and bnd_distance,determine hits based
-                                        on the confidence interval of the position fo the
-                                        variants(0 if no CIPOS or CIEND is vailable)
-
-    
     
 Merge: The merge module merges variants within one or more vcf files. This could be used to either merge the output of multiple callers, or to merge variants that are called multiple times due to noise or some other error:
 

@@ -21,7 +21,7 @@ else:
 
 setup(
     name = 'svdb',
-    version = '1.2.2',
+    version = '1.3.0',
     ext_modules = ext_modules,
     packages = ['svdb'],
     install_requires = ['numpy'],

@@ -9,12 +9,11 @@ from . import export_module
 from . import bed_annotation_module
 
 def main():
-    version = "1.2.2"
+    version = "1.3.0"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--hist'        , help="generate histograms o the performance of a db", required=False, action="store_true")
     parser.add_argument('--query'       , help="query a db", required=False, action="store_true")
-    parser.add_argument('--purge'       , help="remove entries from a database", required=False, action="store_true")
     parser.add_argument('--merge'       , help="merge similar structural variants within a vcf file", required=False, action="store_true")
     parser.add_argument('--export'       , help="export a database", required=False, action="store_true")
     parser.add_argument('--bed_annotation' , help="annotate a vcf file using information stored in a bed file", required=False, action="store_true")
@@ -104,23 +103,6 @@ def main():
         
         args.version=version        
         export_module.main(args)
-
-    elif args.purge:
-        parser = argparse.ArgumentParser("""SVDB-{}: purge module""".format(version))
-        parser.add_argument('--purge', help="query a db", required=False, action="store_true")
-        parser.add_argument('--vcf', type=str, help="remove all the entries within the DB that overlaps with any variant in the vcf")
-        parser.add_argument('--samples', nargs='*',type=str, help="remove the given samples from the database")
-        parser.add_argument('--file',type=str, help="remove the given samples from the database, each sample id is written, in a file, one line per sample id")
-        parser.add_argument('--db'        , type=str, required=True, help="path to a SVDB vcf")
-        parser.add_argument('--bnd_distance', type=int,default= 10000,help="the maximum distance between two similar precise breakpoints(default = 10000)")
-        parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
-        parser.add_argument('--ci', help="overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)", required=False, action="store_true")
-        args= parser.parse_args()
-        args.version=version
-        if args.samples or args.vcf or args.file:
-            purge_module.main(args)
-        else:
-            print("use the samples or vcf option to remove entries from the db")
 
     elif args.merge:
         parser = argparse.ArgumentParser("""SVDB-{}: vcf_merge module""".format(version))
