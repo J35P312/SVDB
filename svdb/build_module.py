@@ -69,8 +69,13 @@ def populate_db(args):
             continue
         
         var =[]
+        sample_names=[]
         for line in open(vcf):
             if line.startswith("#"):
+                if "CHROM" in line:
+                    content=line.strip().split()
+                    if len(content) > 9:
+                        sample_names=content[9:] 
                 continue
             chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line)
             ci_A_lower=0
@@ -100,9 +105,18 @@ def populate_db(args):
                     ci_B_lower = abs(int(ci[0]))
                     ci_B_upper = abs(int(ci[0]))
            
-            
-            var.append((event_type,chrA,chrB,posA,ci_A_lower,ci_A_upper,posB,ci_B_lower,ci_B_upper,sample_name,idx))
-            idx += 1;
+            if not "GT" in FORMAT:
+                var.append((event_type,chrA,chrB,posA,ci_A_lower,ci_A_upper,posB,ci_B_lower,ci_B_upper,sample_name,idx))
+                idx += 1;
+            else:
+                sample_index=0
+                for genotype in FORMAT["GT"]:
+                    if genotype not in ["0/0","./."]:
+                        var.append((event_type,chrA,chrB,posA,ci_A_lower,ci_A_upper,posB,ci_B_lower,ci_B_upper,sample_names[sample_index],idx))
+                        idx+=1
+                    sample_index+=1
+
+
             #insert EVERYTHING into the database, the user may then query it in different ways(at least until the DB gets to large to function properly)
         if var:    
             c.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)',var)     

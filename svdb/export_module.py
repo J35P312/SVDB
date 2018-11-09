@@ -96,7 +96,7 @@ def vcf_line(cluster,id_tag,sample_IDs):
     CIEND_start=-abs(cluster[0]["posB"]-min(CIEND))
     CIEND_end=abs(cluster[0]["posB"]-max(CIEND))
 
-    info_field += "NSAMPLES={};OCC={};FRQ={};CIPOS={},{};CIEND={},{};".format(len(sample_IDs),len(sample_set),round(len(sample_set)/float(len(sample_IDs)) ,2),CIPOS_start,CIPOS_end,CIEND_start,CIEND_end)
+    info_field += "NSAMPLES={};OCC={};FRQ={};CIPOS={},{};CIEND={},{};".format(len(sample_IDs),len(sample_set),round(len(sample_set)/float(len(sample_IDs)) ,4),CIPOS_start,CIPOS_end,CIEND_start,CIEND_end)
     variant_field="VARIANTS="
     for variant in cluster[1]:
         variant_field +="|{}:{}:{}".format(cluster[1][variant]["sample_id"],cluster[1][variant]["posA"],cluster[1][variant]["posB"])
@@ -109,7 +109,7 @@ def vcf_line(cluster,id_tag,sample_IDs):
         zygosity_list[sample]="0/0"
     
     for variant in cluster[1]:
-        zygosity_list[cluster[1][variant]["sample_id"]]="./."
+        zygosity_list[cluster[1][variant]["sample_id"]]="./1"
     format=[]
     for sample in sample_IDs:
         format.append(zygosity_list[sample])
