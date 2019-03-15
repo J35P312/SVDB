@@ -8,14 +8,27 @@ or the swegen SVDB:
 
 https://swefreq.nbis.se/
 
+or the GNOMAD SV:
 
-#Install:
+https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
+
+external databses are run like this:
+
+zgrep -E "#|POPM" gnomad_v2_sv.sites.vcf.gz > popmax_sv_gnomad.vcf
+
+svdb --query --db popmax_sv_gnomad.vcf --query_vcf P2109_110.clean.dedup.recal_FindSV.vcf --frequency_tag AF --hit_tag AN
+
+here the AF and AN are the allele frequency tags of the database, the AF is a float, and AN is an integer. These tags will be a dded to the matching entries of the query.
+
+NOTE: AF and AN needs cannot be comma separated values, only single integer or float values are supported!
+
+# Install:
 Dependencies: SVDB has been tested on python 2.7.11, and requires numpy.
 SVDB is installed using the following command
 
 pip install -e .
 
-#modules:
+# modules:
 SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
 
 Build: This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
