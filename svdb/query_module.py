@@ -74,13 +74,20 @@ def main(args):
         db_size=1
         Use_OCC_tag=False
         OCC_tag="OCC"
+        if args.hit_tag:
+           OCC_tag=args.hit_tag
+
         FRQ_tag="FRQ"
+        if args.frequency_tag:
+           FRQ_tag=args.frequency_tag
+
+        #print FRQ_tag
         for line in open(db_file):
 
             if line[0] == "#":
                 if " occur" in line and "INFO" in line:
                     OCC_tag=line.split("##INFO=<ID=")[-1].split(",Number=1,Type=")[0]
-                elif " frequency" in line and "INFO" in line:
+                elif " frequency of the" in line and "INFO" in line:
                     FRQ_tag=line.split("##INFO=<ID=")[-1].split(",Number=1,Type=")[0]
                 continue
             
@@ -116,8 +123,8 @@ def main(args):
                 Use_OCC_tag=True
    
             else:
-                OCC=int( line.split("{}=".format(OCC_tag))[-1].split(";")[0].split("\t")[0] )
-                FRQ=float( line.split("{}=".format(FRQ_tag))[-1].split(";")[0].split("\t")[0] )
+                OCC=int( INFO[OCC_tag] )
+                FRQ=float( INFO[FRQ_tag] )
                 DBvariants[chrA][chrB][event_type]["samples"].append([OCC,FRQ])
                 Use_OCC_tag=True
 
