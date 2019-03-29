@@ -14,13 +14,9 @@ https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.v
 
 external databses are run like this:
 
-zgrep -E "#|POPM" gnomad_v2_sv.sites.vcf.gz > popmax_sv_gnomad.vcf
+svdb --query --query_vcf /home/jesper/vcf/6_pair_limit/P2109_120.clean.dedup.recal_FindSV.vcf --out_occ GNOMAD_AC --out_frq GNOMAD_AF --in_occ AN --out_frq AF --db /home/jesper/Downloads/gnomad_sv/gnomad_v2_sv.sites.vcf
 
-svdb --query --db popmax_sv_gnomad.vcf --query_vcf P2109_110.clean.dedup.recal_FindSV.vcf --frequency_tag AF --hit_tag AN
-
-here the AF and AN are the allele frequency tags of the database, the AF is a float, and AN is an integer. These tags will be a dded to the matching entries of the query.
-
-NOTE: AF and AN needs cannot be comma separated values, only single integer or float values are supported!
+here the AF and AN are the allele frequency tags of the database, the AF is a float, and AN is an integer. These tags will be added to the annotated output vcf, and named GNOMAD_AC, GNOMAD_AF.
 
 # Install:
 Dependencies: SVDB has been tested on python 2.7.11, and requires numpy.
@@ -61,8 +57,6 @@ Export: this module is used to export the variants of the SVDB sqlite database. 
     optional arguments:
         --no_merge            skip the merging of variants, print all variants in the db to a vcf file
 
-         --ci                  overides overlap and bnd_distance,determine hits based on the confidence interval of the position of the variants(0 if no CIPOS or CIEND is vailable)
-
           --bnd_distance BND_DISTANCE  the maximum distance between two similar precise breakpoints(default = 2500)
  
          --overlap OVERLAP     the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8
@@ -78,61 +72,33 @@ Export: this module is used to export the variants of the SVDB sqlite database. 
 
           --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
 
-
-Hist: This module is used to compare structural variant vcf files, either by generating a similarity matrix, or by creating histograms of the efficency of databases of different sizes(based on input vcf files):
-
-    print a help message
-        svdb --hist --help
-    Create histograms of different sizes, and compute their efficiency:
-        svdb --hist --sample_hist -folder input
-    Create a similarity matrix of the selected sampes:
-        svdb --hist --similarity_matrix -folder input
-    
-    optional arguments:
-    
-        -h, --help                      show this help message and exit
-        
-        --files [FILES [FILES ...]]     input vcf files(cannot be used with folder)
-         
-        --k [K [K ...]]                 the sizes of the sampled databases
-                                        default = n=10*i < samples(used with sample_hist)
-        
-        --n N                           the number of iterations,default=100(used with sample_hist)
-  
-        --bnd_distance BND_DISTANCE     the maximum distance between two similar precise
-                                        breakpoints(default = 10000)
-                                        
-        --overlap OVERLAP               the overlap required to merge two events(0 means
-                                        anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.6
-        
-        --ci                            overides overlap and bnd_distance,determine hits based
-                                        on the confidence interval of the position of the
-                                        variants(0 if no CIPOS or CIEND is vailable)
-
 Query: The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
     print a help message
        svdb --query --help
     Query a structural variant database, using a vcf file as query:
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
-	The vcf may be a exported SVDB database or a multismple vcf. The frequencies used for each variant is computed from the format fields of the vcf.
+	The vcf may be a exported SVDB database or a multismple vcf, or a vcf having info field tags(which are provided through the in_occ, out_frq). The frequencies used for each variant is computed from the format fields of the vcf.
 	The SVDB sqlite database may also be used for querying:
         svdb --query --query_vcf patient1.vcf --sqdb control_db.db
 
     optional arguments:
 
-		-h, --help            show this help message and exit
-		--db DB               path to a SVDB db vcf
-		--sqdb SQDB           path to a SVDB sqlite db
-		--hit_tag HIT_TAG     the tag used to describe the number of hits within the info field of the output vcf(default=OCC)
-		--frequency_tag FREQUENCY_TAG the tag used to describe the frequency of the variant(defualt=FRQ)
-		--prefix PREFIX       the prefix of the output file, default = print to stdout --bnd_distance BND_DISTANCE the maximum distance between the breakpoints of two variantsbreakpoints(default = 10000)
-		--overlap OVERLAP     the overlap threshold for deciding if two variants are similar(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
-		--memory              load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
-		--no_var              count overlaping variants of different type as hits in the db
-		--invert              invert the sorting order so that high frequency samples are present on top of the output vcf
-		--ci				  overides overlap and bnd_distance,determine hits based on the confidence interval of the position fo the variants(0 if no CIPOS or CIEND is vailable)
+	-h, --help            show this help message and exit
+
+	--db DB				path to a db vcf
+	--sqdb SQDB			path to a SVDB sqlite db
+	--bedpedb BEDPEDB		path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency
+	--in_occ IN_OCC			The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AN or OCC)
+	--in_frq IN_FRQ			The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ)
+	--out_occ OUT_OCC		the allle count tag, as annotated by SVDB variant(defualt=OCC)
+	--out_frq OUT_FRQ		the tag used to describe the frequency of the variant(defualt=FRQ)
+	--prefix PREFIX			the prefix of the output file, default = print to stdout
+	--bnd_distance BND_DISTANCE	the maximum distance between two similar breakpoints(default = 10000)
+	--overlap OVERLAP		the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
+	--memory 			load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
+	--no_var			count overlaping variants of different type as hits in the db
+
     
 Merge: The merge module merges variants within one or more vcf files. This could be used to either merge the output of multiple callers, or to merge variants that are called multiple times due to noise or some other error:
 
@@ -159,13 +125,8 @@ Merge: The merge module merges variants within one or more vcf files. This could
                                         anything that touches will be merged, 1 means that two
                                         events must be identical to be merged), default = 0.6
 
-
         --priority                      prioritise the input vcf files
-                              
-        --ci                            overides overlap and bnd_distance,determine hits based
-                                        on the confidence interval of the position fo the
-                                        variants(0 if no CIPOS or CIEND is vailable)
-                                        
+                                                                      
         --no_intra                       no merging of variants within the same vcf
         
         --no_var                        variants of different type will be merged

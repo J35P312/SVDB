@@ -13,7 +13,6 @@ if has_cython:
         "svdb/DBSCAN.py",
         "svdb/readVCF.py",
         "svdb/merge_vcf_module_cython.py",
-        "svdb/hist_module.py",
         "svdb/query_module.py",
         "svdb/export_module.py"])
 else:
@@ -21,7 +20,7 @@ else:
 
 setup(
     name = 'svdb',
-    version = '1.3.2',
+    version = '2.0.0',
     ext_modules = ext_modules,
     packages = ['svdb'],
     install_requires = ['numpy'],

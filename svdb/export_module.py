@@ -117,13 +117,13 @@ def vcf_line(cluster,id_tag,sample_IDs):
     vcf_line.append("\t".join(format))
     return( "\t".join(vcf_line) )
 
-def expand_chain(chain,coordinates,chrA,chrB,distance,overlap,ci):
+def expand_chain(chain,coordinates,chrA,chrB,distance,overlap):
     chain_data={}
     for i in range(0,len(chain)):
         variant=chain[i]
         chain_data[i]=[]
 
-        if chrA == chrB and not ci:
+        if chrA == chrB:
             rows=coordinates[ ( distance >= abs(coordinates[:,1] - variant["posA"])  ) & ( distance >= abs(coordinates[:,2] - variant["posB"])  ) & ( variant["posB"] >=  coordinates[:,1] )  & (coordinates[:,2] >= variant["posB"] ) ]
 
         else:
@@ -133,9 +133,7 @@ def expand_chain(chain,coordinates,chrA,chrB,distance,overlap,ci):
 
             var=chain[j]
             similar = False
-            if ci:
-                similar=overlap_module.ci_overlap(variant["posA"],variant["posB"],[variant["ci_A_start"],variant["ci_A_end"]],[variant["ci_B_start"],variant["ci_B_end"]],var["posA"],var["posB"],[0,0],[0,0])
-            elif chrA != chrB:
+            if chrA != chrB:
                 similar=True
             else:
                 similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
@@ -184,7 +182,7 @@ def fetch_variants(variant,chrA,chrB,c):
 
 def overlap_cluster(c,indexes,variant,chrA,chrB,sample_IDs,args,f,i):
     variant_dictionary,coordinates=fetch_index_variant(c,indexes)
-    similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap,args.ci)
+    similarity_matrix=expand_chain(variant_dictionary,coordinates,chrA,chrB,args.bnd_distance,args.overlap)
     clusters=cluster_variants(variant_dictionary,similarity_matrix)
     for clustered_variants in clusters:
         clustered_variants[0]["type"]=variant
