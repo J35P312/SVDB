@@ -87,10 +87,18 @@ def main(args):
             
             if args.bedpedb:
                 content=line.strip().split()
-                chrA=content[0]
-                posA=int(content[1])
-                chrB=content[2]
-                posB=int(content[3])
+
+                if ( content[0] == content[2] and (int(content[1]) < int(content[3])) ) or (content[0] < content[2]):
+                     chrA=content[0]
+                     posA=int(content[1])
+                     chrB=content[2]
+                     posB=int(content[3])
+                else:
+                     chrA=content[2]
+                     posA=int(content[3])
+                     chrB=content[0]
+                     posB=int(content[1])
+
                 event_type=content[4]
                 hits=int(content[5])
                 frequency=float(content[6])
@@ -98,7 +106,7 @@ def main(args):
 
             else:
                 chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line)
-                
+
             if not chrA in DBvariants:
                 DBvariants[chrA]={}
             if not chrB in DBvariants[chrA]:
@@ -232,13 +240,14 @@ def queryVCFDB(DBvariants, Query_variant,args,Use_OCC_tag):
             sample_list=DBvariants[chrA][chrB][var]["samples"][candidate]
             #check if the variant type of the events is the same
             hit_tmp = None
+            match=False
+
             if not (chrA == chrB):
-                hit_tmp=overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
-
+                hit_tmp,match=overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
             elif chrBpos >= event[0] and event[1] >= chrApos:
-                hit_tmp = overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
+                hit_tmp,match = overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
 
-            if hit_tmp:
+            if match:
                 similarity.append(hit_tmp)
                 if Use_OCC_tag:
                     occ.append(sample_list[0])
