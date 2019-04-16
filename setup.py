@@ -21,6 +21,9 @@ else:
 setup(
     name = 'svdb',
     version = '2.0.0',
+    url = "https://github.com/J35P312/SVDB",
+    author = "Jesper Eisfeldt",
+    author_email= "jesper.eisfeldt@scilifelab.se",
     ext_modules = ext_modules,
     packages = ['svdb'],
     install_requires = ['numpy'],
