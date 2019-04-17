@@ -1,0 +1,10 @@
+
+language: python
+python:
+  - "2.7"
+before_install:
+  - sudo apt-get install -y gcc libssl-dev openssl libcrypto++-dev libssl1.0.0 ca-certificates libcurl4-openssl-dev
+install:
+  - python setup.py -q install
+# command to run tests
+script: pytest tests/test.py
