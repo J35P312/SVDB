@@ -133,6 +133,7 @@ def expand_chain(chain,coordinates,chrA,chrB,distance,overlap):
 
             var=chain[j]
             similar = False
+            match = False
             if chrA != chrB:
                 similar=True
             else:
