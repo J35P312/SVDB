@@ -136,8 +136,10 @@ def expand_chain(chain,coordinates,chrA,chrB,distance,overlap):
             match = False
             if chrA != chrB:
                 similar=True
+		match=True
             else:
                 similar,match=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
+
             if match:
                 chain_data[i].append(j)
         chain_data[i]=np.array(chain_data[i])
