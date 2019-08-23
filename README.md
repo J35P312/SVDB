@@ -1,14 +1,20 @@
 # SVDB
 SVDB is a toolkit for constructing and querying structural variant databases. The databases are constructed using the output vcf files from structural variant callers such as TIDDIT, Manta, Fermikit or Delly.
+SVDB may also be used to merge SV  vcf files from multiple callers or individuals.
 
-Additionally, the thousand genomes structural variant calls may also be used as a database:
+
+# Supported public databases
+SVDB query supports public databases such as thousand genomes SV map and Gnomad SV, as well as most multisample SV vcf files
+
+The thousand genomes SV database:
+
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/
 
-or the swegen SVDB:
+The swegen SVDB:
 
 https://swefreq.nbis.se/
 
-or the GNOMAD SV:
+The GNOMAD SV database:
 
 https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
 
@@ -19,7 +25,7 @@ svdb --query --query_vcf /home/jesper/vcf/6_pair_limit/P2109_120.clean.dedup.rec
 here the AF and AN are the allele frequency tags of the database, the AF is a float, and AN is an integer. These tags will be added to the annotated output vcf, and named GNOMAD_AC, GNOMAD_AF.
 
 # Install:
-Dependencies: SVDB has been tested on python 2.7.11, and requires numpy.
+Dependencies: SVDB has been tested on python 2.7.11 and python 3.6, and requires numpy.
 SVDB is installed using the following command
 
 pip install -e .
@@ -47,7 +53,7 @@ Build: This module is used to construct structural variant databases from vcf fi
         --prefix PREFIX                  the prefix of the output file, default = SVDB
 
 
-Export: this module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorihms, overlap, DBSCAN, or CIPOS.
+Export: this module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorihms, overlap or DBSCAN.
  
     print a help message
         svdb  --export --help  
@@ -57,18 +63,17 @@ Export: this module is used to export the variants of the SVDB sqlite database. 
     optional arguments:
         --no_merge            skip the merging of variants, print all variants in the db to a vcf file
 
-          --bnd_distance BND_DISTANCE  the maximum distance between two similar precise breakpoints(default = 2500)
+         --bnd_distance BND_DISTANCE  the maximum distance between two similar precise breakpoints(default = 2500)
  
          --overlap OVERLAP     the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8
 
          --DBSCAN              use dbscan to cluster the variants, overides the overlap based clustering algoritm
 
-          --epsilon EPSILON     used together with --DBSCAN; sets the epsilon paramter(default = 500bp)
+         --epsilon EPSILON     used together with --DBSCAN; sets the epsilon paramter(default = 500bp)
 
-          --min_pts MIN_PTS     used together with 1--DBSCAN; sets the min_pts parameter(default = 2
+         --min_pts MIN_PTS     the min_pts parameter(default = 2
 
-          --prefix PREFIX       the prefix of the output file, default = same as input
-
+         --prefix PREFIX       the prefix of the output file, default = same as input
 
           --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
 
@@ -77,10 +82,8 @@ Query: The query module is used to query a structural variant database. Typicall
     print a help message
        svdb --query --help
     Query a structural variant database, using a vcf file as query:
+
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
-	The vcf may be a exported SVDB database or a multismple vcf, or a vcf having info field tags(which are provided through the in_occ, out_frq). The frequencies used for each variant is computed from the format fields of the vcf.
-	The SVDB sqlite database may also be used for querying:
-        svdb --query --query_vcf patient1.vcf --sqdb control_db.db
 
     optional arguments:
 
@@ -127,10 +130,10 @@ Merge: The merge module merges variants within one or more vcf files. This could
 
         --priority                      prioritise the input vcf files
                                                                       
-        --no_intra                       no merging of variants within the same vcf
+        --no_intra                      no merging of variants within the same vcf
         
         --no_var                        variants of different type will be merged
         
         --pass_only                     merge only variants labeled PASS
 
-
+	--same_order			assume that the samples are ordered the same way (skip reordering and merging of the sample columns). 

@@ -5,6 +5,7 @@ from . import overlap_module
 from operator import itemgetter
 from . import merge_vcf_module_cython
 import sqlite3
+import gzip
 
 import numpy as np
 
@@ -15,8 +16,13 @@ def main(args):
         f=open(args.prefix+"_query.vcf","w")
     noOCCTag=1;
     infoFound=0;
-        
-    for line in open(args.query_vcf):
+
+    if args.query_vcf.endswith(".gz"):
+       f=gzip.open(args.query_vcf,"rt")
+    else:
+       f=open(args.query_vcf,"rt")
+
+    for line in f:
         if line[0] == "#":
             meta_line=line.replace("#","");
             content=meta_line.split("=");
@@ -80,8 +86,14 @@ def main(args):
         if args.in_frq:
             FRQ_tag=args.in_frq
 
+
+        if db_file.endswith(".gz"):
+           f=gzip.open(db_file,"rt")
+        else:
+           f=open(db_file,"rt")
+
         #print FRQ_tag
-        for line in open(db_file):
+        for line in f:
             if line[0] == "#":
                 continue
             

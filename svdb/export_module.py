@@ -52,6 +52,7 @@ def db_header(args):
     headerString+="##ALT=<ID=DEL,Description=\"Deletion\">\n";
     headerString+="##ALT=<ID=DUP,Description=\"Duplication\">\n";
     headerString+="##ALT=<ID=INV,Description=\"Inversion\">\n";
+    headerString+="##ALT=<ID=INS,Description=\"Insertion\">\n";
     headerString+="##ALT=<ID=BND,Description=\"Break end\">\n";
     headerString+="##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n";
     headerString+="##INFO=<ID=END,Number=1,Type=String,Description=\"End of an intra-chromosomal variant\">\n";

@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from . import readVCF
 from . import merge_vcf_module_cython
 import sys
+import gzip
 
 def print_header(vcf_list,vcf_dictionary,args,command_line):
     header={};
@@ -18,12 +19,17 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     sample_order={}
     print("##fileformat=VCFv4.1")
     print("##source=MergeVCF")
-    print "##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv))
+    print ("##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv)))
     samples=[]
     first=True
     first_vcf_header=""
     for vcf in vcf_list:
-        for line in open(vcf):
+        if vcf.endswith(".gz"):
+           f=gzip.open(vcf,"rt")
+        else:
+           f=open(vcf,"rt")
+
+        for line in f:
             if(line[0] == "#"):
                 if("#CHROM\tPOS" in line):
                     if first:
@@ -63,8 +69,10 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
             else:
                 if header["CONTIGS"]:
                     contigs = True
+                f.close()
                 break
 
+        f.close()
     #print the mandatory header lines in the correct order
     
     for entry in sorted(header["ALT"]):
@@ -75,7 +83,7 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     del header["INFO"]
     #print contigs according to the input order
     if reference != "":
-        print reference.strip()
+        print (reference.strip())
     for entry in header["CONTIGS"]:
         print(entry.strip())
         contigs_list.append(entry.strip())
@@ -107,9 +115,10 @@ def print_header(vcf_list,vcf_dictionary,args,command_line):
     sample_print_order={}
 
     if args.same_order:
-        print first_vcf_header
+        print (first_vcf_header)
     else:
         print( "\t".join(columns) )
+
     return (samples,sample_order,sample_print_order,contigs_list)
 
 def main(args):
@@ -149,11 +158,17 @@ def main(args):
                 vcf_dictionary[ vcf ]=vcf.split(".vcf")[0].split("/")[-1]
                 priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
 
-            for line in open(vcf):
+            if vcf.endswith(".gz"):
+                f=gzip.open(vcf,"rt")
+            else:
+                f=open(vcf,"rt")
+
+
+            for line in f:
                 if line[0] == "#":
                     pass
                 else:
-                    chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line);
+                    chrA,posA,chrB,posB,event_type,INFO,FORMAT =readVCF.readVCFLine(line)
                     if not chrA in variants:
                         variants[chrA]=[]
                     if args.priority:
@@ -161,7 +176,8 @@ def main(args):
                     else:
                         variants[chrA].append([chrB,event_type,posA,posB,vcf,i,line.strip()])
                     i+=1;
-
+            f.close()
+ 
     samples,sample_order,sample_print_order,contigs=print_header(vcf_list,vcf_dictionary,args,sys.argv)
     to_be_printed=merge_vcf_module_cython.merge(variants,samples,sample_order,sample_print_order,priority_order,args)
 

@@ -6,6 +6,7 @@ import subprocess
 import sqlite3
 import glob
 import os
+import gzip
 
 def populate_db(args):
     sample_IDs=[]
@@ -52,8 +53,7 @@ def populate_db(args):
     
     #populate the tables
     for vcf in args.files:
-        sample_name=vcf.split("/")[-1]
-        sample_name=sample_name.replace(".vcf","")
+        sample_name=vcf.split("/")[-1].split(".vcf")[0]
         sample_name=sample_name.replace(".","_")
         sample_IDs.append(sample_name)
         A='SELECT sample FROM SVDB WHERE sample == \'{}\' '.format(sample_name)
@@ -70,14 +70,25 @@ def populate_db(args):
         
         var =[]
         sample_names=[]
-        for line in open(vcf):
+
+        if vcf.endswith(".gz"):
+           f=gzip.open(vcf,"rt")
+        else:
+           f=open(vcf,"rt")
+
+        for line in f:
             if line.startswith("#"):
                 if "CHROM" in line:
                     content=line.strip().split()
                     if len(content) > 9:
                         sample_names=content[9:] 
                 continue
+
+            if not len(line.strip()):
+               continue
+
             chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line)
+
             ci_A_lower=0
             ci_A_upper=0
             ci_B_lower=0
@@ -105,7 +116,7 @@ def populate_db(args):
                     ci_B_lower = abs(int(ci[0]))
                     ci_B_upper = abs(int(ci[0]))
            
-            if not "GT" in FORMAT:
+            if not "GT" in FORMAT or not len(sample_names):
                 var.append((event_type,chrA,chrB,posA,ci_A_lower,ci_A_upper,posB,ci_B_lower,ci_B_upper,sample_name,idx))
                 idx += 1;
             else:
@@ -138,7 +149,10 @@ def main(args):
         sample_IDs = populate_db(args)
     elif(args.folder):
         vcf_folder = glob.glob(os.path.join(args.folder,"*.vcf"));
-        test=[];
-        args.files=vcf_folder
+        bgzip_folder=glob.glob(os.path.join(args.folder,"*.vcf.gz"));
+        if len(bgzip_folder):
+            args.files=vcf_folder+bgzip_folder
+        else:
+            args.files=vcf_folder
         sample_IDs = populate_db(args)
 
