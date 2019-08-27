@@ -55,7 +55,7 @@ def main(args):
             else:
                 if line[1] != "#":
                     if not args.prefix:
-                       print "##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv))
+                       print ("##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv)))
                     else:
                        f.write( "##SVDB_version={} cmd=\"{}\"".format(args.version," ".join(sys.argv)) )
                 if not args.prefix:
@@ -193,7 +193,7 @@ def main(args):
         for sample in c.execute(A):
             db_size +=1
         if not db_size:
-            print "error: no samples in the db"
+            print ("error: no samples in the db")
             quit()
 
         for query in queries:
@@ -285,7 +285,6 @@ def queryVCFDB(DBvariants, Query_variant,args,Use_OCC_tag):
     
 
 def SQDB(Query_variant,args,c):
-    ci = args.ci
     distance = args.bnd_distance
     overlap = args.overlap
     variant={}
@@ -302,22 +301,19 @@ def SQDB(Query_variant,args,c):
     selection ="sample"
     if variant["chrA"] == variant["chrB"]:
         selection = "posA, posB, sample"
-    if not ci:
-        A='SELECT {} FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(selection,variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+distance, variant["posA"] -distance,variant["posB"] + distance, variant["posB"]-distance)
-                #print A
-    else:
-        A='SELECT idx FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+variant["ci_A_end"], variant["posA"] -variant["ci_A_start"],variant["posB"] + variant["ci_B_end"], variant["posB"] - variant["ci_B_start"])
-            
+
+    A='SELECT {} FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(selection,variant["type"],variant["chrA"],variant["chrB"],variant["posA"]+distance, variant["posA"] -distance,variant["posB"] + distance, variant["posB"]-distance)
     hits = c.execute(A)
+
     match=set([])
     occurances=0
     for hit in hits:
-        if not ci and variant["chrA"] == variant["chrB"]:
+        if variant["chrA"] == variant["chrB"]:
             var={}
             var["posA"]=int( hit[0] )
             var["posB"]=int( hit[1] )
             var["index"]=hit[2]
-            similar=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
+            similar,tmp=overlap_module.isSameVariation(variant["posA"],variant["posB"],var["posA"],var["posB"],overlap,distance)
             if similar:
                 match.add( var["index"] )
                     

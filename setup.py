@@ -20,7 +20,7 @@ else:
 
 setup(
     name = 'svdb',
-    version = '2.1.0',
+    version = '2.1.1',
     url = "https://github.com/J35P312/SVDB",
     author = "Jesper Eisfeldt",
     author_email= "jesper.eisfeldt@scilifelab.se",
