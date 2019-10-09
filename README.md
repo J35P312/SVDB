@@ -28,7 +28,11 @@ here the AF and AN are the allele frequency tags of the database, the AF is a fl
 Dependencies: SVDB has been tested on python 2.7.11 and python 3.6, and requires numpy.
 SVDB is installed using the following command
 
-pip install -e .
+	pip install -e .
+
+SVDB is available on singularity:
+
+	singularity pull shub://J35P312/SVDB
 
 # modules:
 SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
