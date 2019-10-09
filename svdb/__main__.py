@@ -6,7 +6,7 @@ from . import merge_vcf_module
 from . import export_module
 
 def main():
-    version = "2.1.1"
+    version = "2.2.0"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--query'       , help="query a db", required=False, action="store_true")
@@ -41,6 +41,7 @@ def main():
     elif(args.build):
         parser = argparse.ArgumentParser("""SVDB-{}: build module""".format(version))
         parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
+        parser.add_argument('--passonly'       , help="Remove filtered variants (i.e anything not labeled  \"PASS\" or \".\")", required=False, action="store_true")
         parser.add_argument('--files'        , type=str, nargs='*', help="create a db using the specified vcf files(cannot be used with --folder)")
         parser.add_argument('--folder', type=str, help="create a db using all the vcf files in the folders")
         parser.add_argument('--prefix', type=str,default="SVDB" ,help="the prefix of the output file, default = SVDB")

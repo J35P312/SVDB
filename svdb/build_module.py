@@ -88,6 +88,10 @@ def populate_db(args):
                continue
 
             chrA,posA,chrB,posB,event_type,INFO,FORMAT = readVCF.readVCFLine(line)
+            if args.passonly:
+                FILTER=line.split("\t")[6]
+                if not (FILTER == "PASS" or FILTER == "."):
+                    continue
 
             ci_A_lower=0
             ci_A_upper=0

@@ -215,7 +215,7 @@ def merge(variants,samples,sample_order,sample_print_order,priority_order,args):
             line=sort_format_field(line,samples,sample_order,sample_print_order,priority_order,files, representing_file,args)
             if merge and not args.notag:
                 line[7] += ";VARID=" + "|".join(merge)
-                line[2] += ":{}|".format( variants[chrA][j][-3].split(".vcf")[0].split("/")[-1] ) + "|".join(merge)
+                line[2] += ":{}|".format( variants[chrA][i][-3].split(".vcf")[0].split("/")[-1] ) + "|".join(merge)
             if not args.notag:
                 set_tag=determine_set_tag(priority_order,files)
                 line[7] += ";set={}".format(set_tag);              
