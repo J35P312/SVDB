@@ -256,7 +256,7 @@ def queryVCFDB(DBvariants, Query_variant,args,Use_OCC_tag):
 
             if not (chrA == chrB):
                 hit_tmp,match=overlap_module.precise_overlap(chrApos,chrBpos,event[0],event[1],args.bnd_distance)
-            elif chrBpos >= event[0] and event[1] >= chrApos:
+            else:
                 hit_tmp,match = overlap_module.isSameVariation(chrApos,chrBpos,event[0],event[1],args.overlap,args.bnd_distance)
 
             if match:
