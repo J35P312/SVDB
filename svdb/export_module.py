@@ -124,11 +124,8 @@ def expand_chain(chain,coordinates,chrA,chrB,distance,overlap):
         variant=chain[i]
         chain_data[i]=[]
 
-        if chrA == chrB:
-            rows=coordinates[ ( distance >= abs(coordinates[:,1] - variant["posA"])  ) & ( distance >= abs(coordinates[:,2] - variant["posB"])  ) & ( variant["posB"] >=  coordinates[:,1] )  & (coordinates[:,2] >= variant["posB"] ) ]
+        rows=coordinates[ ( distance >= abs(coordinates[:,1] - variant["posA"])  ) & ( distance >= abs(coordinates[:,2] - variant["posB"])  ) ]
 
-        else:
-            rows=coordinates[ ( distance >= abs(coordinates[:,1] - variant["posA"])  ) & ( distance >= abs(coordinates[:,2] - variant["posB"])  ) ]
         candidates= rows[:,0]
         for j in candidates:
 
