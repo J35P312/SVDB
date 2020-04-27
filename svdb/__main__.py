@@ -6,7 +6,7 @@ from . import merge_vcf_module
 from . import export_module
 
 def main():
-    version = "2.3.0"
+    version = "2.4.0"
     parser = argparse.ArgumentParser("""SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version),add_help=False)
     parser.add_argument('--build'       , help="create a db", required=False, action="store_true")
     parser.add_argument('--query'       , help="query a db", required=False, action="store_true")
