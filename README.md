@@ -20,9 +20,17 @@ https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.v
 
 external databses are run like this:
 
-svdb --query --query_vcf /home/jesper/vcf/6_pair_limit/P2109_120.clean.dedup.recal_FindSV.vcf --out_occ GNOMAD_AC --out_frq GNOMAD_AF --in_occ AN --out_frq AF --db /home/jesper/Downloads/gnomad_sv/gnomad_v2_sv.sites.vcf
+```bash
+svdb --query \
+     --query_vcf /home/jesper/vcf/6_pair_limit/P2109_120.clean.dedup.recal_FindSV.vcf \
+     --out_occ GNOMAD_AC \
+     --out_frq GNOMAD_AF \
+     --in_occ AN \
+     --out_frq AF \
+     --db /home/jesper/Downloads/gnomad_sv/gnomad_v2_sv.sites.vcf
+```
 
-here the AF and AN are the allele frequency tags of the database, the AF is a float, and AN is an integer. These tags will be added to the annotated output vcf, and named GNOMAD_AC, GNOMAD_AF.
+here the `AF` and `AN` are the allele frequency tags of the database, the `AF` is a float, and `AN` is an integer. These tags will be added to the annotated output vcf, and named `GNOMAD_AC`, `GNOMAD_AF`.
 
 # Install:
 Dependencies: SVDB has been tested on python 2.7.11 and python 3.6, and requires numpy.
@@ -34,10 +42,11 @@ SVDB is available on singularity:
 
 	singularity pull shub://J35P312/SVDB
 
-# modules:
+# Modules:
 SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
 
-Build: This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
+## Build
+This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
     
     print a help message
         svdb  --build --help  
@@ -57,7 +66,8 @@ Build: This module is used to construct structural variant databases from vcf fi
         --prefix PREFIX                  the prefix of the output file, default = SVDB
 
 
-Export: this module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorihms, overlap or DBSCAN.
+## Export
+This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorihms, overlap or DBSCAN.
  
     print a help message
         svdb  --export --help  
@@ -81,7 +91,8 @@ Export: this module is used to export the variants of the SVDB sqlite database. 
 
           --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
 
-Query: The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
+## Query
+The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
     print a help message
        svdb --query --help
@@ -107,7 +118,8 @@ Query: The query module is used to query a structural variant database. Typicall
 	--no_var			count overlaping variants of different type as hits in the db
 
     
-Merge: The merge module merges variants within one or more vcf files. This could be used to either merge the output of multiple callers, or to merge variants that are called multiple times due to noise or some other error:
+## Merge
+The merge module merges variants within one or more vcf files. This could be used to either merge the output of multiple callers, or to merge variants that are called multiple times due to noise or some other error:
 
     print a help message:
        python SVDB.py --merge --help
