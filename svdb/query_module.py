@@ -206,8 +206,11 @@ def main(args):
     for query in queries:
         vcf_entry = query[6].strip()
         content=vcf_entry.split("\t")
+        frq = query[5] / float(db_size)
+        if frq > args.max_frq:
+            continue
         if query[5]:
-            content[7]="{};{}={};{}={}".format(content[7],args.out_occ, query[5],args.out_frq,(query[5]/float(db_size ) ))
+            content[7] = "{};{}={};{}={}".format(content[7], args.out_occ, query[5], args.out_frq, frq)
         if not args.prefix:
             print(("\t").join(content))
         else:
