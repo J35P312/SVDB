@@ -25,6 +25,7 @@ def main():
         parser.add_argument('--in_frq'        , type=str,help="The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ)")
         parser.add_argument('--out_occ'        , type=str,default="OCC",help="the allle count tag, as annotated by SVDBvariant(defualt=OCC)")
         parser.add_argument('--out_frq'        , type=str,default="FRQ",help="the tag used to describe the frequency of the variant(defualt=FRQ)")
+        parser.add_argument('--max_frq', type=float, default=1, help='Only include variants with a higher frequency than given here between 0 and 1. All new variants are always included. (default: 1)')
         parser.add_argument('--prefix', type=str,default=None ,help="the prefix of the output file, default = print to stdout")
         parser.add_argument('--bnd_distance', type=int,default= 10000,help="the maximum distance between two similar breakpoints(default = 10000)")
         parser.add_argument('--overlap', type=float, default = 0.6,help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
