@@ -2,39 +2,47 @@ import sqlite3
 
 
 class DB:
-    def __init__(self, db):
+    def __init__(self, db, memory=False):
         if not db.endswith('.db'):
             db += '.db'
-        self.conn = sqlite3.connect(db)
+
+        conn = sqlite3.connect(db)
+
+        if memory:
+            memory_db = sqlite3.connect(':memory:')
+            db_dump = "".join(line for line in conn.iterdump())
+            memory_db.executescript(db_dump)
+            conn.close()
+            self.cursor = memory_db.cursor()
+        else:
+            self.cursor = conn.cursor()
+
+    def __len__(self):
+        return len(self.query('SELECT DISTINCT sample FROM SVDB'))
 
     def query(self, query):
-        with self.conn.cursor() as cursor:
-            cursor.execute(query)
-            res = cursor.fetchall()
+        self.cursor.execute(query)
+        res = self.cursor.fetchall()
         return res
 
     def drop(self, query):
-        with self.conn.cursor() as cursor:
-            cursor.execute(query)
-            try:
-                cursor.execute(query)
-            except Exception:
-                pass
+        self.cursor.execute(query)
+        try:
+            self.cursor.execute(query)
+        except Exception:
+            pass
 
     def create(self, query):
-        with self.conn.cursor() as cursor:
-            cursor.execute(query)
-            self.conn.commit()
+        self.cursor.execute(query)
+        self.conn.commit()
 
     def insert_many(self, data):
-        with self.conn.cursor() as cursor:
-            cursor.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)', data)
-            self.conn.commit()
+        self.cursor.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)', data)
+        self.conn.commit()
 
     def create_index(self, name, columns):
-        with self.conn.cursor() as cursor:
-            cursor.execute("CREATE INDEX {} ON SVDB {}".format(name, columns))
-            self.conn.commit()
+        self.cursor.execute("CREATE INDEX {} ON SVDB {}".format(name, columns))
+        self.conn.commit()
 
     @property
     def tables(self):
