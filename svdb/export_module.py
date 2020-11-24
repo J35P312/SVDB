@@ -1,17 +1,18 @@
 from __future__ import absolute_import
 
-import sqlite3
 import sys
 
 import numpy as np
 
+from db import DB
+
 from . import DBSCAN, overlap_module
 
 
-def fetch_index_variant(c, index):
-    A = 'SELECT posA ,ci_A_lower ,ci_A_upper ,posB ,ci_B_lower ,ci_B_upper, sample FROM SVDB WHERE idx IN ({}) '.format(
+def fetch_index_variant(db, index):
+    A = 'SELECT posA, ci_A_lower, ci_A_upper, posB, ci_B_lower, ci_B_upper, sample FROM SVDB WHERE idx IN ({}) '.format(
         ", ".join([str(idx) for idx in index]))
-    hits = c.execute(A)
+    hits = db.query(A)
     variant = {}
     coordinates = []
     for i, hit in enumerate(hits):
@@ -27,10 +28,10 @@ def fetch_index_variant(c, index):
     return variant, np.array(coordinates)
 
 
-def fetch_cluster_variant(c, index):
-    A = 'SELECT posA, posB, sample, idx FROM SVDB WHERE idx IN ({}) '.format(
-        ", ".join([str(idx) for idx in index]))
-    hits = c.execute(A)
+def fetch_cluster_variant(db, index):
+    query = 'SELECT posA, posB, sample, idx FROM SVDB WHERE idx IN ({}) '.format(
+            ", ".join([str(idx) for idx in index]))
+    hits = db.query(query)
 
     variant_dict = {}
     for hit in hits:
@@ -42,24 +43,24 @@ def fetch_cluster_variant(c, index):
 
 
 def db_header(args):
-    headerString = "##fileformat=VCFv4.1\n"
-    headerString += "##source=SVDB\n"
-    headerString += "##ALT=<ID=DEL,Description=\"Deletion\">\n"
-    headerString += "##ALT=<ID=DUP,Description=\"Duplication\">\n"
-    headerString += "##ALT=<ID=INV,Description=\"Inversion\">\n"
-    headerString += "##ALT=<ID=INS,Description=\"Insertion\">\n"
-    headerString += "##ALT=<ID=BND,Description=\"Break end\">\n"
-    headerString += "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n"
-    headerString += "##INFO=<ID=END,Number=1,Type=String,Description=\"End of an intra-chromosomal variant\">\n"
-    headerString += "##INFO=<ID=OCC,Number=1,Type=Integer,Description=\"The number of occurences of the event in the database\">\n"
-    headerString += "##INFO=<ID=NSAMPLES,Number=1,Type=Integer,Description=\"the number of samples within the database\">\n"
-    headerString += "##INFO=<ID=VARIANTS,Number=1,Type=Integer,Description=\"a| separated list of the positions of the clustered variants\">\n"
-    headerString += "##INFO=<ID=FRQ,Number=1,Type=Float,Description=\"the frequency of the variant\">\n"
-    headerString += "##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
-    headerString += "##INFO=<ID=CIPOS,Number=2,Type=Integer,Description=\"Confidence interval around POS\">\n"
-    headerString += "##INFO=<ID=CIEND,Number=2,Type=Integer,Description=\"Confidence interval around END\">\n"
-    headerString += "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
-    headerString += "##SVDB_version={} cmd=\"{}\"".format(args.version, " ".join(sys.argv))
+    headerString = '##fileformat=VCFv4.1\n'
+    headerString += '##source=SVDB\n'
+    headerString += '##ALT=<ID=DEL,Description="Deletion">\n'
+    headerString += '##ALT=<ID=DUP,Description="Duplication">\n'
+    headerString += '##ALT=<ID=INV,Description="Inversion">\n'
+    headerString += '##ALT=<ID=INS,Description="Insertion">\n'
+    headerString += '##ALT=<ID=BND,Description="Break end">\n'
+    headerString += '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">\n'
+    headerString += '##INFO=<ID=END,Number=1,Type=String,Description="End of an intra-chromosomal variant">\n'
+    headerString += '##INFO=<ID=OCC,Number=1,Type=Integer,Description="The number of occurences of the event in the database">\n'
+    headerString += '##INFO=<ID=NSAMPLES,Number=1,Type=Integer,Description="the number of samples within the database">\n'
+    headerString += '##INFO=<ID=VARIANTS,Number=1,Type=Integer,Description="a| separated list of the positions of the clustered variants">\n'
+    headerString += '##INFO=<ID=FRQ,Number=1,Type=Float,Description="the frequency of the variant">\n'
+    headerString += '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">\n'
+    headerString += '##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS">\n'
+    headerString += '##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END">\n'
+    headerString += '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    headerString += '##SVDB_version={} cmd=\"{}\"'.format(args.version, " ".join(sys.argv))
     return headerString
 
 
@@ -157,12 +158,12 @@ def cluster_variants(variant_dictionary, similarity_matrix):
     return clusters
 
 
-def fetch_variants(variant, chrA, chrB, c):
+def fetch_variants(variant, chrA, chrB, db):
     chr_db = {}
     chr_db[variant] = {}
 
-    hits = c.execute('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(
-        variant, chrA, chrB)).fetchall()
+    hits = db.query('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(
+        variant, chrA, chrB))
     if not hits:
         return False
 
@@ -175,8 +176,8 @@ def fetch_variants(variant, chrA, chrB, c):
     return chr_db
 
 
-def overlap_cluster(c, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
-    variant_dictionary, coordinates = fetch_index_variant(c, indexes)
+def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
+    variant_dictionary, coordinates = fetch_index_variant(db, indexes)
     similarity_matrix = expand_chain(
         variant_dictionary, coordinates, chrA, chrB, args.bnd_distance, args.overlap)
     clusters = cluster_variants(variant_dictionary, similarity_matrix)
@@ -188,9 +189,9 @@ def overlap_cluster(c, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
     return i + len(clusters)
 
 
-def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, c, i):
+def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
     f = open(args.prefix + ".vcf", 'a')
-    chr_db = fetch_variants(variant, chrA, chrB, c)
+    chr_db = fetch_variants(variant, chrA, chrB, db)
     if not chr_db:
         f.close()
         return i
@@ -205,7 +206,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, c, i):
     unique_xy = chr_db[variant]["coordinates"][db == -1]
     unique_index = chr_db[variant]["index"][db == -1]
     for xy, indexes in zip(unique_xy, unique_index):
-        variant_dictionary = fetch_cluster_variant(c, indexes)
+        variant_dictionary = fetch_cluster_variant(db, indexes)
         representing_var = {}
         representing_var["type"] = variant
         representing_var["chrA"] = chrA
@@ -234,7 +235,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, c, i):
         if args.DBSCAN:
             avg_point = np.array([np.mean(xy[:, 0]), np.mean(xy[:, 1])])
 
-            variant_dictionary = fetch_cluster_variant(c, indexes)
+            variant_dictionary = fetch_cluster_variant(db, indexes)
 
             representing_var = {}
             representing_var["type"] = variant
@@ -251,41 +252,32 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, c, i):
             f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
             i += 1
         else:
-            i = overlap_cluster(c, indexes, variant, chrA,
+            i = overlap_cluster(db, indexes, variant, chrA,
                                 chrB, sample_IDs, args, f, i)
     f.close()
     return i
 
 
 def export(args, sample_IDs):
-    db = args.db
-    conn = sqlite3.connect(db)
-    if args.memory:
-        memory_db = sqlite3.connect(':memory:')
-        db_dump = "".join(line for line in conn.iterdump())
-        memory_db.executescript(db_dump)
-        conn.close
-        c = memory_db.cursor()
-    else:
-        c = conn.cursor()
+    db = DB(args.db, memory=args.memory)
 
     chrA_list = []
-    for chrA in c.execute('SELECT DISTINCT chrA FROM SVDB'):
+    for chrA in db.query('SELECT DISTINCT chrA FROM SVDB'):
         chrA_list.append(chrA[0])
 
     chrB_list = []
-    for chrB in c.execute('SELECT DISTINCT chrB FROM SVDB'):
+    for chrB in db.query('SELECT DISTINCT chrB FROM SVDB'):
         chrB_list.append(chrB[0])
 
     var_list = []
-    for variant in c.execute('SELECT DISTINCT var FROM SVDB'):
+    for variant in db.query('SELECT DISTINCT var FROM SVDB'):
         var_list.append(variant[0])
 
     i = 0
     for chrA in chrA_list:
         for chrB in chrB_list:
             for variant in var_list:
-                i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, c, i)
+                i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i)
 
 
 def main(args):
@@ -293,14 +285,10 @@ def main(args):
     if not args.prefix:
         args.prefix = args.db.replace(".db", "")
 
-    conn = sqlite3.connect(args.db)
-    c = conn.cursor()
+    db = DB(args.db)
 
-    A = 'SELECT DISTINCT sample FROM SVDB'
-    for sample in c.execute(A):
+    for sample in db.query('SELECT DISTINCT sample FROM SVDB'):
         sample_IDs.append(sample[0])
-
-    conn.close()
 
     with open(args.prefix + ".vcf", 'w') as f:
         f.write(db_header(args) + "\n")
