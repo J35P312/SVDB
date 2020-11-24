@@ -7,12 +7,11 @@ from . import merge_vcf_module_cython, readVCF
 
 
 def print_header(vcf_list, vcf_dictionary, args, command_line):
-    header = {}
-    header["ALT"] = {}
-    header["INFO"] = {}
-    header["FILTER"] = {}
-    header["FORMAT"] = {}
-    header["CONTIGS"] = []
+    header = {"ALT": {},
+              "INFO": {},
+              "FILTER": {},
+              "FORMAT": {},
+              "CONTIGS": []}
     contigs = False
     reference = ""
     subheader = {}
@@ -21,63 +20,54 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     sample_order = {}
     print("##fileformat=VCFv4.1")
     print("##source=MergeVCF")
-    print("##SVDB_version={} cmd=\"{}\"".format(
-        args.version, " ".join(sys.argv)))
+    print("##SVDB_version={} cmd=\"{}\"".format(args.version, " ".join(sys.argv)))
     samples = []
     first = True
     first_vcf_header = ""
     for vcf in vcf_list:
-        if vcf.endswith(".gz"):
-            f = gzip.open(vcf, "rt")
-        else:
-            f = open(vcf, "rt")
+        opener = gzip.open if vcf.endswith('.vcf.gz') else open
 
-        for line in f:
-            if(line[0] == "#"):
-                if("#CHROM\tPOS" in line):
-                    if first:
-                        first_vcf_header = line.strip()
-                        first = False
-                    vcf_columns = line.strip().split("\t")
-                    for column in vcf_columns:
-                        if column not in columns:
+        with opener(vcf, 'rt') as lines:
+            for line in lines:
+                if line.startswith('#'):
+                    if "#CHROM\tPOS" in line:
+                        if first:
+                            first_vcf_header = line.strip()
+                            first = False
+                        vcf_columns = line.strip().split("\t")
+                        for column in vcf_columns:
+                            if column not in columns:
+                                columns.append(column)
+                                if column not in sample_order and column != "FORMAT":
+                                    sample_order[column] = {}
+                                    samples.append(column)
 
-                            columns.append(column)
-                            if column not in sample_order and column != "FORMAT":
-                                sample_order[column] = {}
-                                samples.append(column)
+                        if len(vcf_columns) > 8 and not args.same_order:
+                            for i, sample in enumerate(vcf_columns[9:]):
+                                sample_order[sample][vcf_dictionary[vcf]] = i
+                    elif "<ID=VARID," in line or "<ID=set," in line:
+                        continue
+                    elif line[0] == line[1] and "=" in line:
+                        if("ID=" in line and "##contig=<ID=" not in line):
+                            field = line.split("=")[2].split(",")[0]
+                            key = line.strip("#").split("=")[0]
+                            if key not in header:
+                                header[key] = {}
+                            header[key][field] = line
+                        elif "##contig=<ID=" in line and not contigs:
+                            header["CONTIGS"].append(line)
+                        elif "##reference=" in line and not contigs:
+                            reference = line
+                        elif "##source=" not in line and "##file" not in line and "##reference=" not in line and "##contig=<ID=" not in line:
+                            key = line.strip("#").split("=")[0]
+                            if key not in subheader:
+                                subheader[key] = line
+                else:
+                    if header["CONTIGS"]:
+                        contigs = True
+                    break
 
-                    if len(vcf_columns) > 8 and not args.same_order:
-                        i = 0
-                        for sample in vcf_columns[9:]:
-                            sample_order[sample][vcf_dictionary[vcf]] = i
-                            i += 1
-                elif "<ID=VARID," in line or "<ID=set," in line:
-                    continue
-                elif line[0] == line[1] and "=" in line:
-                    if("ID=" in line and "##contig=<ID=" not in line):
-                        field = line.split("=")[2].split(",")[0]
-                        key = line.strip("#").split("=")[0]
-                        if key not in header:
-                            header[key] = {}
-                        header[key][field] = line
-                    elif "##contig=<ID=" in line and not contigs:
-                        header["CONTIGS"].append(line)
-                    elif "##reference=" in line and not contigs:
-                        reference = line
-                    elif "##source=" not in line and "##file" not in line and "##reference=" not in line and "##contig=<ID=" not in line:
-                        key = line.strip("#").split("=")[0]
-                        if key not in subheader:
-                            subheader[key] = line
-            else:
-                if header["CONTIGS"]:
-                    contigs = True
-                f.close()
-                break
-
-        f.close()
     # print the mandatory header lines in the correct order
-
     for entry in sorted(header["ALT"]):
         print(header["ALT"][entry].strip())
     del header["ALT"]
@@ -119,7 +109,7 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     else:
         print("\t".join(columns))
 
-    return (samples, sample_order, sample_print_order, contigs_list)
+    return samples, sample_order, sample_print_order, contigs_list
 
 
 def main(args):
@@ -145,9 +135,8 @@ def main(args):
                 if tag in priority_dictionary:
                     priority_list.append(tag)
 
-            if not len(priority_list) == len(priority_dictionary):
-                print(
-                    "error tag/vcf mismatch, make sure that there is one tag per input vcf, or skip the --priority flag")
+            if len(priority_list) != len(priority_dictionary):
+                print("error tag/vcf mismatch, make sure that there is one tag per input vcf, or skip the --priority flag")
                 return -1
 
             vcf_list = []
@@ -160,40 +149,31 @@ def main(args):
                 vcf_dictionary[vcf] = vcf.split(".vcf")[0].split("/")[-1]
                 priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
 
-            if vcf.endswith(".gz"):
-                f = gzip.open(vcf, "rt")
-            else:
-                f = open(vcf, "rt")
+            opener = gzip.open if vcf.endswith('.vcf.gz') else open
 
-            for line in f:
-                if line[0] == "#":
-                    pass
-                else:
-                    chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(
-                        line)
-                    if chrA not in variants:
-                        variants[chrA] = []
-                    if args.priority:
-                        variants[chrA].append(
-                            [chrB, event_type, posA, posB, vcf_dictionary[vcf], i, line.strip()])
+            with opener(vcf, 'rt') as lines:
+                for line in lines:
+                    if line.startswith('#'):
+                        continue
                     else:
-                        variants[chrA].append(
-                            [chrB, event_type, posA, posB, vcf, i, line.strip()])
-                    i += 1
-            f.close()
+                        chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(line)
+                        if chrA not in variants:
+                            variants[chrA] = []
+                        if args.priority:
+                            variants[chrA].append([chrB, event_type, posA, posB, vcf_dictionary[vcf], i, line.strip()])
+                        else:
+                            variants[chrA].append([chrB, event_type, posA, posB, vcf, i, line.strip()])
+                        i += 1
 
-    samples, sample_order, sample_print_order, contigs = print_header(
-        vcf_list, vcf_dictionary, args, sys.argv)
-    to_be_printed = merge_vcf_module_cython.merge(
-        variants, samples, sample_order, sample_print_order, priority_order, args)
+    samples, sample_order, sample_print_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)
+    to_be_printed = merge_vcf_module_cython.merge(variants, samples, sample_order, sample_print_order, priority_order, args)
 
     # use the contig order as defined in the header, or use lexiographic order
     if contigs:
-        for i in range(0, len(contigs)):
-            contig = contigs[i].split("##contig=<ID=")[-1].split(",length=")[0]
+        for i, contig in enumerate(contigs):
+            contig = contig.split("##contig=<ID=")[-1].split(",length=")[0]
             if contig not in contigs:
                 contigs[i] = contig
-
     else:
         contigs = sorted(to_be_printed.keys())
 

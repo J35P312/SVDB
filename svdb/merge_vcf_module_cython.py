@@ -4,10 +4,10 @@ from . import overlap_module
 
 
 def retrieve_key(line, key):
-    item = False
-    if key + "=" in line:
-        item = line.strip().split(key + "=")[-1].split(";")[0]
-        if(len(item) == len(line.strip())):
+    key += '='
+    if key in line:
+        item = line.strip().split(key)[-1].split(";")[0]
+        if len(item) == len(line.strip()):
             return False
     return item
 
@@ -18,11 +18,13 @@ def determine_set_tag(priority_order, files):
 
     filtered = []
     for sample in priority_order:
-        if sample in files:
-            if files[sample].split("\t")[6] == "PASS" or files[sample].split("\t")[6] == ".":
-                n_pass += 1
-            else:
-                n_filtered += 1
+        file = files.get(sample, None)
+        if file is None:
+            continue
+        if file.split('\t')[6] in ['PASS', '.']:
+            n_pass += 1
+        else:
+            n_filtered += 1
     if n_pass == len(priority_order):
         return "Intersection"
     elif n_filtered == len(priority_order):
@@ -31,16 +33,15 @@ def determine_set_tag(priority_order, files):
         for sample in priority_order:
             if sample not in files:
                 continue
-            elif files[sample].split("\t")[6] == "PASS" or files[sample].split("\t")[6] == ".":
+            elif files[sample].split('\t')[6] in ['PASS', '.']:
                 filtered.append(sample)
             else:
                 filtered.append("filterIn" + sample)
         return "-".join(filtered)
 
-# merge the csg fields of bnd variants
-
 
 def merge_csq(info, csq):
+    """Merge the csq fields of bnd variants"""
     var_csq = info.split("CSQ=")[-1].split(";")[0]
     csq.append(var_csq)
     effects = set([])
@@ -54,9 +55,7 @@ def merge_csq(info, csq):
     else:
         post_CSQ = ";" + ";".join(post_CSQ[1:])
 
-    info = pre_CSQ + CSQ + post_CSQ
-
-    return info
+    return pre_CSQ + CSQ + post_CSQ
 
 
 def sort_format_field(line, samples, sample_order, sample_print_order, priority_order, files, representing_file, args):
@@ -77,21 +76,18 @@ def sort_format_field(line, samples, sample_order, sample_print_order, priority_
                     entries = vcf_line[8].split(":")
                     sample_entries = vcf_line[9 + sample_position].split(":")
 
-                    i = 0
-                    for entry in entries:
+                    for i, entry in enumerate(entries):
                         format_columns[sample][entry] = sample_entries[i]
                         if entry not in format_entries:
                             n = sample_entries[i].count(",")
                             format_entries.append(entry)
                             format_entry_length.append(n)
-                        i += 1
 
         if len(line) > 8:
             format_string = []
             line[8] = ":".join(format_entries)
             del line[9:]
             for sample in samples:
-
                 format_string = []
                 for entry in format_entries:
                     j = 0
@@ -121,7 +117,6 @@ def sort_format_field(line, samples, sample_order, sample_print_order, priority_
     info_union = []
     tags_in_info = []
     for input_file in priority_order:
-
         if input_file not in files:
             continue
         INFO = files[input_file].strip().split("\t")[7]
@@ -135,7 +130,6 @@ def sort_format_field(line, samples, sample_order, sample_print_order, priority_
 
     new_info = ";".join(info_union)
     line[7] = new_info
-
     return line
 
 
@@ -150,7 +144,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
     to_be_printed = {}
     for chrA in variants:
         analysed_variants = set([])
-        for i in range(0, len(variants[chrA])):
+        for i in range(len(variants[chrA])):
             if i in analysed_variants:
                 continue
 
@@ -165,7 +159,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 # if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag = variants[chrA][i][-1].split("\t")[6]
-                    if not filter_tag == "PASS" and not filter_tag == ".":
+                    if filter_tag not in ['PASS', '.']:
                         break
 
                 # only treat varints on the same pair of chromosomes
@@ -175,11 +169,11 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 # if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
                     filter_tag = variants[chrA][j][-1].split("\t")[6]
-                    if not filter_tag == "PASS" and not filter_tag == ".":
+                    if filter_tag not in ['PASS', '.']:
                         continue
 
                 # dont merge variants of different type
-                if not variants[chrA][i][1] == variants[chrA][j][1] and not no_var:
+                if variants[chrA][i][1] != variants[chrA][j][1] and not no_var:
                     continue
 
                 # if no_intra is chosen, variants may only be merged if they belong to different input files

@@ -1,6 +1,7 @@
 import re
 
 
+# TODO: Should be part of a VCF class
 def readVCFLine(line):
     if line[0].startswith("#"):
         return None
