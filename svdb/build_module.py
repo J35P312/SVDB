@@ -15,15 +15,15 @@ def populate_db(args):
     if "SVDB" not in tables:
         query = "CREATE TABLE SVDB (var TEXT,chrA TEXT, chrB TEXT,posA INT,ci_A_lower INT,ci_A_upper INT,posB INT,ci_B_lower INT,ci_B_upper INT, sample TEXT, idx INT)"
         db.create(query)
-
+        sample_IDs = []
     else:
-        db.drop("DROP INDEX SV ")
+        db.drop("DROP INDEX SV")
         db.drop("DROP INDEX IDX")
         db.drop("DROP INDEX CHR")
 
         sample_IDs = db.sample_ids
         if sample_IDs:
-            idx = 1 + int(db.query("SELECT MAX(idx) FROM SVDB")[0])
+            idx = 1 + int(db.query("SELECT MAX(idx) FROM SVDB")[0][0])
 
     # populate the tables
     for vcf in args.files:
@@ -104,7 +104,7 @@ def populate_db(args):
         if var:
             db.insert_many(var)
 
-    db.create_index(name='SV', columns='(var,chrA, chrB, posA,posA,posB,posB)')
+    db.create_index(name='SV', columns='(var, chrA, chrB, posA, posA, posB, posB)')
     db.create_index(name='IDX', columns='(idx)')
     db.create_index(name='CHR', columns='(chrA, chrB)')
     return sample_IDs

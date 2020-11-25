@@ -6,16 +6,16 @@ class DB:
         if not db.endswith('.db'):
             db += '.db'
 
-        conn = sqlite3.connect(db)
+        self.conn = sqlite3.connect(db)
 
         if memory:
             memory_db = sqlite3.connect(':memory:')
-            db_dump = "".join(line for line in conn.iterdump())
+            db_dump = "".join(line for line in self.conn.iterdump())
             memory_db.executescript(db_dump)
-            conn.close()
+            self.conn.close()
             self.cursor = memory_db.cursor()
         else:
-            self.cursor = conn.cursor()
+            self.cursor = self.conn.cursor()
 
     def __len__(self):
         return len(self.query('SELECT DISTINCT sample FROM SVDB'))
@@ -26,7 +26,6 @@ class DB:
         return res
 
     def drop(self, query):
-        self.cursor.execute(query)
         try:
             self.cursor.execute(query)
         except Exception:
@@ -41,7 +40,8 @@ class DB:
         self.conn.commit()
 
     def create_index(self, name, columns):
-        self.cursor.execute("CREATE INDEX {} ON SVDB {}".format(name, columns))
+        query = "CREATE INDEX {} ON SVDB {}".format(name, columns)
+        self.cursor.execute(query)
         self.conn.commit()
 
     @property
