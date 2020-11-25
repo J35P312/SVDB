@@ -195,14 +195,14 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
         return i
 
     if args.DBSCAN:
-        db = DBSCAN.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
+        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
     else:
-        db = DBSCAN.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
+        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
 
-    unique_labels = set(db)
+    unique_labels = set(dbscan)
     # print the unique variants
-    unique_xy = chr_db[variant]["coordinates"][db == -1]
-    unique_index = chr_db[variant]["index"][db == -1]
+    unique_xy = chr_db[variant]["coordinates"][dbscan == -1]
+    unique_index = chr_db[variant]["index"][dbscan == -1]
     for xy, indexes in zip(unique_xy, unique_index):
         variant_dictionary = fetch_cluster_variant(db, indexes)
         representing_var = {}
