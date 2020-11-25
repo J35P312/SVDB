@@ -4,13 +4,11 @@ import glob
 import gzip
 import os
 
-from db import DB
-
-from . import readVCF
+from . import database, readVCF
 
 
 def populate_db(args):
-    db = DB(args.db)
+    db = database.DB(args.db)
     tables = db.tables
 
     idx = 0

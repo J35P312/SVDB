@@ -5,9 +5,7 @@ import sys
 
 import numpy as np
 
-from db import DB
-
-from . import overlap_module, readVCF
+from . import database, overlap_module, readVCF
 
 
 def main(args):
@@ -155,7 +153,7 @@ def main(args):
         return None
 
     elif args.sqdb:
-        db = DB(db=args.sqdb, memory=args.memory)
+        db = database.DB(db=args.sqdb, memory=args.memory)
 
         db_size = len(db)
         if not db_size:

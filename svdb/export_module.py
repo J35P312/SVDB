@@ -4,9 +4,7 @@ import sys
 
 import numpy as np
 
-from db import DB
-
-from . import DBSCAN, overlap_module
+from . import DBSCAN, database, overlap_module
 
 
 def fetch_index_variant(db, index):
@@ -259,7 +257,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
 
 
 def export(args, sample_IDs):
-    db = DB(args.db, memory=args.memory)
+    db = database.DB(args.db, memory=args.memory)
 
     chrA_list = []
     for chrA in db.query('SELECT DISTINCT chrA FROM SVDB'):
@@ -285,7 +283,7 @@ def main(args):
     if not args.prefix:
         args.prefix = args.db.replace(".db", "")
 
-    db = DB(args.db)
+    db = database.DB(args.db)
 
     for sample in db.query('SELECT DISTINCT sample FROM SVDB'):
         sample_IDs.append(sample[0])
