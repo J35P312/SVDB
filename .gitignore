@@ -1,3 +1,9 @@
 *.pyc
 *~
 *.egg-info/
+build/
+dist/
+
+*.vcf
+*.vcf.gz
+*.db
