@@ -23,5 +23,6 @@ jobs:
       - name: Install package and run unit tests
         run: |
           pip install .
+          pip install pytest-cov
           pytest --cov=svdb
 
