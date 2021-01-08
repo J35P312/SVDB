@@ -23,5 +23,13 @@ jobs:
       - name: Install package and run unit tests
         run: |
           pip install .
-          python setup.py test
+          pip install pytest-cov
+          pytest --cov=svdb --cov-report xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          flags: unittests
 
