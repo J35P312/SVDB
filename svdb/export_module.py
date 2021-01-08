@@ -114,8 +114,9 @@ def vcf_line(cluster, id_tag, sample_IDs):
 
 def expand_chain(chain, coordinates, chrA, chrB, distance, overlap):
     chain_data = {}
-    for i, variant in enumerate(chain):
+    for i,idx in enumerate(chain):
         chain_data[i] = []
+        variant=chain[idx]
 
         rows = coordinates[(distance >= abs(coordinates[:, 1] - variant["posA"]))
                            & (distance >= abs(coordinates[:, 2] - variant["posB"]))]
@@ -204,7 +205,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
     unique_xy = chr_db[variant]["coordinates"][dbscan == -1]
     unique_index = chr_db[variant]["index"][dbscan == -1]
     for xy, indexes in zip(unique_xy, unique_index):
-        variant_dictionary = fetch_cluster_variant(db, indexes)
+        variant_dictionary = fetch_cluster_variant(db, [indexes])
         representing_var = {}
         representing_var["type"] = variant
         representing_var["chrA"] = chrA
@@ -226,7 +227,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
     for unique_label in unique_labels:
         if unique_label == -1:
             continue
-        class_member_mask = (db == unique_label)
+        class_member_mask = (dbscan == unique_label)
         xy = chr_db[variant]["coordinates"][class_member_mask]
         indexes = chr_db[variant]["index"][class_member_mask]
 
