@@ -1,7 +1,6 @@
 import unittest
 
 from svdb.overlap_module import isSameVariation, precise_overlap
-#from svdb.overlap_module import precise_overlap
 
 
 class TestOverlapModule(unittest.TestCase):
@@ -65,5 +64,3 @@ class TestOverlapModule(unittest.TestCase):
         distance=50
 
         assert(precise_overlap(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distance))
-
-
