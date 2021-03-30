@@ -10,7 +10,7 @@ MirrorURL: http://us.archive.ubuntu.com/ubuntu/
     sed -i 's/$/ universe/' /etc/apt/sources.list
     apt-get update
     apt-get -y --force-yes install build-essential cmake make zlib1g-dev python python-dev python-setuptools git wget libbz2-dev unzip libblas-dev liblapack-dev gfortran
-    easy_install pip
+    easy_install pip==20.3.4
     pip install numpy cython
     wget https://github.com/J35P312/SVDB/archive/2.4.0.zip
     unzip 2.4.0.zip
