@@ -72,9 +72,8 @@ def readVCFLine(line):
         else:
             if "SVTYPE" in description:
                 event_type = description["SVTYPE"]
-
         #treat the insertion as single points
-        if "INS" in variation[4]:
+        if "INS" in event_type:
             posA=int(variation[1])
             posB=int(variation[1])
 
