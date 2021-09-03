@@ -177,8 +177,13 @@ def fetch_variants(variant, chrA, chrB, db):
 
 def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
     variant_dictionary, coordinates = fetch_index_variant(db, indexes)
-    similarity_matrix = expand_chain(
-        variant_dictionary, coordinates, chrA, chrB, args.bnd_distance, args.overlap)
+    if "INS" in variant:
+        similarity_matrix = expand_chain(
+           variant_dictionary, coordinates, chrA, chrB, args.ins_distance, -1)
+    else:
+        similarity_matrix = expand_chain(
+           variant_dictionary, coordinates, chrA, chrB, args.bnd_distance, args.overlap)
+
     clusters = cluster_variants(variant_dictionary, similarity_matrix)
     for clustered_variants in clusters:
         clustered_variants[0]["type"] = variant
@@ -195,9 +200,14 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
         f.close()
         return i
 
+    #DBSCAN clustering according to the user set parameters
     if args.DBSCAN:
         dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
+    elif "INS" in variant:
+        #insertions are clustered based on the ins_distance, which is typically smaller than the BND_distance
+        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.ins_distance, 2)        
     else:
+        #clustering of all other variants
         dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
 
     unique_labels = set(dbscan)
@@ -250,9 +260,11 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
             cluster = [representing_var, variant_dictionary]
             f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
             i += 1
+
         else:
             i = overlap_cluster(db, indexes, variant, chrA,
                                 chrB, sample_IDs, args, f, i)
+
     f.close()
     return i
 

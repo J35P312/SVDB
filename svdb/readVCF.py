@@ -72,6 +72,12 @@ def readVCFLine(line):
         else:
             if "SVTYPE" in description:
                 event_type = description["SVTYPE"]
+        #treat the insertion as single points
+        if "INS" in event_type:
+            posA=int(variation[1])
+            posB=int(variation[1])
+
+
 
     # if the variant is given as a breakpoint, it is stored as a precise variant in the db
     else:
