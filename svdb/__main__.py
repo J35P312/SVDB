@@ -4,7 +4,7 @@ from . import build_module, export_module, merge_vcf_module, query_module
 
 
 def main():
-    version = "2.4.1"
+    version = "2.5.0"
     parser = argparse.ArgumentParser(
         """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
     parser.add_argument('--build', help="create a db",
@@ -40,6 +40,8 @@ def main():
                             help="the prefix of the output file, default = print to stdout")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="the maximum distance between two similar breakpoints(default = 10000)")
+        parser.add_argument('--ins_distance', type=int, default=50,
+                            help="the maximum distance to merge two insertions(default = 50)")
         parser.add_argument('--overlap', type=float, default=0.6,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--memory',
@@ -89,6 +91,8 @@ def main():
             '--no_merge', help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int, default=2500,
                             help="the maximum distance between two similar precise breakpoints(default = 2500)")
+        parser.add_argument('--ins_distance', type=int, default=50,
+                            help="the maximum distance to merge two insertions(default = 50)")
         parser.add_argument('--overlap', type=float, default=0.8,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(
@@ -124,6 +128,8 @@ def main():
             '--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
         parser.add_argument('--bnd_distance', type=int, default=2000,
                             help="the maximum distance between two similar precise breakpoints(default = 2000)")
+        parser.add_argument('--ins_distance', type=int, default=50,
+                            help="the maximum distance to merge two insertions(default = 50)")
         parser.add_argument('--overlap', type=float, default=0.95,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument(

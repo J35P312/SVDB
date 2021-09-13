@@ -136,6 +136,7 @@ def sort_format_field(line, samples, sample_order, sample_print_order, priority_
 def merge(variants, samples, sample_order, sample_print_order, priority_order, args):
     overlap_param = args.overlap
     bnd_distance = args.bnd_distance
+    ins_distance=args.ins_distance
     no_intra = args.no_intra
     no_var = args.no_var
     pass_only = args.pass_only
@@ -180,8 +181,13 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 if no_intra and variants[chrA][i][-3] == variants[chrA][j][-3]:
                     continue
 
-                overlap, match = overlap_module.variant_overlap(
-                    chrA, variants[chrA][i][0], variants[chrA][i][2], variants[chrA][i][3], variants[chrA][j][2], variants[chrA][j][3], overlap_param, bnd_distance)
+                if "INS" in variants[chrA][i][1]:
+                    overlap, match = overlap_module.variant_overlap(
+                        chrA, variants[chrA][i][0], variants[chrA][i][2], variants[chrA][i][3], variants[chrA][j][2], variants[chrA][j][3], -1, ins_distance)
+
+                else:
+                    overlap, match = overlap_module.variant_overlap(
+                        chrA, variants[chrA][i][0], variants[chrA][i][2], variants[chrA][i][3], variants[chrA][j][2], variants[chrA][j][3], overlap_param, bnd_distance)
 
                 if match:
                     # add similar variants to the merge list and remove them

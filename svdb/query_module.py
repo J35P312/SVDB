@@ -221,6 +221,10 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             if not (chrA == chrB):
                 hit_tmp, match = overlap_module.precise_overlap(
                     chrApos, chrBpos, event[0], event[1], args.bnd_distance)
+            elif "INS" in variation_type:
+                #insertions are treated as single points, overlap is not defined, and the maximum distance is determined by ins_distance
+                hit_tmp, match = overlap_module.precise_overlap(
+                    chrApos, chrBpos, event[0], event[1], args.ins_distance)
             else:
                 hit_tmp, match = overlap_module.isSameVariation(
                     chrApos, chrBpos, event[0], event[1], args.overlap, args.bnd_distance)
