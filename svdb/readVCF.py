@@ -85,7 +85,7 @@ def readVCFLine(line):
         combinations={"[]":"]", "[[":"[", "]]":"]", "][":"["}
         
         for c in combinations:
-            if B.startswith(c)
+            if B.startswith(c):
                 B=B.replace(c,combinations[c])
 
         B = re.split("[],[]", B)
