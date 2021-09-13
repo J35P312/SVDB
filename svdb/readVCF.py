@@ -82,6 +82,12 @@ def readVCFLine(line):
     # if the variant is given as a breakpoint, it is stored as a precise variant in the db
     else:
         B = variation[4]
+        combinations={"[]":"]", "[[":"[", "]]":"]", "][":"["}
+        
+        for c in combinations:
+            if B.startswith(c):
+                B=B.replace(c,combinations[c])
+
         B = re.split("[],[]", B)
         chr_and_pos = B[1]
         chrB = ":".join(chr_and_pos.split(":")[:-1]).replace("chr", "").replace("Chr", "").replace("CHR", "")
