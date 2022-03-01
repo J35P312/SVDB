@@ -83,7 +83,7 @@ def readVCFLine(line):
     else:
         B = variation[4]
         combinations={"[]":"]", "[[":"[", "]]":"]", "][":"["}
-        
+
         for c in combinations:
             if B.startswith(c):
                 B=B.replace(c,combinations[c])
@@ -96,7 +96,7 @@ def readVCFLine(line):
             chrT = chrA
             chrA = chrB
             chrB = chrT
-        posA, posB = posB, posA
+            posA, posB = posB, posA
         event_type = "BND"
 
     return chrA, posA, chrB, posB, event_type, description, format
