@@ -52,7 +52,32 @@ def main():
         args.version = version
 
         if(args.db or args.sqdb or args.bedpedb):
-            query_module.main(args)
+            if(args.db):
+                db_queries = args.db.split(",")
+                if len(db_queries) > 1 and args.prefix:
+                    if all(variable is not None for variable in [args.in_occ, args.out_occ, args.in_frq, args.out_frq]):
+                        in_occs     = args.in_occ.split(",")
+                        in_frqs     = args.in_frq.split(",")
+                        out_occs    = args.out_occ.split(",")
+                        out_frqs    = args.out_frq.split(",")
+                        orig_prefix = args.prefix
+                        if (len(db_queries) == len(in_occs) == len(in_frqs) == len(out_occs) == len(out_frqs)):
+                            for ind in range(len(db_queries)):
+                                args.db        = db_queries[ind]
+                                args.in_occ    = None if in_occs[ind] == "" else in_occs[ind]
+                                args.in_frq    = None if in_frqs[ind] == "" else in_frqs[ind]
+                                args.out_occ   = out_occs[ind]
+                                args.out_frq   = out_frqs[ind]
+                                if ind < len(db_queries)-1:
+                                    args.prefix = orig_prefix + "_" + str(ind)
+                                else:
+                                    args.prefix = orig_prefix
+                                query_module.main(args)
+                                args.query_vcf = args.prefix + "_query.vcf"
+                    else:
+                        print("please ensure that both count and frequency tags are specified for all samples")
+                else:
+                    query_module.main(args)
         else:
             print("invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db")
 
