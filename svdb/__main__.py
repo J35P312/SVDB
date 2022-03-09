@@ -1,4 +1,4 @@
-import argparse
+import argparse, os
 
 from . import build_module, export_module, merge_vcf_module, query_module
 
@@ -26,8 +26,9 @@ def make_query_calls (args, queries, keyword):
                         args.prefix  = orig_prefix + "_" + str(ind)
                     else:
                         args.prefix = orig_prefix
-                    print(args)
-#                    query_module.main(args)
+                    query_module.main(args)
+                    if ind > 0:
+                        os.remove(args.query_vcf)
                     args.query_vcf = args.prefix + "_query.vcf"
         else:
             print("please ensure that both count and frequency tags are specified for all samples")
