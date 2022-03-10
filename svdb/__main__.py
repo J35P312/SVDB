@@ -18,8 +18,8 @@ def make_query_calls (args, queries, keyword):
                         args.sqdb    = queries[ind]
                     elif keyword == "bedpedb":
                         args.bedpedb = queries[ind]
-                    args.in_occ      = None if in_occs[ind] == "" else in_occs[ind]
-                    args.in_frq      = None if in_frqs[ind] == "" else in_frqs[ind]
+                    args.in_occ      = None if in_occs[ind] == "default" else in_occs[ind]
+                    args.in_frq      = None if in_frqs[ind] == "default" else in_frqs[ind]
                     args.out_occ     = out_occs[ind]
                     args.out_frq     = out_frqs[ind]
                     if ind < len(queries)-1:
@@ -54,22 +54,22 @@ def main():
             """SVDB.{}: query module""".format(version))
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required=True)
-        parser.add_argument('--db', type=str, help="path to a SVDB db vcf ")
-        parser.add_argument('--sqdb', type=str, help="path to a SVDB sqlite db")
+        parser.add_argument('--db', type=str, help="path to a SVDB db vcf or a comma separated list of vcfs")
+        parser.add_argument('--sqdb', type=str, help="path to a SVDB sqlite db or a comma separated list of dbs")
         parser.add_argument('--bedpedb', type=str,
-                            help="path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency")
+                            help="path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a or a comma separated list of dbs")
         parser.add_argument('--in_occ', type=str,
-                            help="The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AC or OCC)")
+                            help="The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AC or OCC), required if multiple databases are queried. Use default (as shown in the example in README) if you'd like to use default tag for a specific database")
         parser.add_argument('--in_frq', type=str,
-                            help="The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ)")
+                            help="The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ), required if multiple databases are queried. Use default (as shown in the example in README) if you'd like to use default tag for a specific database")
         parser.add_argument('--out_occ', type=str, default="OCC",
-                            help="the allle count tag, as annotated by SVDBvariant(defualt=OCC)")
+                            help="the allele count tag, as annotated by SVDBvariant(default=OCC), required if multiple databases are queried.")
         parser.add_argument('--out_frq', type=str, default="FRQ",
-                            help="the tag used to describe the frequency of the variant(defualt=FRQ)")
+                            help="the tag used to describe the frequency of the variant(default=FRQ), required if multiple databases are queried.")
         parser.add_argument('--max_frq', type=float, default=1,
                             help='Only include variants with a higher frequency than given here between 0 and 1. All new variants are always included. (default: 1)')
         parser.add_argument('--prefix', type=str, default=None,
-                            help="the prefix of the output file, default = print to stdout")
+                            help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="the maximum distance between two similar breakpoints(default = 10000)")
         parser.add_argument('--ins_distance', type=int, default=50,
