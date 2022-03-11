@@ -18,7 +18,7 @@ The GNOMAD SV database:
 
 https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
 
-external databses are run like this:
+external databases are run like this:
 
 ```bash
 svdb --query \
@@ -67,7 +67,7 @@ This module is used to construct structural variant databases from vcf files. Th
 
 
 ## Export
-This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorihms, overlap or DBSCAN.
+This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorithms, overlap or DBSCAN.
  
     print a help message
         svdb  --export --help  
@@ -81,9 +81,9 @@ This module is used to export the variants of the SVDB sqlite database. The vari
  
          --overlap OVERLAP     the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8
 
-         --DBSCAN              use dbscan to cluster the variants, overides the overlap based clustering algoritm
+         --DBSCAN              use dbscan to cluster the variants, overides the overlap based clustering algorithm
 
-         --epsilon EPSILON     used together with --DBSCAN; sets the epsilon paramter(default = 500bp)
+         --epsilon EPSILON     used together with --DBSCAN; sets the epsilon parameter(default = 500bp)
 
          --min_pts MIN_PTS     the min_pts parameter(default = 2
 
@@ -92,7 +92,7 @@ This module is used to export the variants of the SVDB sqlite database. The vari
           --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
 
 ## Query
-The query module is used to query a structural variant database. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the sructural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
+The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
     print a help message
        svdb --query --help
@@ -100,22 +100,26 @@ The query module is used to query a structural variant database. Typically a dat
 
         svdb --query --query_vcf patient1.vcf --db control_db.vcf
 
+    Query multiple databases, using a vcf file as query:
+    
+        svdb --query --query_vcf patient1.vcf --db control_db1.vcf,control_db2.vcf --prefix test --in_occ default,Obs --in_frq FRQ,default --out_frq db1_AF,db2_Frq --out_occ db1_AC,db2_Obs
+
     optional arguments:
 
 	-h, --help            show this help message and exit
 
-	--db DB				path to a db vcf
-	--sqdb SQDB			path to a SVDB sqlite db
-	--bedpedb BEDPEDB		path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency
-	--in_occ IN_OCC			The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AN or OCC)
-	--in_frq IN_FRQ			The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ)
-	--out_occ OUT_OCC		the allle count tag, as annotated by SVDB variant(defualt=OCC)
-	--out_frq OUT_FRQ		the tag used to describe the frequency of the variant(defualt=FRQ)
-	--prefix PREFIX			the prefix of the output file, default = print to stdout
+	--db DB				path to a db vcf, or a comma separated list of vcfs
+	--sqdb SQDB			path to a SVDB sqlite db, or a comma separated list of dbs
+	--bedpedb BEDPEDB		path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a comma separated list of files
+	--in_occ IN_OCC			The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AN or OCC). This parameter is required if multiple databases are queried. 
+	--in_frq IN_FRQ			The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ). This parameter is required if multiple databases are queried.
+	--out_occ OUT_OCC		the allele count tag, as annotated by SVDB variant(default=OCC). This parameter is required if multiple databases are queried.
+	--out_frq OUT_FRQ		the tag used to describe the frequency of the variant(default=FRQ). This parameter is required if multiple databases are queried.
+	--prefix PREFIX			the prefix of the output file, default = print to stdout. Required if multiple databases are queried. 
 	--bnd_distance BND_DISTANCE	the maximum distance between two similar breakpoints(default = 10000)
 	--overlap OVERLAP		the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
 	--memory 			load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
-	--no_var			count overlaping variants of different type as hits in the db
+	--no_var			count overlapping variants of different type as hits in the db
 
     
 ## Merge

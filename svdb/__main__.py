@@ -1,10 +1,42 @@
-import argparse
+import argparse, os
 
 from . import build_module, export_module, merge_vcf_module, query_module
 
+def make_query_calls (args, queries, keyword):
+    if len(queries) > 1 and args.prefix:
+        if all(variable is not None for variable in [args.in_occ, args.out_occ, args.in_frq, args.out_frq]):
+            in_occs     = args.in_occ.split(",")
+            in_frqs     = args.in_frq.split(",")
+            out_occs    = args.out_occ.split(",")
+            out_frqs    = args.out_frq.split(",")
+            orig_prefix = args.prefix
+            if (len(queries) == len(in_occs) == len(in_frqs) == len(out_occs) == len(out_frqs)):
+                for ind in range(len(queries)):
+                    if keyword   == "db":
+                        args.db      = queries[ind]
+                    elif keyword == "sqdb":
+                        args.sqdb    = queries[ind]
+                    elif keyword == "bedpedb":
+                        args.bedpedb = queries[ind]
+                    args.in_occ      = None if in_occs[ind] == "default" else in_occs[ind]
+                    args.in_frq      = None if in_frqs[ind] == "default" else in_frqs[ind]
+                    args.out_occ     = out_occs[ind]
+                    args.out_frq     = out_frqs[ind]
+                    if ind < len(queries)-1:
+                        args.prefix  = orig_prefix + "_" + str(ind)
+                    else:
+                        args.prefix = orig_prefix
+                    query_module.main(args)
+                    if ind > 0:
+                        os.remove(args.query_vcf)
+                    args.query_vcf = args.prefix + "_query.vcf"
+        else:
+            print("please ensure that both count and frequency tags are specified for all samples")
+    else:
+        query_module.main(args)
 
 def main():
-    version = "2.5.1"
+    version = "2.5.2"
     parser = argparse.ArgumentParser(
         """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
     parser.add_argument('--build', help="create a db",
@@ -22,22 +54,22 @@ def main():
             """SVDB.{}: query module""".format(version))
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required=True)
-        parser.add_argument('--db', type=str, help="path to a SVDB db vcf ")
-        parser.add_argument('--sqdb', type=str, help="path to a SVDB sqlite db")
+        parser.add_argument('--db', type=str, help="path to a SVDB db vcf or a comma separated list of vcfs")
+        parser.add_argument('--sqdb', type=str, help="path to a SVDB sqlite db or a comma separated list of dbs")
         parser.add_argument('--bedpedb', type=str,
-                            help="path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency")
+                            help="path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a or a comma separated list of dbs")
         parser.add_argument('--in_occ', type=str,
-                            help="The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AC or OCC)")
+                            help="The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AC or OCC), required if multiple databases are queried. Use default (as shown in the example in README) if you'd like to use default tag for a specific database")
         parser.add_argument('--in_frq', type=str,
-                            help="The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ)")
+                            help="The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ), required if multiple databases are queried. Use default (as shown in the example in README) if you'd like to use default tag for a specific database")
         parser.add_argument('--out_occ', type=str, default="OCC",
-                            help="the allle count tag, as annotated by SVDBvariant(defualt=OCC)")
+                            help="the allele count tag, as annotated by SVDBvariant(default=OCC), required if multiple databases are queried.")
         parser.add_argument('--out_frq', type=str, default="FRQ",
-                            help="the tag used to describe the frequency of the variant(defualt=FRQ)")
+                            help="the tag used to describe the frequency of the variant(default=FRQ), required if multiple databases are queried.")
         parser.add_argument('--max_frq', type=float, default=1,
                             help='Only include variants with a higher frequency than given here between 0 and 1. All new variants are always included. (default: 1)')
         parser.add_argument('--prefix', type=str, default=None,
-                            help="the prefix of the output file, default = print to stdout")
+                            help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="the maximum distance between two similar breakpoints(default = 10000)")
         parser.add_argument('--ins_distance', type=int, default=50,
@@ -52,7 +84,15 @@ def main():
         args.version = version
 
         if(args.db or args.sqdb or args.bedpedb):
-            query_module.main(args)
+            if(args.db):
+                queries = args.db.split(",")
+                make_query_calls(args, queries, "db")
+            if(args.sqdb):
+                queries = args.sqdb.split(",")
+                make_query_calls(args, queries, "sqdb")
+            if(args.bedpedb):
+                queries = args.bedpedb.split(",")
+                make_query_calls(args, queries, "bedpedb")
         else:
             print("invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db")
 
