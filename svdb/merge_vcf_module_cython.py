@@ -116,19 +116,41 @@ def sort_format_field(line, samples, sample_order, sample_print_order, priority_
     # generate a union of the info fields
     info_union = []
     tags_in_info = []
+
+    # tags only to be copied from the file with highest priority (to avoid problems in downstream analyses
+    blacklist=set(["SVLEN","END","SVTYPE"])
+    first=True
+
+    all_info={}
+
     for input_file in priority_order:
         if input_file not in files:
             continue
+
+        all_info[input_file]=[input_file]
+
         INFO = files[input_file].strip().split("\t")[7]
         INFO_content = INFO.split(";")
 
         for content in INFO_content:
             tag = content.split("=")[0]
+            if not ":" in content and not "|" in content:
+                all_info[input_file].append( content.replace("=",":").replace(",",":") )
+
+            if not first and tag in blacklist:
+                continue
+
             if tag not in tags_in_info:
                 tags_in_info.append(tag)
                 info_union.append(content)
 
-    new_info = ";".join(info_union)
+        first=False
+
+    info_per_file=[]
+    for input_file in all_info:
+        info_per_file.append( "|".join(all_info[input_file]) ) 
+    
+    new_info = ";".join(info_union+["SVDB_INFO="+",".join(info_per_file) ] )
     line[7] = new_info
     return line
 

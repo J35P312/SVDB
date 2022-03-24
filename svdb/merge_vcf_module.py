@@ -74,6 +74,9 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     for entry in sorted(header["INFO"]):
         print(header["INFO"][entry].strip())
     del header["INFO"]
+
+    print("##INFO=<ID=SVDB_INFO,Number=.,Type=String,Description=\"pipe separated list of all details in the INFO field\">")
+
     # print contigs according to the input order
     if reference != "":
         print(reference.strip())
