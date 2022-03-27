@@ -40,7 +40,9 @@ def main(args):
                         noOCCTag = 0
                 else:
                     if line[1] != "#":
-                        writer("##SVDB_version={} cmd=\"{}\"".format(args.version, " ".join(sys.argv)))
+                        writer("##SVDB_version={} cmd=\"{}\"\n".format(args.version, " ".join(sys.argv)))
+                        writer(line)
+                    else:
                         writer(line)
                 continue
 
