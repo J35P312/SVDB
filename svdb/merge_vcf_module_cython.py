@@ -6,9 +6,14 @@ from . import overlap_module
 def retrieve_key(line, key):
     key += '='
     if key in line:
-        item = line.strip().split(key)[-1].split(";")[0]
-        if len(item) == len(line.strip()):
+        if ";{}".format(key) in line:
+            item = line.strip().split( ";{}".format(key) )[-1].split(";")[0].split("\t")[0]
+
+        elif "\t{}".format(key) in line:
+            item = line.strip().split( "\t{}".format(key) )[-1].split(";")[0].split("\t")[0]
+        else:
             return False
+
     return item
 
 #Check if no merging should occur
