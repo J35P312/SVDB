@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 
-from . import DBSCAN, database, overlap_module
+import DBSCAN, database, overlap_module
 
 
 def fetch_index_variant(db, index):

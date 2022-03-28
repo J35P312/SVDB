@@ -1,6 +1,6 @@
 import argparse, os
 
-from . import build_module, export_module, merge_vcf_module, query_module
+import build_module, export_module, merge_vcf_module, query_module
 
 def make_query_calls (args, queries, keyword):
     if len(queries) > 1 and args.prefix:

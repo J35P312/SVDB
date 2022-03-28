@@ -4,7 +4,7 @@ import glob
 import gzip
 import os
 
-from . import database, readVCF
+import database, readVCF
 
 
 def populate_db(args):

@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from . import overlap_module
+import overlap_module
 
 
 def retrieve_key(line, key):

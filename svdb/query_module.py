@@ -5,7 +5,7 @@ import sys
 
 import numpy as np
 
-from . import database, overlap_module, readVCF
+import database, overlap_module, readVCF
 
 
 def main(args):

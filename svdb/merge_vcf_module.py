@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import gzip
 import sys
 
-from . import merge_vcf_module_cython, readVCF
+import merge_vcf_module_cython, readVCF
 
 
 def print_header(vcf_list, vcf_dictionary, args, command_line):
