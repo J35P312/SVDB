@@ -1,6 +1,6 @@
 import unittest
 
-from svdb.overlap_module import isSameVariation, precise_overlap
+from svdb.overlap_module import isSameVariation, precise_overlap, variant_overlap
 
 
 class TestOverlapModule(unittest.TestCase):
@@ -64,3 +64,16 @@ class TestOverlapModule(unittest.TestCase):
         distance=50
 
         assert(precise_overlap(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distance))
+
+    #test the variant_overlap overlap module
+    def test_variant_overlap(self):
+        chrA="1"
+        chrB="1"
+        chrApos_query=1
+        chrBpos_query=10
+        chrApos_db=1
+        chrBpos_db=10
+        ratio=0.5
+        distance=1000
+        assert( (1,True) == variant_overlap(chrA,chrB,chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance) )
+

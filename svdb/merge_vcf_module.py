@@ -74,6 +74,15 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     for entry in sorted(header["INFO"]):
         print(header["INFO"][entry].strip())
     del header["INFO"]
+
+    for vcf in vcf_dictionary:
+        print("##INFO=<ID={}_INFO,Number=.,Type=String,Description=\"pipe separated list of all details in the INFO column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+        print("##INFO=<ID={}_SAMPLE,Number=.,Type=String,Description=\"pipe separated list of all details in the SAMPLEs column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+        print("##INFO=<ID={}_CHROM,Number=.,Type=String,Description=\"pipe separated list of all details in the CHROM column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+        print("##INFO=<ID={}_POS,Number=.,Type=String,Description=\"pipe separated list of all details in the POS column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+        print("##INFO=<ID={}_QUAL,Number=.,Type=String,Description=\"pipe separated list of all details in the QUAL column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+        print("##INFO=<ID={}_FILTERS,Number=.,Type=String,Description=\"pipe separated list of all details in the FILTER column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+
     # print contigs according to the input order
     if reference != "":
         print(reference.strip())
@@ -101,6 +110,8 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     if not args.notag:
         print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
         print("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
+        print("##INFO=<ID=svdb_origin,Number=1,Type=String,Description=\"pipe separated list of the VCF for the merged record in SVDB\">")
+
     print("##svdbcmdline={}".format(" ".join(command_line)))
     sample_print_order = {}
 

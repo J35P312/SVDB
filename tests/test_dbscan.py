@@ -4,7 +4,7 @@ import numpy
 from svdb.DBSCAN import main
 
 
-class TestReadVCFLine(unittest.TestCase):
+class TestDBSCAN(unittest.TestCase):
 
     #test that distant points are not merged
     def test_distant_points(self):
