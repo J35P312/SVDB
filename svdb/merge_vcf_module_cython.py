@@ -348,7 +348,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 line[7]+=";{}_FILTERS={}".format(tag,",".join(filters_tag[tag]))
             #add samples information for all merged variants
             for tag in samples_tag:
-                line[7]+=";{}_SAMPLES={}".format(tag,",".join(samples_tag[tag]))
+                line[7]+=";{}_SAMPLE={}".format(tag,",".join(samples_tag[tag]))
             #add info column for all merged variants
             for tag in samples_tag:
                 line[7]+=";{}_INFO={}".format(tag,",".join(info_tag[tag]))
