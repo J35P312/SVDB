@@ -52,32 +52,42 @@ def readVCFLine(line):
     elif "]" not in variation[4] and "[" not in variation[4]:
 
         chrB = chrA
+        posB = posA
+
         if "END" in description:
             posB = int(description["END"])
-
         elif "SVLEN" in description:
             posB = posA + abs(int(description["SVLEN"]))
-        else:
-            posB = posA
+
         # sometimes the fermikit intra chromosomal events are inverted i.e the end pos is a lower position than the start pos
         if posB < posA:
             tmp = posB
             posB = posA
             posA = tmp
-        event_type = variation[4].strip("<").rstrip(">")
 
+        nucleotides=set(["A","T","C","G","N"])
+        #SVtype is given in alt column
         if "<" in variation[4] and ">" in variation[4]:
+            event_type = variation[4].strip("<").rstrip(">")
             if "DUP" in event_type:
                 event_type = "DUP"
-        else:
-            if "SVTYPE" in description:
-                event_type = description["SVTYPE"]
+
+        #SVtype present in INFO
+        elif "SVTYPE" in description:
+            event_type = description["SVTYPE"]
+
+        #no SVTYPE, actual sequence is written in alt
+        elif set(list(variation[4])).union(nucleotides) == nucleotides:
+            if len(variation[4]) > len(variation[3]):
+                event_type="INS"
+            else:
+                event_type="DEL"
+                posB=posA+len(variation[3])-1
+
         #treat the insertion as single points
         if "INS" in event_type:
             posA=int(variation[1])
             posB=int(variation[1])
-
-
 
     # if the variant is given as a breakpoint, it is stored as a precise variant in the db
     else:
