@@ -108,7 +108,7 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     for entry in sorted(subheader):
         print(subheader[entry].strip())
     if not args.notag:
-        print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
+        print("##INFO=<ID=FOUNDBY,Number=1,Type=Integer,Description=\"The number of files containing the variant\">")
         print("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
         print("##INFO=<ID=svdb_origin,Number=1,Type=String,Description=\"pipe separated list of the VCF for the merged record in SVDB\">")
 
