@@ -331,6 +331,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
             if not args.notag:
                 set_tag = determine_set_tag(priority_order, files)
                 line[7] += ";set={}".format(set_tag)
+                line[7] += ";FOUNDBY={}".format( len(set(filters_tag.keys())) )
 
             #add chrom information of all merged variants
             callers=[]
