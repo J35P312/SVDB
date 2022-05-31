@@ -48,14 +48,14 @@ def collect_sample(vcf_line,samples,sample_order,f):
         if not f in sample_order[sample]:
            continue
         sample_position = sample_order[sample][f]
-        
+
         entries = vcf_line[8].split(":")
         sample_entries = vcf_line[9 + sample_position].split(":")
         sample_data.append(sample)
         for i, entry in enumerate(entries):
             sample_data.append("{}:{}".format( entry,sample_entries[i] ) )
 
-    return "|".join(sample_data).replace(",",":")	
+    return "|".join(sample_data).replace(",",":")
 
 #collect INFO from all merged_variants
 def collect_info(vcf_line):
@@ -69,7 +69,7 @@ def collect_info(vcf_line):
         if not ":" in content and not "|" in content:
            all_info.append( content.replace("=",":").replace(",",":") )
 
-    return "|".join(all_info) 
+    return "|".join(all_info)
 
 #create a GATK-like set of all merged variants
 def determine_set_tag(priority_order, files):
@@ -353,7 +353,9 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
             #add info column for all merged variants
             for tag in samples_tag:
                 line[7]+=";{}_INFO={}".format(tag,",".join(info_tag[tag]))
-            line[7]+=";svdb_origin={}".format("|".join(callers))
+
+            if not args.notag:
+                line[7]+=";svdb_origin={}".format("|".join(callers))
 
             to_be_printed[line[0]].append(line)
 
