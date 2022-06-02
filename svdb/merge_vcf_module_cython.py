@@ -346,7 +346,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 line[7]+=";{}_QUAL={}".format(tag,",".join(qual_tag[tag]))
             #add filter of all merged variants
             for tag in filters_tag:
-                line[7]+=";{}_FILTERS={}".format(tag,",".join(filters_tag[tag]))
+                line[7]+=";{}_FILTERS={}".format(tag,",".join(filters_tag[tag]).replace(";",","))
             #add samples information for all merged variants
             for tag in samples_tag:
                 line[7]+=";{}_SAMPLE={}".format(tag,",".join(samples_tag[tag]))
