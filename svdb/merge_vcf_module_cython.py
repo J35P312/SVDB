@@ -357,6 +357,15 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
             if not args.notag:
                 line[7]+=";svdb_origin={}".format("|".join(callers))
 
+            sup_vec=[]
+            for c in sorted(priority_order):
+                if c in filters_tag:
+                    sup_vec.append("1") 
+                else:
+                    sup_vec.append("0") 
+
+            line[7]+=";SUPP_VEC={}".format("".join(sup_vec))
+
             to_be_printed[line[0]].append(line)
 
             analysed_variants.add(i)
