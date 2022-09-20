@@ -35,7 +35,9 @@ here the `AF` and `AN` are the allele frequency tags of the database, the `AF` i
 # Install:
 Dependencies: SVDB has been tested on python 2.7.11 and python 3.6, and requires numpy.
 SVDB is installed using the following command
-
+	
+	git clone https://github.com/J35P312/SVDB.git
+	cd SVDB
 	pip install -e .
 
 SVDB is available on singularity:
