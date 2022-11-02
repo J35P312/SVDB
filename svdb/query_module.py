@@ -8,11 +8,11 @@ import numpy as np
 from . import database, overlap_module, readVCF
 
 
-def main(args):
+def main(args, output_file):
     # start by loading the variations
     queries = []
     if args.prefix:
-        f = open(args.prefix + "_query.vcf", "w")
+        f = open(output_file, "w")
     noOCCTag = 1
     infoFound = 0
 
