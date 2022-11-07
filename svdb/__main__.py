@@ -26,19 +26,21 @@ def make_query_calls (args, queries, keyword):
                     args.out_frq     = out_frqs[ind]
                     if ind < len(queries)-1:
                         args.prefix  = orig_prefix + "_" + str(ind)
+                        output_file  = args.prefix + "_query.vcf_tmp"    
                     else:
                         args.prefix = orig_prefix
-                    query_module.main(args)
+                        output_file  = args.prefix + "_query.vcf"    
+                    query_module.main(args, output_file)
                     if ind > 0:
                         os.remove(args.query_vcf)
-                    args.query_vcf = args.prefix + "_query.vcf"
+                    args.query_vcf = output_file
         else:
             print("please ensure that both count and frequency tags are specified for all samples")
     else:
         query_module.main(args)
 
 def main():
-    version = "2.7.0"
+    version = "2.7.1"
     parser = argparse.ArgumentParser(
         """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
     parser.add_argument('--build', help="create a db",
