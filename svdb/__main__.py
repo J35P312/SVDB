@@ -36,6 +36,9 @@ def make_query_calls (args, queries, keyword):
                     args.query_vcf = output_file
         else:
             print("please ensure that both count and frequency tags are specified for all samples")
+    elif len(queries) == 1 and args.prefix:
+        output_file  = args.prefix + "_query.vcf"    
+        query_module.main(args, output_file)
     else:
         query_module.main(args)
 
