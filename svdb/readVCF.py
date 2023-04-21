@@ -107,6 +107,13 @@ def readVCFLine(line):
             chrA = chrB
             chrB = chrT
             posA, posB = posB, posA
+
+        #intrachromosomal variant
+        if chrA == chrB:
+            if posB < posA:
+                posA, posB = posB, posA
+
+
         event_type = "BND"
 
     return chrA, posA, chrB, posB, event_type, description, format
