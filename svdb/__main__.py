@@ -48,7 +48,7 @@ def make_query_calls (args, queries, keyword):
 def main():
     version = "2.8.2"
     parser = argparse.ArgumentParser(
-        """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
+        """SVDB-{}, use the build module to construct databases, use the query module to query the database using vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
     parser.add_argument('--build', help="create a db",
                         required=False, action="store_true")
     parser.add_argument('--query', help="query a db",
