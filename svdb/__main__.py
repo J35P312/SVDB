@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from . import build_module, export_module, merge_vcf_module, query_module
+from . import build_module, export_module, merge_vcf_module, query_module, annotate_module
 
 
 def make_query_calls (args, queries, keyword):
@@ -46,12 +46,14 @@ def make_query_calls (args, queries, keyword):
         query_module.main(args)
 
 def main():
-    version = "2.8.2"
+    version = "2.9.0"
     parser = argparse.ArgumentParser(
         """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
     parser.add_argument('--build', help="create a db",
                         required=False, action="store_true")
-    parser.add_argument('--query', help="query a db",
+    parser.add_argument('--query', help="query a frequency db",
+                        required=False, action="store_true")
+    parser.add_argument('--annotate', help="annotate a vcf file using INFO tags from another vcf",
                         required=False, action="store_true")
     parser.add_argument('--merge', help="merge similar structural variants within a vcf file",
                         required=False, action="store_true")
@@ -105,6 +107,30 @@ def main():
                 make_query_calls(args, queries, "bedpedb")
         else:
             print("invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db")
+
+    if args.annotate:
+        parser = argparse.ArgumentParser(
+            """SVDB.{}: annotate module""".format(version))
+        parser.add_argument('--annotate', help="query a db", required=False, action="store_true")
+        parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required=True)
+        parser.add_argument('--db',required=True, type=str, help="path to a database vcf")
+        parser.add_argument('--in_tags',nargs="*", type=str,required=True,
+                            help="list of tags to extract from the INFO field of the vcf database")
+        parser.add_argument('--out_tags',nargs="*", type=str,
+                            help="the name of the tags as written to the query vcf Default=same as in_tags")
+        parser.add_argument('--prefix', type=str, default=None,
+                            help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
+        parser.add_argument('--bnd_distance', type=int, default=10000,
+                            help="the maximum distance between two similar breakpoints(default = 10000)")
+        parser.add_argument('--ins_distance', type=int, default=50,
+                            help="the maximum distance to merge two insertions(default = 50)")
+        parser.add_argument('--overlap', type=float, default=0.6,
+                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
+        parser.add_argument('--no_var',
+                            help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
+        args = parser.parse_args()
+        args.version = version
+        annotate_module.main(args)
 
     elif args.build:
         parser = argparse.ArgumentParser(

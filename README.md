@@ -45,7 +45,7 @@ SVDB is available on singularity:
 	singularity pull shub://J35P312/SVDB
 
 # Modules:
-SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
+SVDB consists of modules that are used to build, query, annotate, export, and analyse structural variant databases. These are the modules:
 
 ## Build
 This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
@@ -159,3 +159,39 @@ The merge module merges variants within one or more vcf files. This could be use
         --pass_only                     merge only variants labeled PASS
 
 	--same_order			assume that the samples are ordered the same way (skip reordering and merging of the sample columns). 
+
+## Annotate
+The annotate module works similarily to the query module. However, the annotate module is used to annotate a query vcf with any selected INFO tags from a vcf database. The annotate module does not support db or bedbpe files.
+
+    print a help message:
+       python SVDB.py --annotate --help
+    merge vcf files:
+        svdb --annotate --query_vcf input.vcf --db frequency_db.vcf --in_tags AF SVTYPE --out_tag LOCALAF TYPE_of_SV > annotated.vcf
+
+In this example, AF and SVTYPE are extracted from frequency_db.vcf, the tags will be stored as LOCALAF and TYPE_of_SV in the info column of matching variants in the annotated.vcf file.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --annotate            query a db
+  --query_vcf QUERY_VCF
+                        a vcf used to query the db
+  --db DB               path to a database vcf
+  --in_tags [IN_TAGS [IN_TAGS ...]]
+                        list of tags to extract from the INFO field of the vcf
+                        database
+  --out_tags [OUT_TAGS [OUT_TAGS ...]]
+                        the name of the tags as written to the query vcf
+                        Default=same as in_tags
+  --prefix PREFIX       the prefix of the output file, default = print to
+                        stdout. Required, if multiple databases are queried
+  --bnd_distance BND_DISTANCE
+                        the maximum distance between two similar
+                        breakpoints(default = 10000)
+  --ins_distance INS_DISTANCE
+                        the maximum distance to merge two insertions(default =
+                        50)
+  --overlap OVERLAP     the overlap required to merge two events(0 means
+                        anything that touches will be merged, 1 means that two
+                        events must be identical to be merged), default = 0.6
+  --no_var              count overlaping variants of different type as hits in
+ 

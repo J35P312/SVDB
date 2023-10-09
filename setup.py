@@ -14,12 +14,13 @@ if has_cython:
         "svdb/readVCF.py",
         "svdb/merge_vcf_module_cython.py",
         "svdb/query_module.py",
+        "svdb/annotate_module.py",
         "svdb/export_module.py"])
 else:
     ext_modules = []
 
 setup(name='svdb',
-      version='2.8.2',
+      version='2.9.0',
       url="https://github.com/J35P312/SVDB",
       author="Jesper Eisfeldt",
       author_email="jesper.eisfeldt@scilifelab.se",
