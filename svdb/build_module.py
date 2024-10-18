@@ -66,7 +66,7 @@ def populate_db(args):
                 ci_B_lower = 0
                 ci_B_upper = 0
                 if "CIPOS" in INFO:
-                    ci = INFO["CIPOS"].split(",")
+                    ci = INFO["CIPOS"].replace('(','').replace(')','').split(",")
                     if len(ci) > 1:
                         ci_A_lower = abs(int(ci[0]))
                         ci_A_upper = abs(int(ci[1]))
@@ -79,7 +79,7 @@ def populate_db(args):
                         ci_B_upper = abs(int(ci[0]))
 
                 if "CIEND" in INFO:
-                    ci = INFO["CIEND"].split(",")
+                    ci = INFO["CIEND"].replace('(','').replace(')','').split(",")
                     if len(ci) > 1:
                         ci_B_lower = abs(int(ci[0]))
                         ci_B_upper = abs(int(ci[1]))
