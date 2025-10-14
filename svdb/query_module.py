@@ -15,6 +15,7 @@ def main(args, output_file=None):
         f = open(output_file, "w")
     noOCCTag = 1
     infoFound = 0
+    db_path = args.db or args.bedpedb or args.sqdb
 
     opener = gzip.open if args.query_vcf.endswith(".gz") else open
     writer = f.write if args.prefix else sys.stdout.write
@@ -28,22 +29,29 @@ def main(args, output_file=None):
                 lookForFilter = meta_line.split("=")
                 # the last infotag will be the Feature tag
                 if lookForFilter[0] != "INFO" and noOCCTag and infoFound == 1:
-                    writer("##INFO=<ID={},Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">\n".format(args.out_occ))
-                    writer("##INFO=<ID={},Number=1,Type=Float,Description=\"The frequency of the event in the database\">\n".format(args.out_frq))
+                    writer(
+                        f'##INFO=<ID={args.out_occ},Number=1,Type=Integer,Description="The number of occurrences of the event in the database {db_path}">\n'
+                    )
+                    writer(
+                        f'##INFO=<ID={args.out_frq},Number=1,Type=Float,Description="The frequency of the event in the database {db_path}">\n'
+                    )
                     writer(line)
                     infoFound = 0
                 elif lookForFilter[0] == "INFO":
                     writer(line)
                     infoFound = 1
-                    # there should only be one feature tag per vf file
-                    if line == "INFO=<ID={},Number=1,Type=Integer,Description=\"The number of occurances of the event in the database\">".format(args.out_occ):
+                    # there should only be one feature tag per vcf file
+                    if (
+                        line
+                        == f'INFO=<ID={args.out_occ},Number=1,Type=Integer,Description="The number of occurrences of the event in the database {db_path}">'
+                    ):
                         noOCCTag = 0
                 else:
                     if line[1] != "#":
-                        writer("##SVDB_version={} cmd=\"{}\"\n".format(args.version, " ".join(sys.argv)))
-                        writer(line)
-                    else:
-                        writer(line)
+                        writer(
+                            f'##SVDB_version={args.version} cmd="{" ".join(sys.argv)}"\n'
+                        )
+                    writer(line)
                 continue
 
             # in this case I need to store a query
@@ -174,7 +182,7 @@ def main(args, output_file=None):
         if frq > args.max_frq:
             continue
         if query[5]:
-            content[7] = "{};{}={};{}={}".format(content[7], args.out_occ, query[5], args.out_frq, frq)
+            content[7] = f"{content[7]};{args.out_occ}={query[5]};{args.out_frq}={frq}"
         if not args.prefix:
             print(("\t").join(content))
         else:
