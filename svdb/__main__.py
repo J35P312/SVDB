@@ -26,10 +26,10 @@ def make_query_calls (args, queries, keyword):
                     args.out_frq     = out_frqs[ind]
                     if ind < len(queries)-1:
                         args.prefix  = orig_prefix + "_" + str(ind)
-                        output_file  = args.prefix + "_query.vcf_tmp"    
+                        output_file  = args.prefix + "_query.vcf_tmp"
                     else:
                         args.prefix = orig_prefix
-                        output_file  = args.prefix + "_query.vcf"    
+                        output_file  = args.prefix + "_query.vcf"
                     query_module.main(args, output_file)
                     if ind > 0:
                         os.remove(args.query_vcf)
@@ -40,13 +40,13 @@ def make_query_calls (args, queries, keyword):
         print("ERROR: Please provide a prefix")
         quit()
     elif len(queries) == 1 and args.prefix:
-        output_file  = args.prefix + "_query.vcf"    
+        output_file  = args.prefix + "_query.vcf"
         query_module.main(args, output_file)
     else:
         query_module.main(args)
 
 def main():
-    version = "2.8.2"
+    version = "2.8.3"
     parser = argparse.ArgumentParser(
         """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
     parser.add_argument('--build', help="create a db",
