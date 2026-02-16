@@ -253,6 +253,8 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
         if occ:
             if not (chrA == chrB):
                 idx = similarity.index(min(similarity))
+            elif "INS" in variation_type:
+                idx = similarity.index(min(similarity))
             else:
                 idx = similarity.index(max(similarity))
             hits = [occ[idx], frequency[idx]]
