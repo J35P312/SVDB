@@ -1,8 +1,7 @@
-from __future__ import absolute_import
-
 import glob
 import gzip
 import os
+from pathlib import Path
 
 from . import database, readVCF
 
@@ -27,8 +26,7 @@ def populate_db(args):
 
     # populate the tables
     for vcf in args.files:
-        sample_name = vcf.split("/")[-1].split(".vcf")[0]
-        sample_name = sample_name.replace(".", "_")
+        sample_name = Path(vcf).stem.replace(".", "_")
         sample_IDs.append(sample_name)
         A = 'SELECT sample FROM SVDB WHERE sample == \'{}\' '.format(sample_name)
         hits = [hit for hit in db.query(A)]

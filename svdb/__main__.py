@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from . import build_module, export_module, merge_vcf_module, query_module
 
@@ -38,7 +39,7 @@ def make_query_calls (args, queries, keyword):
             print("please ensure that both count and frequency tags are specified for all samples")
     elif len(queries) > 1 and not args.prefix:
         print("ERROR: Please provide a prefix")
-        quit()
+        sys.exit(1)
     elif len(queries) == 1 and args.prefix:
         output_file  = args.prefix + "_query.vcf"
         query_module.main(args, output_file)
@@ -123,7 +124,7 @@ def main():
         args.version = version
         if (args.files and args.folder):
             print("ERROR: only one DB build input source may be selected")
-            quit()
+            sys.exit(1)
 
         if args.folder or args.files:
             build_module.main(args)

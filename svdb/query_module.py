@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import gzip
 import sys
 
@@ -132,7 +130,7 @@ def main(args, output_file=None):
                         print("Error: frequency or hit tag not found! Make sure to set the --in_occ AND --in_frq to the number and frequency of alleles/individuals as presented in the INFO column of the input db\n")
                         print("database variants not having the --in_occ or --in_frq tag must be removed")
                         print("you may also skip these parameters and cluster based on the GT entry of the format column (if such exists)")
-                        quit()
+                        sys.exit(1)
 
         for chrA in DBvariants:
             for chrB in DBvariants[chrA]:
@@ -169,7 +167,7 @@ def main(args, output_file=None):
         if not db_size:
             # TODO: Raise a custom DB exception
             print("error: no samples in the db")
-            quit()
+            sys.exit(1)
 
         for query in queries:
             hits = SQDB(query, args, db)
