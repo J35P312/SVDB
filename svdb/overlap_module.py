@@ -21,11 +21,7 @@ def isSameVariation(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio,
         region_end = max([chrBpos_db, chrBpos_query])
         overlap_end = min([chrBpos_db, chrBpos_query])
 
-        try:
-            event_ratio = float(overlap_end - overlap_start + 1) / \
-                float(region_end - region_start + 1)
-        except Exception:
-            event_ratio = 0
+        event_ratio = float(overlap_end - overlap_start + 1) / float(region_end - region_start + 1)
 
         if event_ratio >= ratio:
             return event_ratio, True

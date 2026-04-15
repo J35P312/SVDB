@@ -26,10 +26,7 @@ class DB:
         return res
 
     def drop(self, query):
-        try:
-            self.cursor.execute(query)
-        except Exception:
-            pass
+        self.cursor.execute(query)
 
     def create(self, query):
         self.cursor.execute(query)
