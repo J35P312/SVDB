@@ -1,7 +1,8 @@
 import re
 
+from .models import VCFVariant
 
-# TODO: Should be part of a VCF class
+
 def readVCFLine(line):
     if line[0].startswith("#"):
         return None
@@ -116,4 +117,4 @@ def readVCFLine(line):
 
         event_type = "BND"
 
-    return chrA, posA, chrB, posB, event_type, description, fmt
+    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt)

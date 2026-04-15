@@ -2,6 +2,7 @@ import gzip
 import sys
 
 from . import merge_vcf_module_cython, readVCF
+from .models import MergeVariant
 
 
 def print_header(vcf_list, vcf_dictionary, args, command_line):
@@ -170,13 +171,13 @@ def main(args):
                     if line.startswith('#'):
                         continue
                     else:
-                        chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(line)
-                        if chrA not in variants:
-                            variants[chrA] = []
+                        v = readVCF.readVCFLine(line)
+                        if v.chrA not in variants:
+                            variants[v.chrA] = []
                         if args.priority:
-                            variants[chrA].append([chrB, event_type, posA, posB, vcf_dictionary[vcf], i, line.strip()])
+                            variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf_dictionary[vcf], i, line.strip()))
                         else:
-                            variants[chrA].append([chrB, event_type, posA, posB, vcf, i, line.strip()])
+                            variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf, i, line.strip()))
                         i += 1
 
     samples, sample_order, sample_print_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)

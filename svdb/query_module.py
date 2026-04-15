@@ -53,9 +53,9 @@ def main(args, output_file=None):
                 continue
 
             # in this case I need to store a query
-            chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(line)
+            variant = readVCF.readVCFLine(line)
             # plus a counter and the variation
-            queries.append([chrA, int(posA), chrB, int(posB), event_type, FORMAT, line])
+            queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line])
 
     # at this point queries contains an entry for each variation
     # now query each sample.db present in the given folder and store the occurences
@@ -101,7 +101,8 @@ def main(args, output_file=None):
                     FORMAT = [False]
 
                 else:
-                    chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(line)
+                    v = readVCF.readVCFLine(line)
+                    chrA, posA, chrB, posB, event_type, INFO, FORMAT = v.chrA, v.posA, v.chrB, v.posB, v.event_type, v.info, v.fmt
 
                 if chrA not in DBvariants:
                     DBvariants[chrA] = {}

@@ -52,11 +52,19 @@ def populate_db(args):
                 if not len(line.strip()):
                     continue
 
-                chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(line)
+                variant = readVCF.readVCFLine(line)
                 if args.passonly:
                     FILTER = line.split("\t")[6]
                     if not (FILTER in ["PASS", "."]):
                         continue
+
+                chrA = variant.chrA
+                posA = variant.posA
+                chrB = variant.chrB
+                posB = variant.posB
+                event_type = variant.event_type
+                INFO = variant.info
+                FORMAT = variant.fmt
 
                 ci_A_lower = 0
                 ci_A_upper = 0

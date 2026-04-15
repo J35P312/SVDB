@@ -239,11 +239,11 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
             chrom_tag ={}
 
             if args.priority:
-               id=variants[chrA][i][-3]
+               id=variants[chrA][i].source
             else:
-               id=variants[chrA][i][-3].split(".vcf")[0].split("/")[-1]
+               id=variants[chrA][i].source.split(".vcf")[0].split("/")[-1]
 
-            vcf_line_A=variants[chrA][i][-1].strip().split("\t")
+            vcf_line_A=variants[chrA][i].raw_line.strip().split("\t")
             chrom_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[0]) ]
             pos_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[1]) ]
             qual_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[5]) ]
@@ -252,7 +252,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
             info_tag[id]=[collect_info(vcf_line_A)]
 
             for j in range(i + 1, len(variants[chrA])):
-                vcf_line_B=variants[chrA][j][-1].strip().split("\t")
+                vcf_line_B=variants[chrA][j].raw_line.strip().split("\t")
 
                 # if the pass_only option is chosen, only variants marked PASS will be merged
                 if pass_only:
@@ -260,29 +260,29 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                     if filter_tag not in ['PASS', '.']:
                         break
 
-                if skip_variant(variants[chrA][i][0],variants[chrA][j][0],variants[chrA][i][1],variants[chrA][j][1],vcf_line_A,vcf_line_B,pass_only,j,analysed_variants,no_var):
+                if skip_variant(variants[chrA][i].chrB,variants[chrA][j].chrB,variants[chrA][i].event_type,variants[chrA][j].event_type,vcf_line_A,vcf_line_B,pass_only,j,analysed_variants,no_var):
                     continue
 
                 # if no_intra is chosen, variants may only be merged if they belong to different input files
-                if no_intra and variants[chrA][i][-3] == variants[chrA][j][-3]:
+                if no_intra and variants[chrA][i].source == variants[chrA][j].source:
                     continue
 
-                if "INS" in variants[chrA][i][1]:
+                if "INS" in variants[chrA][i].event_type:
                     overlap, match = overlap_module.variant_overlap(
-                        chrA, variants[chrA][i][0], variants[chrA][i][2], variants[chrA][i][3], variants[chrA][j][2], variants[chrA][j][3], -1, ins_distance)
+                        chrA, variants[chrA][i].chrB, variants[chrA][i].posA, variants[chrA][i].posB, variants[chrA][j].posA, variants[chrA][j].posB, -1, ins_distance)
 
                 else:
                     overlap, match = overlap_module.variant_overlap(
-                        chrA, variants[chrA][i][0], variants[chrA][i][2], variants[chrA][i][3], variants[chrA][j][2], variants[chrA][j][3], overlap_param, bnd_distance)
+                        chrA, variants[chrA][i].chrB, variants[chrA][i].posA, variants[chrA][i].posB, variants[chrA][j].posA, variants[chrA][j].posB, overlap_param, bnd_distance)
 
                 if match:
                     # add similar variants to the merge list and remove them
                     if args.priority:
-                        match_id=variants[chrA][j][-3]
+                        match_id=variants[chrA][j].source
                     else:
-                        match_id=variants[chrA][j][-3].split(".vcf")[0].split("/")[-1]
+                        match_id=variants[chrA][j].source.split(".vcf")[0].split("/")[-1]
 
-                    files[match_id] = variants[chrA][j][-1]
+                    files[match_id] = variants[chrA][j].raw_line
                     merge.append(vcf_line_B[2].replace(";", "_") + ":" + match_id)
                     if not match_id in filters_tag:
                         filters_tag[match_id]=[]
@@ -292,15 +292,15 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                         pos_tag[match_id]=[]
                         qual_tag[match_id]=[]
 
-                    chrom_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j][-1].split("\t")[0]) )
-                    pos_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j][-1].split("\t")[1]) )
-                    qual_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j][-1].split("\t")[5]) )
-                    filters_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j][-1].split("\t")[6]) )
+                    chrom_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[0]) )
+                    pos_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[1]) )
+                    qual_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[5]) )
+                    filters_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[6]) )
 
                     samples_tag[match_id].append(collect_sample(vcf_line_B ,samples,sample_order,match_id))
                     info_tag[match_id].append( collect_info(vcf_line_B) )
 
-                    if variants[chrA][i][0] != chrA and "CSQ=" in variants[chrA][j][-1]:
+                    if variants[chrA][i].chrB != chrA and "CSQ=" in variants[chrA][j].raw_line:
                         info = vcf_line_B[7]
                         csq.append(info.split("CSQ=")[-1].split(";")[0])
                     analysed_variants.add(j)
@@ -313,18 +313,16 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 to_be_printed[line[0]] = []
 
             if args.priority:
-                files[variants[chrA][i][-3]] = "\t".join(line)
-                representing_file = variants[chrA][i][-3]
+                files[variants[chrA][i].source] = "\t".join(line)
+                representing_file = variants[chrA][i].source
             else:
-                files[variants[chrA][i]
-                      [-3].split(".vcf")[0].split("/")[-1]] = "\t".join(line)
-                representing_file = variants[chrA][i][-3].split(".vcf")[
-                    0].split("/")[-1]
+                files[variants[chrA][i].source.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
+                representing_file = variants[chrA][i].source.split(".vcf")[0].split("/")[-1]
             line = sort_format_field(
                 line, samples, sample_order, sample_print_order, priority_order, files, representing_file, args)
             if merge and not args.notag:
                 line[7] += ";VARID=" + "|".join(merge)
-                line[2] += ":{}|".format(variants[chrA][i][-3].split(".vcf")
+                line[2] += ":{}|".format(variants[chrA][i].source.split(".vcf")
                                          [0].split("/")[-1]) + "|".join(merge)
             if not args.notag:
                 set_tag = determine_set_tag(priority_order, files)
