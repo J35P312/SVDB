@@ -191,11 +191,9 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
     return i + len(clusters)
 
 
-def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
-    f = open(args.prefix + ".vcf", 'a')
+def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     chr_db = fetch_variants(variant, chrA, chrB, db)
     if not chr_db:
-        f.close()
         return i
 
     #DBSCAN clustering according to the user set parameters
@@ -263,30 +261,22 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
             i = overlap_cluster(db, indexes, variant, chrA,
                                 chrB, sample_IDs, args, f, i)
 
-    f.close()
     return i
 
 
 def export(args, sample_IDs):
     db = database.DB(args.db, memory=args.memory)
 
-    chrA_list = []
-    for chrA in db.query('SELECT DISTINCT chrA FROM SVDB'):
-        chrA_list.append(chrA[0])
-
-    chrB_list = []
-    for chrB in db.query('SELECT DISTINCT chrB FROM SVDB'):
-        chrB_list.append(chrB[0])
-
-    var_list = []
-    for variant in db.query('SELECT DISTINCT var FROM SVDB'):
-        var_list.append(variant[0])
+    chrA_list = [row[0] for row in db.query('SELECT DISTINCT chrA FROM SVDB')]
+    chrB_list = [row[0] for row in db.query('SELECT DISTINCT chrB FROM SVDB')]
+    var_list = [row[0] for row in db.query('SELECT DISTINCT var FROM SVDB')]
 
     i = 0
-    for chrA in chrA_list:
-        for chrB in chrB_list:
-            for variant in var_list:
-                i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i)
+    with open(args.prefix + ".vcf", 'a') as f:
+        for chrA in chrA_list:
+            for chrB in chrB_list:
+                for variant in var_list:
+                    i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
 
 
 def main(args):

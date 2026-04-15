@@ -5,7 +5,12 @@ from . import merge_vcf_module_cython, readVCF
 from .models import MergeVariant
 
 
-def print_header(vcf_list, vcf_dictionary, args, command_line):
+def build_header(vcf_list, vcf_dictionary, args, command_line):
+    """Build the VCF merge header string and collect sample metadata.
+
+    Returns (header_string, samples, sample_order, sample_print_order, contigs_list).
+    No I/O side effects — the caller is responsible for writing the header.
+    """
     header = {"ALT": {},
               "INFO": {},
               "FILTER": {},
@@ -17,9 +22,10 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     contigs_list = []
     columns = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
     sample_order = {}
-    print("##fileformat=VCFv4.1")
-    print("##source=MergeVCF")
-    print("##SVDB_version={} cmd=\"{}\"".format(args.version, " ".join(sys.argv)))
+    lines_out = []
+    lines_out.append("##fileformat=VCFv4.1")
+    lines_out.append("##source=MergeVCF")
+    lines_out.append("##SVDB_version={} cmd=\"{}\"".format(args.version, " ".join(sys.argv)))
     samples = []
     first = True
     first_vcf_header = ""
@@ -66,64 +72,73 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
                         contigs = True
                     break
 
-    # print the mandatory header lines in the correct order
+    # mandatory header lines in the correct order
     for entry in sorted(header["ALT"]):
-        print(header["ALT"][entry].strip())
+        lines_out.append(header["ALT"][entry].strip())
     del header["ALT"]
     for entry in sorted(header["INFO"]):
-        print(header["INFO"][entry].strip())
+        lines_out.append(header["INFO"][entry].strip())
     del header["INFO"]
 
-    supp_vector_order=[]
+    supp_vector_order = []
     for vcf in vcf_dictionary:
-        print("##INFO=<ID={}_INFO,Number=.,Type=String,Description=\"pipe separated list of all details in the INFO column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
-        print("##INFO=<ID={}_SAMPLE,Number=.,Type=String,Description=\"pipe separated list of all details in the SAMPLEs column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
-        print("##INFO=<ID={}_CHROM,Number=.,Type=String,Description=\"pipe separated list of all details in the CHROM column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
-        print("##INFO=<ID={}_POS,Number=.,Type=String,Description=\"pipe separated list of all details in the POS column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
-        print("##INFO=<ID={}_QUAL,Number=.,Type=String,Description=\"pipe separated list of all details in the QUAL column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
-        print("##INFO=<ID={}_FILTERS,Number=.,Type=String,Description=\"pipe separated list of all details in the FILTER column of file {}\">".format(vcf_dictionary[vcf],vcf_dictionary[vcf]))
+        lines_out.append("##INFO=<ID={}_INFO,Number=.,Type=String,Description=\"pipe separated list of all details in the INFO column of file {}\">".format(vcf_dictionary[vcf], vcf_dictionary[vcf]))
+        lines_out.append("##INFO=<ID={}_SAMPLE,Number=.,Type=String,Description=\"pipe separated list of all details in the SAMPLEs column of file {}\">".format(vcf_dictionary[vcf], vcf_dictionary[vcf]))
+        lines_out.append("##INFO=<ID={}_CHROM,Number=.,Type=String,Description=\"pipe separated list of all details in the CHROM column of file {}\">".format(vcf_dictionary[vcf], vcf_dictionary[vcf]))
+        lines_out.append("##INFO=<ID={}_POS,Number=.,Type=String,Description=\"pipe separated list of all details in the POS column of file {}\">".format(vcf_dictionary[vcf], vcf_dictionary[vcf]))
+        lines_out.append("##INFO=<ID={}_QUAL,Number=.,Type=String,Description=\"pipe separated list of all details in the QUAL column of file {}\">".format(vcf_dictionary[vcf], vcf_dictionary[vcf]))
+        lines_out.append("##INFO=<ID={}_FILTERS,Number=.,Type=String,Description=\"pipe separated list of all details in the FILTER column of file {}\">".format(vcf_dictionary[vcf], vcf_dictionary[vcf]))
         supp_vector_order.append(vcf_dictionary[vcf])
 
-    print("##INFO=<ID=SUPP_VEC,Number=1,Type=String,Description=\"Vector of supporting callers/files (order: {}).\">".format(" ".join(supp_vector_order) ))
+    lines_out.append("##INFO=<ID=SUPP_VEC,Number=1,Type=String,Description=\"Vector of supporting callers/files (order: {}).\">".format(" ".join(supp_vector_order)))
 
-    # print contigs according to the input order
+    # contigs in input order
     if reference != "":
-        print(reference.strip())
+        lines_out.append(reference.strip())
     for entry in header["CONTIGS"]:
-        print(entry.strip())
+        lines_out.append(entry.strip())
         contigs_list.append(entry.strip())
     del header["CONTIGS"]
     for entry in sorted(header["FILTER"]):
-        print(header["FILTER"][entry].strip())
+        lines_out.append(header["FILTER"][entry].strip())
     del header["FILTER"]
 
     for entry in sorted(header["FORMAT"]):
-        print(header["FORMAT"][entry].strip())
-
+        lines_out.append(header["FORMAT"][entry].strip())
     del header["FORMAT"]
 
-    # print the other lines in lexiographic order
+    # other lines in lexicographic order
     for key in sorted(header):
         for entry in sorted(header[key]):
-            print(header[key][entry].strip())
+            lines_out.append(header[key][entry].strip())
 
-    # print subheaders
+    # subheaders
     for entry in sorted(subheader):
-        print(subheader[entry].strip())
+        lines_out.append(subheader[entry].strip())
     if not args.notag:
-        print("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
-        print("##INFO=<ID=FOUNDBY,Number=1,Type=Integer,Description=\"The number of files containing the variant\">")
-        print("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
-        print("##INFO=<ID=svdb_origin,Number=1,Type=String,Description=\"pipe separated list of the VCF for the merged record in SVDB\">")
+        lines_out.append("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
+        lines_out.append("##INFO=<ID=FOUNDBY,Number=1,Type=Integer,Description=\"The number of files containing the variant\">")
+        lines_out.append("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
+        lines_out.append("##INFO=<ID=svdb_origin,Number=1,Type=String,Description=\"pipe separated list of the VCF for the merged record in SVDB\">")
 
-    print("##svdbcmdline={}".format(" ".join(command_line)))
+    lines_out.append("##svdbcmdline={}".format(" ".join(command_line)))
     sample_print_order = {}
 
     if args.same_order:
-        print(first_vcf_header)
+        lines_out.append(first_vcf_header)
     else:
-        print("\t".join(columns))
+        lines_out.append("\t".join(columns))
 
+    header_string = "\n".join(lines_out)
+    return header_string, samples, sample_order, sample_print_order, contigs_list
+
+
+def print_header(vcf_list, vcf_dictionary, args, command_line):
+    """Build and print the VCF merge header; return sample metadata."""
+    header_string, samples, sample_order, sample_print_order, contigs_list = build_header(
+        vcf_list, vcf_dictionary, args, command_line
+    )
+    print(header_string)
     return samples, sample_order, sample_print_order, contigs_list
 
 
