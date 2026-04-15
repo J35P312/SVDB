@@ -5,8 +5,8 @@ def precise_overlap(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distan
     Adist = abs(chrApos_query - chrApos_db)
     Bdist = abs(chrBpos_query - chrBpos_db)
     if max([Adist, Bdist]) <= distance:
-        return max([Adist, Bdist]), True
-    return False, False
+        return float(max([Adist, Bdist])), True
+    return None, False
 
 # check if intrachromosomal vaiants overlap
 

@@ -1,5 +1,22 @@
 import sqlite3
 
+SCHEMA_COLUMNS = (
+    "var TEXT",
+    "chrA TEXT",
+    "chrB TEXT",
+    "posA INT",
+    "ci_A_lower INT",
+    "ci_A_upper INT",
+    "posB INT",
+    "ci_B_lower INT",
+    "ci_B_upper INT",
+    "sample TEXT",
+    "idx INT",
+)
+
+CREATE_TABLE_SQL = "CREATE TABLE SVDB ({})".format(", ".join(SCHEMA_COLUMNS))
+INSERT_PLACEHOLDERS = "({})".format(", ".join("?" for _ in SCHEMA_COLUMNS))
+
 
 class DB:
     def __init__(self, db, memory=False):
@@ -33,7 +50,7 @@ class DB:
         self.conn.commit()
 
     def insert_many(self, data):
-        self.cursor.executemany('INSERT INTO SVDB VALUES (?,?,?,?,?,?,?,?,?,?,?)', data)
+        self.cursor.executemany(f'INSERT INTO SVDB VALUES {INSERT_PLACEHOLDERS}', data)
         self.conn.commit()
 
     def create_index(self, name, columns):

@@ -12,8 +12,7 @@ def populate_db(args):
 
     idx = 0
     if "SVDB" not in tables:
-        query = "CREATE TABLE SVDB (var TEXT,chrA TEXT, chrB TEXT,posA INT,ci_A_lower INT,ci_A_upper INT,posB INT,ci_B_lower INT,ci_B_upper INT, sample TEXT, idx INT)"
-        db.create(query)
+        db.create(database.CREATE_TABLE_SQL)
         sample_IDs = []
     else:
         db.drop("DROP INDEX SV")
