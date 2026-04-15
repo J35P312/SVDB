@@ -1,4 +1,5 @@
 import sqlite3
+from typing import Any, List, Tuple
 
 SCHEMA_COLUMNS = (
     "var TEXT",
@@ -19,7 +20,7 @@ INSERT_PLACEHOLDERS = "({})".format(", ".join("?" for _ in SCHEMA_COLUMNS))
 
 
 class DB:
-    def __init__(self, db, memory=False):
+    def __init__(self, db: str, memory: bool = False) -> None:
         if not db.endswith('.db'):
             db += '.db'
 
@@ -34,35 +35,35 @@ class DB:
         else:
             self.cursor = self.conn.cursor()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.query('SELECT DISTINCT sample FROM SVDB'))
 
-    def query(self, query):
+    def query(self, query: str) -> List[Tuple[Any, ...]]:
         self.cursor.execute(query)
         res = self.cursor.fetchall()
         return res
 
-    def drop(self, query):
+    def drop(self, query: str) -> None:
         self.cursor.execute(query)
 
-    def create(self, query):
+    def create(self, query: str) -> None:
         self.cursor.execute(query)
         self.conn.commit()
 
-    def insert_many(self, data):
+    def insert_many(self, data: List[Tuple[Any, ...]]) -> None:
         self.cursor.executemany(f'INSERT INTO SVDB VALUES {INSERT_PLACEHOLDERS}', data)
         self.conn.commit()
 
-    def create_index(self, name, columns):
+    def create_index(self, name: str, columns: str) -> None:
         query = "CREATE INDEX {} ON SVDB {}".format(name, columns)
         self.cursor.execute(query)
         self.conn.commit()
 
     @property
-    def tables(self):
+    def tables(self) -> List[str]:
         res = self.query("SELECT name FROM sqlite_master WHERE type=\'table\'")
         return [table[0] for table in res]
 
     @property
-    def sample_ids(self):
+    def sample_ids(self) -> List[Tuple[str, ...]]:
         return [sample for sample in self.query('SELECT DISTINCT sample FROM SVDB')]

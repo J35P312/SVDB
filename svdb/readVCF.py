@@ -1,9 +1,10 @@
 import re
+from typing import Optional
 
 from .models import VCFVariant
 
 
-def readVCFLine(line):
+def readVCFLine(line: str) -> Optional[VCFVariant]:
     if line[0].startswith("#"):
         return None
 
