@@ -70,7 +70,7 @@ class TestMergeVariant:
     def _make(self, event_type="DEL"):
         return MergeVariant(chrB="1", event_type=event_type,
                             posA=100, posB=200, source="test.vcf",
-                            index=0, raw_line="raw")
+                            sort_index=0, raw_line="raw")
 
     def test_insertion_true_for_ins(self):
         v = self._make(event_type="INS")

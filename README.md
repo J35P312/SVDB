@@ -172,13 +172,14 @@ Install development dependencies:
 
     pip install -r requirements-dev.txt
 
-Run tests (includes ruff linting):
+Run tests (includes ruff linting and mypy type checking):
 
     pytest
 
-Run ruff standalone:
+Run ruff or mypy standalone:
 
     ruff check svdb/
+    mypy svdb/ --ignore-missing-imports
 
 Configuration lives in `pyproject.toml` (build system, ruff, pytest settings). The legacy `setup.py` is retained only for optional Cython compilation of `merge_vcf_module_cython`.
 

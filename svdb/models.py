@@ -42,9 +42,9 @@ class MergeVariant(NamedTuple):
     event_type: str
     posA: int
     posB: int
-    source: str    # vcf file path or priority tag
-    index: int     # global sort index
-    raw_line: str  # original VCF line, unparsed
+    source: str      # vcf file path or priority tag
+    sort_index: int  # global sort index (renamed from index to avoid shadowing tuple.index)
+    raw_line: str    # original VCF line, unparsed
 
     def is_insertion(self) -> bool:
         """True for insertion-type variants — mirrors VCFVariant.is_insertion()."""

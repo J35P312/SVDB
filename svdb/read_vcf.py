@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Dict, List, Optional
 
 from .models import VCFVariant
 from .vcf_utils import normalize_chrom, parse_info_field
@@ -17,8 +17,8 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
     description = parse_info_field(variation[7])
 
-    fmt = {}
-    format_keys = {}
+    fmt: Dict[str, List[str]] = {}
+    format_keys: Dict[int, str] = {}
     if len(variation) > 8:
         format_string = variation[8].split(":")
 
@@ -96,8 +96,8 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
             if B.startswith(c):
                 B=B.replace(c,combinations[c])
 
-        B = re.split("[],[]", B)
-        chr_and_pos = B[1]
+        bnd_parts = re.split("[],[]", B)
+        chr_and_pos = bnd_parts[1]
         chrB = normalize_chrom(":".join(chr_and_pos.split(":")[:-1]))
         posB = int(chr_and_pos.split(":")[-1])
         if chrA > chrB:
