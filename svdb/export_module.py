@@ -217,7 +217,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
         dbscan = dbscan.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
     elif "INS" in variant:
         #insertions are clustered based on the ins_distance, which is typically smaller than the BND_distance
-        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)        
+        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)
     else:
         #clustering of all other variants
         dbscan = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)

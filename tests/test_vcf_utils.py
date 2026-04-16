@@ -1,8 +1,5 @@
 import gzip
-import os
-import tempfile
 
-import pytest
 
 from svdb.vcf_utils import normalize_chrom, open_vcf, parse_ci, parse_info_field
 

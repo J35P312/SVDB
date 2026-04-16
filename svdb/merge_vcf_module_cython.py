@@ -50,9 +50,9 @@ def collect_sample(vcf_line,samples,sample_order,f):
     sample_data=[variant]
 
     for sample in samples:
-        if not sample in sample_order:
+        if sample not in sample_order:
            continue
-        if not f in sample_order[sample]:
+        if f not in sample_order[sample]:
            continue
         sample_position = sample_order[sample][f]
 
@@ -72,8 +72,7 @@ def collect_info(vcf_line):
     all_info=[variant]
 
     for content in INFO_content:
-        tag = content.split("=")[0]
-        if not ":" in content and not "|" in content:
+        if ":" not in content and "|" not in content:
            all_info.append( content.replace("=",":").replace(",",":") )
 
     return "|".join(all_info)
@@ -293,7 +292,7 @@ def merge(variants, samples, sample_order, priority_order, args):
 
                     files[match_id] = variants[chrA][j].raw_line
                     merge.append(sanitize_id(vcf_line_B[2]) + ":" + match_id)
-                    if not match_id in filters_tag:
+                    if match_id not in filters_tag:
                         filters_tag[match_id]=[]
                         samples_tag[match_id]=[]
                         info_tag[match_id]=[]
@@ -319,7 +318,7 @@ def merge(variants, samples, sample_order, priority_order, args):
 
             if csq:
                 line[7] = merge_csq(line[7], csq)
-            if not line[0] in to_be_printed:
+            if line[0] not in to_be_printed:
                 to_be_printed[line[0]] = []
 
             if args.priority:
@@ -364,9 +363,9 @@ def merge(variants, samples, sample_order, priority_order, args):
             sup_vec=[]
             for c in sorted(priority_order):
                 if c in filters_tag:
-                    sup_vec.append("1") 
+                    sup_vec.append("1")
                 else:
-                    sup_vec.append("0") 
+                    sup_vec.append("0")
 
             line[7]+=";SUPP_VEC={}".format("".join(sup_vec))
 

@@ -52,7 +52,7 @@ def populate_db(args):
                 variant = read_vcf.readVCFLine(line)
                 if args.passonly:
                     FILTER = line.split("\t")[6]
-                    if not (FILTER in ["PASS", "."]):
+                    if FILTER not in ["PASS", "."]:
                         continue
 
                 chrA = variant.chrA

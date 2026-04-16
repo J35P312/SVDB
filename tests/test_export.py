@@ -1,5 +1,4 @@
 import unittest
-import numpy
 
 from svdb.export_module import db_header, make_representing_variant, build_genotype_columns
 
