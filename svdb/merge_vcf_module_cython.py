@@ -13,16 +13,13 @@ def format_tag(var_id: str, value: str) -> str:
 
 def retrieve_key(line, key):
     key += '='
-    if key in line:
-        if ";{}".format(key) in line:
-            item = line.strip().split( ";{}".format(key) )[-1].split(";")[0].split("\t")[0]
-
-        elif "\t{}".format(key) in line:
-            item = line.strip().split( "\t{}".format(key) )[-1].split(";")[0].split("\t")[0]
-        else:
-            return False
-
-    return item
+    if key not in line:
+        return False
+    if ";{}".format(key) in line:
+        return line.strip().split(";{}".format(key))[-1].split(";")[0].split("\t")[0]
+    if "\t{}".format(key) in line:
+        return line.strip().split("\t{}".format(key))[-1].split(";")[0].split("\t")[0]
+    return False
 
 #Check if no merging should occur
 def skip_variant(chrA,chrB,type_A,type_B,vcf_line_A,vcf_line_B,pass_only,current_variant,analysed_variants,no_var):
