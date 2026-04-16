@@ -33,12 +33,12 @@ svdb --query \
 here the `AF` and `AN` are the allele frequency tags of the database, the `AF` is a float, and `AN` is an integer. These tags will be added to the annotated output vcf, and named `GNOMAD_AC`, `GNOMAD_AF`.
 
 # Install:
-Dependencies: SVDB has been tested on python 2.7.11 and python 3.6, and requires numpy.
+Dependencies: SVDB requires Python 3.9+ and numpy.
 SVDB is installed using the following command
-	
+
 	git clone https://github.com/J35P312/SVDB.git
 	cd SVDB
-	pip install -e .
+	pip install .
 
 SVDB is available on singularity:
 
@@ -67,6 +67,8 @@ This module is used to construct structural variant databases from vcf files. Th
         
         --prefix PREFIX                  the prefix of the output file, default = SVDB
 
+        --debug                          enable debug logging to stderr
+
 
 ## Export
 This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorithms, overlap or DBSCAN.
@@ -93,6 +95,8 @@ This module is used to export the variants of the SVDB sqlite database. The vari
 
           --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
 
+          --debug               enable debug logging to stderr
+
 ## Query
 The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
@@ -108,20 +112,20 @@ The query module is used to query one or more structural variant databases. Typi
 
     optional arguments:
 
-	-h, --help            show this help message and exit
-
-	--db DB				path to a db vcf, or a comma separated list of vcfs
-	--sqdb SQDB			path to a SVDB sqlite db, or a comma separated list of dbs
-	--bedpedb BEDPEDB		path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a comma separated list of files
-	--in_occ IN_OCC			The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AN or OCC). This parameter is required if multiple databases are queried. 
-	--in_frq IN_FRQ			The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ). This parameter is required if multiple databases are queried.
-	--out_occ OUT_OCC		the allele count tag, as annotated by SVDB variant(default=OCC). This parameter is required if multiple databases are queried.
-	--out_frq OUT_FRQ		the tag used to describe the frequency of the variant(default=FRQ). This parameter is required if multiple databases are queried.
-	--prefix PREFIX			the prefix of the output file, default = print to stdout. Required if multiple databases are queried. 
-	--bnd_distance BND_DISTANCE	the maximum distance between two similar breakpoints(default = 10000)
-	--overlap OVERLAP		the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
-	--memory 			load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
-	--no_var			count overlapping variants of different type as hits in the db
+        -h, --help              show this help message and exit
+        --db DB                 path to a db vcf, or a comma separated list of vcfs
+        --sqdb SQDB             path to a SVDB sqlite db, or a comma separated list of dbs
+        --bedpedb BEDPEDB       path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a comma separated list of files
+        --in_occ IN_OCC         The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AN or OCC). This parameter is required if multiple databases are queried.
+        --in_frq IN_FRQ         The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ). This parameter is required if multiple databases are queried.
+        --out_occ OUT_OCC       the allele count tag, as annotated by SVDB variant(default=OCC). This parameter is required if multiple databases are queried.
+        --out_frq OUT_FRQ       the tag used to describe the frequency of the variant(default=FRQ). This parameter is required if multiple databases are queried.
+        --prefix PREFIX         the prefix of the output file, default = print to stdout. Required if multiple databases are queried.
+        --bnd_distance BND_DISTANCE  the maximum distance between two similar breakpoints(default = 10000)
+        --overlap OVERLAP       the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
+        --memory                load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
+        --no_var                count overlapping variants of different type as hits in the db
+        --debug                 enable debug logging to stderr
 
     
 ## Merge
@@ -158,4 +162,24 @@ The merge module merges variants within one or more vcf files. This could be use
         
         --pass_only                     merge only variants labeled PASS
 
-	--same_order			assume that the samples are ordered the same way (skip reordering and merging of the sample columns). 
+        --same_order                    assume that the samples are ordered the same way (skip reordering and merging of the sample columns).
+
+        --debug                         enable debug logging to stderr
+
+# For developers
+
+Install development dependencies:
+
+    pip install -r requirements-dev.txt
+
+Run tests (includes ruff linting):
+
+    pytest
+
+Run ruff standalone:
+
+    ruff check svdb/
+
+Configuration lives in `pyproject.toml` (build system, ruff, pytest settings). The legacy `setup.py` is retained only for optional Cython compilation of `merge_vcf_module_cython`.
+
+See [docs/architecture.md](docs/architecture.md) for a module overview and data flow diagrams.
