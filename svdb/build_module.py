@@ -3,7 +3,7 @@ import gzip
 import os
 from pathlib import Path
 
-from . import database, readVCF
+from . import database, read_vcf
 
 
 def populate_db(args):
@@ -52,7 +52,7 @@ def populate_db(args):
                 if not len(line.strip()):
                     continue
 
-                variant = readVCF.readVCFLine(line)
+                variant = read_vcf.readVCFLine(line)
                 if args.passonly:
                     FILTER = line.split("\t")[6]
                     if not (FILTER in ["PASS", "."]):

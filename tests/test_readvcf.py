@@ -1,6 +1,6 @@
 import unittest
 
-from svdb.readVCF import readVCFLine
+from svdb.read_vcf import readVCFLine
 
 
 class TestReadVCFLine(unittest.TestCase):

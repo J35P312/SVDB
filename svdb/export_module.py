@@ -2,7 +2,7 @@ import sys
 
 import numpy as np
 
-from . import DBSCAN, database, overlap_module
+from . import dbscan, database, overlap_module
 
 
 def fetch_index_variant(db, index):
@@ -198,13 +198,13 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 
     #DBSCAN clustering according to the user set parameters
     if args.DBSCAN:
-        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
+        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
     elif "INS" in variant:
         #insertions are clustered based on the ins_distance, which is typically smaller than the BND_distance
-        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.ins_distance, 2)        
+        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)        
     else:
         #clustering of all other variants
-        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
+        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
 
     unique_labels = set(dbscan)
     # print the unique variants

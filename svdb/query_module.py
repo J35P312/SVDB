@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-from . import database, overlap_module, readVCF
+from . import database, overlap_module, read_vcf
 
 
 def _read_query_vcf(args, writer):
@@ -45,7 +45,7 @@ def _read_query_vcf(args, writer):
                     writer(line)
                 continue
 
-            variant = readVCF.readVCFLine(line)
+            variant = read_vcf.readVCFLine(line)
             queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line])
 
     return queries
@@ -95,7 +95,7 @@ def _load_vcf_db(args):
                 FORMAT = [False]
                 INFO = {}
             else:
-                v = readVCF.readVCFLine(line)
+                v = read_vcf.readVCFLine(line)
                 chrA, posA, chrB, posB, event_type, INFO, FORMAT = v.chrA, v.posA, v.chrB, v.posB, v.event_type, v.info, v.fmt
 
             if chrA not in DBvariants:

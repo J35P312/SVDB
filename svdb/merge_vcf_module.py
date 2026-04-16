@@ -1,7 +1,7 @@
 import gzip
 import sys
 
-from . import merge_vcf_module_cython, readVCF
+from . import merge_vcf_module_cython, read_vcf
 from .models import MergeVariant
 
 
@@ -186,7 +186,7 @@ def main(args):
                     if line.startswith('#'):
                         continue
                     else:
-                        v = readVCF.readVCFLine(line)
+                        v = read_vcf.readVCFLine(line)
                         if v.chrA not in variants:
                             variants[v.chrA] = []
                         if args.priority:
