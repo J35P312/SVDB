@@ -270,9 +270,9 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 def export(args, sample_IDs):
     db = database.DB(args.db, memory=args.memory)
 
-    chrA_list = [row[0] for row in db.query('SELECT DISTINCT chrA FROM SVDB')]
-    chrB_list = [row[0] for row in db.query('SELECT DISTINCT chrB FROM SVDB')]
-    var_list = [row[0] for row in db.query('SELECT DISTINCT var FROM SVDB')]
+    chrA_list = db.query_column('SELECT DISTINCT chrA FROM SVDB')
+    chrB_list = db.query_column('SELECT DISTINCT chrB FROM SVDB')
+    var_list = db.query_column('SELECT DISTINCT var FROM SVDB')
 
     i = 0
     with open(args.prefix + ".vcf", 'a') as f:
@@ -289,8 +289,7 @@ def main(args):
 
     db = database.DB(args.db)
 
-    for sample in db.query('SELECT DISTINCT sample FROM SVDB'):
-        sample_IDs.append(sample[0])
+    sample_IDs = db.query_column('SELECT DISTINCT sample FROM SVDB')
 
     with open(args.prefix + ".vcf", 'w') as f:
         f.write(db_header(args) + "\n")

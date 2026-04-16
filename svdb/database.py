@@ -43,6 +43,10 @@ class DB:
         res = self.cursor.fetchall()
         return res
 
+    def query_column(self, query: str) -> List[Any]:
+        """Run a single-column SELECT and return a flat list of values."""
+        return [row[0] for row in self.query(query)]
+
     def drop(self, query: str) -> None:
         self.cursor.execute(query)
 
@@ -61,9 +65,8 @@ class DB:
 
     @property
     def tables(self) -> List[str]:
-        res = self.query("SELECT name FROM sqlite_master WHERE type=\'table\'")
-        return [table[0] for table in res]
+        return self.query_column("SELECT name FROM sqlite_master WHERE type='table'")
 
     @property
-    def sample_ids(self) -> List[Tuple[str, ...]]:
-        return [sample for sample in self.query('SELECT DISTINCT sample FROM SVDB')]
+    def sample_ids(self) -> List[str]:
+        return self.query_column('SELECT DISTINCT sample FROM SVDB')
