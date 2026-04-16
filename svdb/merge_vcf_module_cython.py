@@ -1,6 +1,16 @@
 from . import overlap_module
 
 
+def sanitize_id(s: str) -> str:
+    """Replace VCF-unsafe delimiters in a variant ID with underscores."""
+    return s.replace(";", "_").replace(":", "_").replace("|", "_")
+
+
+def format_tag(var_id: str, value: str) -> str:
+    """Format a per-variant tag entry as 'sanitized_id|value'."""
+    return "{}|{}".format(sanitize_id(var_id), value)
+
+
 def retrieve_key(line, key):
     key += '='
     if key in line:
@@ -244,10 +254,10 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                id=variants[chrA][i].source.split(".vcf")[0].split("/")[-1]
 
             vcf_line_A=variants[chrA][i].raw_line.strip().split("\t")
-            chrom_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[0]) ]
-            pos_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[1]) ]
-            qual_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[5]) ]
-            filters_tag[id]=[ "{}|{}".format(vcf_line_A[2].replace(";","_").replace(":","_").replace("|","_"),vcf_line_A[6]) ]
+            chrom_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[0]) ]
+            pos_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[1]) ]
+            qual_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[5]) ]
+            filters_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[6]) ]
             samples_tag[id]=[collect_sample( vcf_line_A ,samples,sample_order,id)]
             info_tag[id]=[collect_info(vcf_line_A)]
 
@@ -283,7 +293,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                         match_id=variants[chrA][j].source.split(".vcf")[0].split("/")[-1]
 
                     files[match_id] = variants[chrA][j].raw_line
-                    merge.append(vcf_line_B[2].replace(";", "_") + ":" + match_id)
+                    merge.append(sanitize_id(vcf_line_B[2]) + ":" + match_id)
                     if not match_id in filters_tag:
                         filters_tag[match_id]=[]
                         samples_tag[match_id]=[]
@@ -292,10 +302,11 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                         pos_tag[match_id]=[]
                         qual_tag[match_id]=[]
 
-                    chrom_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[0]) )
-                    pos_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[1]) )
-                    qual_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[5]) )
-                    filters_tag[match_id].append("{}|{}".format(vcf_line_B[2].replace(";","_").replace(":","_").replace("|","_"),variants[chrA][j].raw_line.split("\t")[6]) )
+                    raw_B = variants[chrA][j].raw_line.split("\t")
+                    chrom_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[0]))
+                    pos_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[1]))
+                    qual_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[5]))
+                    filters_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[6]))
 
                     samples_tag[match_id].append(collect_sample(vcf_line_B ,samples,sample_order,match_id))
                     info_tag[match_id].append( collect_info(vcf_line_B) )

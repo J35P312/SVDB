@@ -1,7 +1,38 @@
 import unittest
 import numpy
 
-from svdb.merge_vcf_module_cython import collect_info, skip_variant, retrieve_key, collect_sample
+from svdb.merge_vcf_module_cython import collect_info, skip_variant, retrieve_key, collect_sample, sanitize_id, format_tag
+
+
+class TestSanitizeId(unittest.TestCase):
+
+    def test_replaces_semicolons(self):
+        assert sanitize_id("a;b") == "a_b"
+
+    def test_replaces_colons(self):
+        assert sanitize_id("a:b") == "a_b"
+
+    def test_replaces_pipes(self):
+        assert sanitize_id("a|b") == "a_b"
+
+    def test_replaces_all_three_delimiters(self):
+        assert sanitize_id("a;b:c|d") == "a_b_c_d"
+
+    def test_plain_string_unchanged(self):
+        assert sanitize_id("SV001") == "SV001"
+
+
+class TestFormatTag(unittest.TestCase):
+
+    def test_basic(self):
+        assert format_tag("SV001", "chr1") == "SV001|chr1"
+
+    def test_sanitizes_var_id(self):
+        assert format_tag("SV;001:x|y", "chr1") == "SV_001_x_y|chr1"
+
+    def test_value_is_not_sanitized(self):
+        # the value side (e.g. a chromosome name) is kept verbatim
+        assert format_tag("SV001", "chr1;extra") == "SV001|chr1;extra"
 
 
 class TestMerge(unittest.TestCase):
