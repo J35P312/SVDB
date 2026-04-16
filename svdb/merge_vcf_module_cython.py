@@ -8,17 +8,17 @@ def sanitize_id(s: str) -> str:
 
 def format_tag(var_id: str, value: str) -> str:
     """Format a per-variant tag entry as 'sanitized_id|value'."""
-    return "{}|{}".format(sanitize_id(var_id), value)
+    return f"{sanitize_id(var_id)}|{value}"
 
 
 def retrieve_key(line, key):
     key += '='
     if key not in line:
         return False
-    if ";{}".format(key) in line:
-        return line.strip().split(";{}".format(key))[-1].split(";")[0].split("\t")[0]
-    if "\t{}".format(key) in line:
-        return line.strip().split("\t{}".format(key))[-1].split(";")[0].split("\t")[0]
+    if f";{key}" in line:
+        return line.strip().split(f";{key}")[-1].split(";")[0].split("\t")[0]
+    if f"\t{key}" in line:
+        return line.strip().split(f"\t{key}")[-1].split(";")[0].split("\t")[0]
     return False
 
 #Check if no merging should occur
@@ -60,7 +60,7 @@ def collect_sample(vcf_line,samples,sample_order,f):
         sample_entries = vcf_line[9 + sample_position].split(":")
         sample_data.append(sample)
         for i, entry in enumerate(entries):
-            sample_data.append("{}:{}".format( entry,sample_entries[i] ) )
+            sample_data.append(f"{entry}:{sample_entries[i]}" )
 
     return "|".join(sample_data).replace(",",":")
 
@@ -333,8 +333,8 @@ def merge(variants, samples, sample_order, priority_order, args):
                                          [0].split("/")[-1]) + "|".join(merge)
             if not args.notag:
                 set_tag = determine_set_tag(priority_order, files)
-                line[7] += ";set={}".format(set_tag)
-                line[7] += ";FOUNDBY={}".format( len(set(filters_tag.keys())) )
+                line[7] += f";set={set_tag}"
+                line[7] += f";FOUNDBY={len(set(filters_tag.keys()))}"
 
             #add chrom information of all merged variants
             callers=[]

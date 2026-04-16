@@ -29,7 +29,7 @@ def populate_db(args):
     for vcf in args.files:
         sample_name = Path(vcf).stem.replace(".", "_")
         sample_IDs.append(sample_name)
-        A = 'SELECT sample FROM SVDB WHERE sample == \'{}\' '.format(sample_name)
+        A = f'SELECT sample FROM SVDB WHERE sample == \'{sample_name}\' '
         hits = [hit for hit in db.query(A)]
         if hits:
             logger.debug("sample %s already in database — skipping", sample_name)

@@ -148,10 +148,10 @@ def _write_vcfdb_results(queries, args, writer, db_size, use_OCC_tag):
         content = vcf_entry.split("\t")
         if not use_OCC_tag:
             if query[5]:
-                content[7] = "{};{}={};{}={}".format(content[7], args.out_occ, query[5], args.out_frq, (query[5] / float(db_size)))
+                content[7] = f"{content[7]};{args.out_occ}={query[5]};{args.out_frq}={query[5] / float(db_size)}"
         else:
             if query[5][0]:
-                content[7] = "{};{}={};{}={}".format(content[7], args.out_occ, int(query[5][0]), args.out_frq, query[5][1])
+                content[7] = f"{content[7]};{args.out_occ}={int(query[5][0])};{args.out_frq}={query[5][1]}"
         writer(("\t").join(content) + "\n")
 
 

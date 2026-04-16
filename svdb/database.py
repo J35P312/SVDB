@@ -59,7 +59,7 @@ class DB:
         self.conn.commit()
 
     def create_index(self, name: str, columns: str) -> None:
-        query = "CREATE INDEX {} ON SVDB {}".format(name, columns)
+        query = f"CREATE INDEX {name} ON SVDB {columns}"
         self.cursor.execute(query)
         self.conn.commit()
 

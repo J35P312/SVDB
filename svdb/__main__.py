@@ -62,7 +62,7 @@ def make_query_calls (args, queries, keyword):
 def main():
     version = "2.8.4"
     parser = argparse.ArgumentParser(
-        """SVDB-{}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""".format(version), add_help=False)
+        f"""SVDB-{version}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""", add_help=False)
     parser.add_argument('--build', help="create a db",
                         required=False, action="store_true")
     parser.add_argument('--query', help="query a db",
@@ -78,7 +78,7 @@ def main():
 
     if args.query:
         parser = argparse.ArgumentParser(
-            """SVDB.{}: query module""".format(version))
+            f"""SVDB.{version}: query module""")
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required=True)
         parser.add_argument('--db', type=str, help="path to a SVDB db vcf or a comma separated list of vcfs")
@@ -127,7 +127,7 @@ def main():
 
     elif args.build:
         parser = argparse.ArgumentParser(
-            """SVDB-{}: build module""".format(version))
+            f"""SVDB-{version}: build module""")
         parser.add_argument('--build', help="create a db",
                             required=False, action="store_true")
         parser.add_argument(
@@ -152,7 +152,7 @@ def main():
             logger.error("use --files or --folder to provide input for the database creation algorithm")
     elif args.export:
         parser = argparse.ArgumentParser(
-            """SVDB-{}: export module; export the variants of the SVDB sqlite database into a vcf file""".format(version))
+            f"""SVDB-{version}: export module; export the variants of the SVDB sqlite database into a vcf file""")
         parser.add_argument('--export', help="create a db",
                             required=False, action="store_true")
         parser.add_argument('--db', type=str, required=True,
@@ -189,7 +189,7 @@ def main():
 
     elif args.merge:
         parser = argparse.ArgumentParser(
-            """SVDB-{}: vcf_merge module""".format(version))
+            f"""SVDB-{version}: vcf_merge module""")
         parser.add_argument(
             '--merge', help="merge structural variants", required=False, action="store_true")
         parser.add_argument(

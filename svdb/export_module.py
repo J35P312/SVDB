@@ -178,8 +178,7 @@ def fetch_variants(variant, chrA, chrB, db):
     chr_db = {}
     chr_db[variant] = {}
 
-    hits = db.query('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(
-        variant, chrA, chrB))
+    hits = db.query(f'SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{variant}\'AND chrA == \'{chrA}\' AND chrB == \'{chrB}\'')
     if not hits:
         return False
 
@@ -206,7 +205,7 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
         clustered_variants[0]["type"] = variant
         clustered_variants[0]["chrA"] = chrA
         clustered_variants[0]["chrB"] = chrB
-        f.write(vcf_line(clustered_variants, "cluster_{}".format(i), sample_IDs) + "\n")
+        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs) + "\n")
     return i + len(clusters)
 
 
@@ -234,7 +233,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
         representing_var = make_representing_variant(
             variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1])
         cluster = [representing_var, variant_dictionary]
-        f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
+        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs) + "\n")
         i += 1
     del unique_xy
     del unique_index
@@ -257,7 +256,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
                 int(avg_point[0]), np.amin(xy[:, 0]), np.amax(xy[:, 0]),
                 int(avg_point[1]), np.amin(xy[:, 1]), np.amax(xy[:, 1]))
             cluster = [representing_var, variant_dictionary]
-            f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
+            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs) + "\n")
             i += 1
 
         else:
