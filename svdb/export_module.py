@@ -5,6 +5,32 @@ import numpy as np
 from . import dbscan, database, overlap_module
 
 
+def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_end, posB, ci_B_start, ci_B_end):
+    """Build the representing-variant dict used as cluster[0] in vcf_line."""
+    return {
+        "type": variant_type,
+        "chrA": chrA,
+        "chrB": chrB,
+        "posA": posA,
+        "ci_A_start": ci_A_start,
+        "ci_A_end": ci_A_end,
+        "posB": posB,
+        "ci_B_start": ci_B_start,
+        "ci_B_end": ci_B_end,
+    }
+
+
+def build_genotype_columns(sample_IDs, hit_sample_ids):
+    """Return per-sample GT strings in sample_IDs order.
+
+    Samples present in hit_sample_ids get './1'; all others get '0/0'.
+    """
+    zygosity = {sample: "0/0" for sample in sample_IDs}
+    for sid in hit_sample_ids:
+        zygosity[sid] = "./1"
+    return [zygosity[sample] for sample in sample_IDs]
+
+
 def fetch_index_variant(db, index):
     A = 'SELECT posA, ci_A_lower, ci_A_upper, posB, ci_B_lower, ci_B_upper, sample FROM SVDB WHERE idx IN ({}) '.format(
         ", ".join([str(idx) for idx in index]))
@@ -96,15 +122,8 @@ def vcf_line(cluster, id_tag, sample_IDs):
     vcf_line.append(".")
     vcf_line.append("PASS")
     vcf_line.append(info_field)
-    zygosity_list = {}
-    for sample in sample_IDs:
-        zygosity_list[sample] = "0/0"
-
-    for variant in cluster[1]:
-        zygosity_list[cluster[1][variant]["sample_id"]] = "./1"
-    format_cols = []
-    for sample in sample_IDs:
-        format_cols.append(zygosity_list[sample])
+    hit_sample_ids = [cluster[1][v]["sample_id"] for v in cluster[1]]
+    format_cols = build_genotype_columns(sample_IDs, hit_sample_ids)
     vcf_line.append("GT")
     vcf_line.append("\t".join(format_cols))
     return "\t".join(vcf_line)
@@ -212,17 +231,8 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     unique_index = chr_db[variant]["index"][dbscan == -1]
     for xy, indexes in zip(unique_xy, unique_index):
         variant_dictionary = fetch_cluster_variant(db, [indexes])
-        representing_var = {}
-        representing_var["type"] = variant
-        representing_var["chrA"] = chrA
-        representing_var["chrB"] = chrB
-        representing_var["posA"] = xy[0]
-        representing_var["ci_A_start"] = xy[0]
-        representing_var["ci_A_end"] = xy[0]
-        representing_var["posB"] = xy[1]
-        representing_var["ci_B_start"] = xy[1]
-        representing_var["ci_B_end"] = xy[1]
-
+        representing_var = make_representing_variant(
+            variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1])
         cluster = [representing_var, variant_dictionary]
         f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
         i += 1
@@ -242,17 +252,10 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 
             variant_dictionary = fetch_cluster_variant(db, indexes)
 
-            representing_var = {}
-            representing_var["type"] = variant
-            representing_var["chrA"] = chrA
-            representing_var["chrB"] = chrB
-            representing_var["posA"] = int(avg_point[0])
-            representing_var["ci_A_start"] = np.amin(xy[:, 0])
-            representing_var["ci_A_end"] = np.amax(xy[:, 0])
-            representing_var["posB"] = int(avg_point[1])
-            representing_var["ci_B_start"] = np.amin(xy[:, 1])
-            representing_var["ci_B_end"] = np.amax(xy[:, 1])
-
+            representing_var = make_representing_variant(
+                variant, chrA, chrB,
+                int(avg_point[0]), np.amin(xy[:, 0]), np.amax(xy[:, 0]),
+                int(avg_point[1]), np.amin(xy[:, 1]), np.amax(xy[:, 1]))
             cluster = [representing_var, variant_dictionary]
             f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
             i += 1
