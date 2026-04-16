@@ -1,8 +1,11 @@
+import logging
 import sys
 
 import numpy as np
 
 from . import dbscan, database, overlap_module
+
+logger = logging.getLogger(__name__)
 
 
 def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_end, posB, ci_B_start, ci_B_end):

@@ -32,6 +32,7 @@ def populate_db(args):
         A = 'SELECT sample FROM SVDB WHERE sample == \'{}\' '.format(sample_name)
         hits = [hit for hit in db.query(A)]
         if hits:
+            logger.debug("sample %s already in database — skipping", sample_name)
             continue
         if not os.path.exists(vcf):
             logger.warning("unable to open %s — skipping", vcf)
@@ -104,4 +105,6 @@ def main(args):
     args.db = args.prefix
     if not args.files and args.folder:
         args.files = glob.glob(os.path.join(args.folder, "*.vcf")) + glob.glob(os.path.join(args.folder, "*.vcf.gz"))
+        if not args.files:
+            logger.warning("no VCF files found in folder: %s", args.folder)
     populate_db(args)

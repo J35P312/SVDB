@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def build_header(vcf_list, vcf_dictionary, args, command_line):
     """Build the VCF merge header string and collect sample metadata.
 
-    Returns (header_string, samples, sample_order, sample_print_order, contigs_list).
+    Returns (header_string, samples, sample_order, contigs_list).
     No I/O side effects — the caller is responsible for writing the header.
     """
     header = {"ALT": {},
@@ -147,7 +147,7 @@ def main(args):
     i = 0
     vcf_list = args.vcf
 
-    if vcf_list == 0:
+    if not vcf_list:
         logger.error("invalid input: supply vcf files, or add a number after each vcf name to assign the order manually")
         return -1
     else:

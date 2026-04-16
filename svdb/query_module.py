@@ -47,6 +47,9 @@ def _read_query_vcf(args, writer):
                 continue
 
             variant = read_vcf.readVCFLine(line)
+            if variant is None:
+                logger.debug("skipping unparseable line: %s", line.rstrip())
+                continue
             queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line])
 
     return queries

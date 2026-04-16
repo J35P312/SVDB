@@ -49,6 +49,7 @@ def make_query_calls (args, queries, keyword):
                     args.query_vcf = output_file
         else:
             logger.error("please ensure that both count and frequency tags are specified for all samples")
+            sys.exit(1)
     elif len(queries) > 1 and not args.prefix:
         logger.error("please provide a --prefix when querying multiple databases")
         sys.exit(1)
