@@ -1,8 +1,11 @@
 import glob
+import logging
 import os
 from pathlib import Path
 
 from . import database, read_vcf, vcf_utils
+
+logger = logging.getLogger(__name__)
 
 
 def populate_db(args):
@@ -31,7 +34,7 @@ def populate_db(args):
         if hits:
             continue
         if not os.path.exists(vcf):
-            print("error: unnable to open {}".format(vcf))
+            logger.warning("unable to open %s — skipping", vcf)
             continue
 
         var = []

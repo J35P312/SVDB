@@ -1,8 +1,11 @@
+import logging
 import sys
 
 import numpy as np
 
 from . import database, overlap_module, read_vcf, vcf_utils
+
+logger = logging.getLogger(__name__)
 
 
 def _read_query_vcf(args, writer):
@@ -116,9 +119,14 @@ def _load_vcf_db(args):
                     DBvariants[chrA][chrB][event_type]["samples"].append([OCC, FRQ])
                     use_OCC_tag = True
                 except KeyError:
-                    print("Error: frequency or hit tag not found! Make sure to set the --in_occ AND --in_frq to the number and frequency of alleles/individuals as presented in the INFO column of the input db\n")
-                    print("database variants not having the --in_occ or --in_frq tag must be removed")
-                    print("you may also skip these parameters and cluster based on the GT entry of the format column (if such exists)")
+                    logger.error(
+                        "frequency or hit tag not found — set --in_occ and --in_frq to the "
+                        "OCC/FRQ tags in the INFO column of the input db (usually AC/OCC and AF/FRQ)"
+                    )
+                    logger.error("database variants without those tags must be removed first")
+                    logger.error(
+                        "alternatively omit --in_occ/--in_frq and let SVDB use the GT field instead"
+                    )
                     sys.exit(1)
 
     for chrA in DBvariants:
@@ -179,8 +187,7 @@ def main(args, output_file=None):
         db = database.DB(db=args.sqdb, memory=args.memory)
         db_size = len(db)
         if not db_size:
-            # TODO: Raise a custom DB exception
-            print("error: no samples in the db")
+            logger.error("no samples found in the database")
             sys.exit(1)
 
         for query in queries:

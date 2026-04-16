@@ -1,8 +1,20 @@
 import argparse
+import logging
 import os
 import sys
 
 from . import build_module, export_module, merge_vcf_module, query_module
+
+logger = logging.getLogger(__name__)
+
+
+def _setup_logging(debug: bool) -> None:
+    level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(levelname)s: %(message)s",
+        stream=sys.stderr,
+    )
 
 
 def make_query_calls (args, queries, keyword):
@@ -36,9 +48,9 @@ def make_query_calls (args, queries, keyword):
                         os.remove(args.query_vcf)
                     args.query_vcf = output_file
         else:
-            print("please ensure that both count and frequency tags are specified for all samples")
+            logger.error("please ensure that both count and frequency tags are specified for all samples")
     elif len(queries) > 1 and not args.prefix:
-        print("ERROR: Please provide a prefix")
+        logger.error("please provide a --prefix when querying multiple databases")
         sys.exit(1)
     elif len(queries) == 1 and args.prefix:
         output_file  = args.prefix + "_query.vcf"
@@ -58,7 +70,10 @@ def main():
                         required=False, action="store_true")
     parser.add_argument('--export', help="export a database",
                         required=False, action="store_true")
+    parser.add_argument('--debug', help="enable debug logging",
+                        required=False, action="store_true")
     args, unknown = parser.parse_known_args()
+    _setup_logging(args.debug)
 
     if args.query:
         parser = argparse.ArgumentParser(
@@ -91,6 +106,8 @@ def main():
                             help="load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)", required=False, action="store_true")
         parser.add_argument('--no_var',
                             help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
+        parser.add_argument('--debug', help="enable debug logging",
+                            required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
 
@@ -105,7 +122,7 @@ def main():
                 queries = args.bedpedb.split(",")
                 make_query_calls(args, queries, "bedpedb")
         else:
-            print("invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db")
+            logger.error("invalid db option, choose --db to use the vcf db or sqdb to use the sqlite db")
 
     elif args.build:
         parser = argparse.ArgumentParser(
@@ -120,17 +137,18 @@ def main():
             '--folder', type=str, help="create a db using all the vcf files in the folders")
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = SVDB")
+        parser.add_argument('--debug', help="enable debug logging",
+                            required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
         if (args.files and args.folder):
-            print("ERROR: only one DB build input source may be selected")
+            logger.error("only one DB build input source may be selected (--files or --folder)")
             sys.exit(1)
 
         if args.folder or args.files:
             build_module.main(args)
         else:
-            print(
-                "error, use files or folder to provide input for the database creation algorithm")
+            logger.error("use --files or --folder to provide input for the database creation algorithm")
     elif args.export:
         parser = argparse.ArgumentParser(
             """SVDB-{}: export module; export the variants of the SVDB sqlite database into a vcf file""".format(version))
@@ -156,6 +174,8 @@ def main():
                             help="the prefix of the output file, default = same as input")
         parser.add_argument(
             '--memory', help="load the database into memory: increases the memory requirements, but lowers the time consumption", required=False, action="store_true")
+        parser.add_argument('--debug', help="enable debug logging",
+                            required=False, action="store_true")
         args = parser.parse_args()
 
         # merging will be impossible
@@ -191,6 +211,8 @@ def main():
             '--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         parser.add_argument(
             '--same_order', help="Across all input vcf files, the order of the sample columns are the same", required=False, action="store_true")
+        parser.add_argument('--debug', help="enable debug logging",
+                            required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
         merge_vcf_module.main(args)

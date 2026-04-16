@@ -1,7 +1,10 @@
+import logging
 import sys
 
 from . import merge_vcf_module_cython, read_vcf, vcf_utils
 from .models import MergeVariant
+
+logger = logging.getLogger(__name__)
 
 
 def build_header(vcf_list, vcf_dictionary, args, command_line):
@@ -145,7 +148,7 @@ def main(args):
     vcf_list = args.vcf
 
     if vcf_list == 0:
-        print("invalid input, either supply the vcf files, or add a number after each vcf name to asign the order manually")
+        logger.error("invalid input: supply vcf files, or add a number after each vcf name to assign the order manually")
         return -1
     else:
         vcf_dictionary = {}
@@ -162,7 +165,7 @@ def main(args):
                     priority_list.append(tag)
 
             if len(priority_list) != len(priority_dictionary):
-                print("error tag/vcf mismatch, make sure that there is one tag per input vcf, or skip the --priority flag")
+                logger.error("tag/vcf mismatch: ensure one tag per input vcf, or omit --priority")
                 return -1
 
             vcf_list = []
