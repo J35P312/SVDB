@@ -2,6 +2,7 @@ import re
 from typing import Optional
 
 from .models import VCFVariant
+from .vcf_utils import normalize_chrom, parse_info_field
 
 
 def readVCFLine(line: str) -> Optional[VCFVariant]:
@@ -10,16 +11,11 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
     variation = line.strip().split("\t")
     event_type = ""
-    chrA = variation[0].replace("chr", "").replace("Chr", "").replace("CHR", "")
+    chrA = normalize_chrom(variation[0])
     posA = int(variation[1])
     posB = 0
 
-    description = {}
-    INFO = variation[7].split(";")
-    for tag in INFO:
-        tag = tag.split("=")
-        if(len(tag) > 1):
-            description[tag[0]] = tag[1]
+    description = parse_info_field(variation[7])
 
     fmt = {}
     format_keys = {}
@@ -102,7 +98,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
         B = re.split("[],[]", B)
         chr_and_pos = B[1]
-        chrB = ":".join(chr_and_pos.split(":")[:-1]).replace("chr", "").replace("Chr", "").replace("CHR", "")
+        chrB = normalize_chrom(":".join(chr_and_pos.split(":")[:-1]))
         posB = int(chr_and_pos.split(":")[-1])
         if chrA > chrB:
             chrT = chrA

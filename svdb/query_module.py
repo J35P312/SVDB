@@ -1,9 +1,8 @@
-import gzip
 import sys
 
 import numpy as np
 
-from . import database, overlap_module, read_vcf
+from . import database, overlap_module, read_vcf, vcf_utils
 
 
 def _read_query_vcf(args, writer):
@@ -13,8 +12,7 @@ def _read_query_vcf(args, writer):
     infoFound = 0
     db_path = args.db or args.bedpedb or args.sqdb
 
-    opener = gzip.open if args.query_vcf.endswith(".gz") else open
-    with opener(args.query_vcf, "rt") as lines:
+    with vcf_utils.open_vcf(args.query_vcf) as lines:
         for line in lines:
             if line.startswith("#"):
                 meta_line = line.replace("#", "")
@@ -71,8 +69,7 @@ def _load_vcf_db(args):
     if args.in_frq:
         FRQ_tag = args.in_frq
 
-    opener = gzip.open if db_file.endswith(".gz") else open
-    with opener(db_file, 'rt') as lines:
+    with vcf_utils.open_vcf(db_file) as lines:
         for line in lines:
             if line.startswith('#'):
                 continue

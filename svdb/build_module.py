@@ -1,9 +1,8 @@
 import glob
-import gzip
 import os
 from pathlib import Path
 
-from . import database, read_vcf
+from . import database, read_vcf, vcf_utils
 
 
 def populate_db(args):
@@ -38,9 +37,7 @@ def populate_db(args):
         var = []
         sample_names = []
 
-        # TODO: Move this into a VCF class
-        opener = gzip.open if vcf.endswith('.vcf.gz') else open
-        with opener(vcf, 'rt') as lines:
+        with vcf_utils.open_vcf(vcf) as lines:
             for line in lines:
                 if line.startswith("#"):
                     if "CHROM" in line:
@@ -71,26 +68,11 @@ def populate_db(args):
                 ci_B_lower = 0
                 ci_B_upper = 0
                 if "CIPOS" in INFO:
-                    ci = INFO["CIPOS"].replace('(','').replace(')','').split(",")
-                    if len(ci) > 1:
-                        ci_A_lower = abs(int(ci[0]))
-                        ci_A_upper = abs(int(ci[1]))
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[1]))
-                    else:
-                        ci_A_lower = abs(int(ci[0]))
-                        ci_A_upper = abs(int(ci[0]))
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[0]))
+                    ci_A_lower, ci_A_upper = vcf_utils.parse_ci(INFO["CIPOS"])
+                    ci_B_lower, ci_B_upper = ci_A_lower, ci_A_upper
 
                 if "CIEND" in INFO:
-                    ci = INFO["CIEND"].replace('(','').replace(')','').split(",")
-                    if len(ci) > 1:
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[1]))
-                    else:
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[0]))
+                    ci_B_lower, ci_B_upper = vcf_utils.parse_ci(INFO["CIEND"])
 
                 if "GT" not in FORMAT or not len(sample_names):
                     var.append((event_type, chrA, chrB, posA, ci_A_lower,

@@ -1,7 +1,6 @@
-import gzip
 import sys
 
-from . import merge_vcf_module_cython, read_vcf
+from . import merge_vcf_module_cython, read_vcf, vcf_utils
 from .models import MergeVariant
 
 
@@ -30,9 +29,7 @@ def build_header(vcf_list, vcf_dictionary, args, command_line):
     first = True
     first_vcf_header = ""
     for vcf in vcf_list:
-        opener = gzip.open if vcf.endswith('.vcf.gz') else open
-
-        with opener(vcf, 'rt') as lines:
+        with vcf_utils.open_vcf(vcf) as lines:
             for line in lines:
                 if line.startswith('#'):
                     if "#CHROM\tPOS" in line:
