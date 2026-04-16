@@ -1,9 +1,35 @@
+# Python
 *.pyc
+*.pyo
+*.pyd
+__pycache__/
 *~
 *.egg-info/
 build/
 dist/
+*.so
+*.c  # Cython-generated C files
 
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# SVDB data files
 *.vcf
 *.vcf.gz
 *.db
