@@ -267,7 +267,7 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
                 if no_intra and variants[chrA][i].source == variants[chrA][j].source:
                     continue
 
-                if "INS" in variants[chrA][i].event_type:
+                if variants[chrA][i].is_insertion():
                     overlap, match = overlap_module.variant_overlap(
                         chrA, variants[chrA][i].chrB, variants[chrA][i].posA, variants[chrA][i].posB, variants[chrA][j].posA, variants[chrA][j].posB, -1, ins_distance)
 
