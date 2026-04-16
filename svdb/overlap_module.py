@@ -34,8 +34,7 @@ def isSameVariation(
         if event_ratio >= ratio:
             return event_ratio, True
         return None, False
-    else:
-        return None, False
+    return None, False
 
 
 def variant_overlap(

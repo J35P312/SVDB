@@ -119,7 +119,6 @@ def build_header(vcf_list, vcf_dictionary, args, command_line):
         lines_out.append("##INFO=<ID=svdb_origin,Number=1,Type=String,Description=\"pipe separated list of the VCF for the merged record in SVDB\">")
 
     lines_out.append("##svdbcmdline={}".format(" ".join(command_line)))
-    sample_print_order = {}
 
     if args.same_order:
         lines_out.append(first_vcf_header)
@@ -127,16 +126,16 @@ def build_header(vcf_list, vcf_dictionary, args, command_line):
         lines_out.append("\t".join(columns))
 
     header_string = "\n".join(lines_out)
-    return header_string, samples, sample_order, sample_print_order, contigs_list
+    return header_string, samples, sample_order, contigs_list
 
 
 def print_header(vcf_list, vcf_dictionary, args, command_line):
     """Build and print the VCF merge header; return sample metadata."""
-    header_string, samples, sample_order, sample_print_order, contigs_list = build_header(
+    header_string, samples, sample_order, contigs_list = build_header(
         vcf_list, vcf_dictionary, args, command_line
     )
     print(header_string)
-    return samples, sample_order, sample_print_order, contigs_list
+    return samples, sample_order, contigs_list
 
 
 def main(args):
@@ -176,9 +175,7 @@ def main(args):
                 vcf_dictionary[vcf] = vcf.split(".vcf")[0].split("/")[-1]
                 priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
 
-            opener = gzip.open if vcf.endswith('.vcf.gz') else open
-
-            with opener(vcf, 'rt') as lines:
+            with vcf_utils.open_vcf(vcf) as lines:
                 for line in lines:
                     if line.startswith('#'):
                         continue
@@ -192,8 +189,8 @@ def main(args):
                             variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf, i, line.strip()))
                         i += 1
 
-    samples, sample_order, sample_print_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)
-    to_be_printed = merge_vcf_module_cython.merge(variants, samples, sample_order, sample_print_order, priority_order, args)
+    samples, sample_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)
+    to_be_printed = merge_vcf_module_cython.merge(variants, samples, sample_order, priority_order, args)
 
     # use the contig order as defined in the header, or use lexiographic order
     if contigs:

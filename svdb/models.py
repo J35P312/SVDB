@@ -1,6 +1,6 @@
 """Shared data structures for SVDB."""
 from dataclasses import dataclass, field
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple
 
 
 @dataclass(frozen=True)

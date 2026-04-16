@@ -41,6 +41,8 @@ def skip_variant(chrA,chrB,type_A,type_B,vcf_line_A,vcf_line_B,pass_only,current
        if filter_tag not in ['PASS', '.']:
            return True
 
+    return False
+
 
 #Collect SAMPLE columns from all merged variants:
 def collect_sample(vcf_line,samples,sample_order,f):
@@ -123,7 +125,7 @@ def merge_csq(info, csq):
     return pre_CSQ + CSQ + post_CSQ
 
 
-def sort_format_field(line, samples, sample_order, sample_print_order, priority_order, files, representing_file, args):
+def sort_format_field(line, samples, sample_order, priority_order, files, args):
     format_columns = {}
     format_entries = []
     format_entry_length = []
@@ -210,7 +212,7 @@ def sort_format_field(line, samples, sample_order, sample_print_order, priority_
     return line
 
 
-def merge(variants, samples, sample_order, sample_print_order, priority_order, args):
+def merge(variants, samples, sample_order, priority_order, args):
     overlap_param = args.overlap
     bnd_distance = args.bnd_distance
     ins_distance=args.ins_distance
@@ -322,12 +324,10 @@ def merge(variants, samples, sample_order, sample_print_order, priority_order, a
 
             if args.priority:
                 files[variants[chrA][i].source] = "\t".join(line)
-                representing_file = variants[chrA][i].source
             else:
                 files[variants[chrA][i].source.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
-                representing_file = variants[chrA][i].source.split(".vcf")[0].split("/")[-1]
             line = sort_format_field(
-                line, samples, sample_order, sample_print_order, priority_order, files, representing_file, args)
+                line, samples, sample_order, priority_order, files, args)
             if merge and not args.notag:
                 line[7] += ";VARID=" + "|".join(merge)
                 line[2] += ":{}|".format(variants[chrA][i].source.split(".vcf")
