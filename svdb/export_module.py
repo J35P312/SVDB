@@ -216,18 +216,18 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 
     #DBSCAN clustering according to the user set parameters
     if args.DBSCAN:
-        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
+        labels = dbscan.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
     elif "INS" in variant:
         #insertions are clustered based on the ins_distance, which is typically smaller than the BND_distance
-        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)
+        labels = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)
     else:
         #clustering of all other variants
-        dbscan = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
+        labels = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
 
-    unique_labels = set(dbscan)
+    unique_labels = set(labels)
     # print the unique variants
-    unique_xy = chr_db[variant]["coordinates"][dbscan == -1]
-    unique_index = chr_db[variant]["index"][dbscan == -1]
+    unique_xy = chr_db[variant]["coordinates"][labels == -1]
+    unique_index = chr_db[variant]["index"][labels == -1]
     for xy, indexes in zip(unique_xy, unique_index):
         variant_dictionary = fetch_cluster_variant(db, [indexes])
         representing_var = make_representing_variant(
@@ -242,7 +242,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     for unique_label in unique_labels:
         if unique_label == -1:
             continue
-        class_member_mask = (dbscan == unique_label)
+        class_member_mask = (labels == unique_label)
         xy = chr_db[variant]["coordinates"][class_member_mask]
         indexes = chr_db[variant]["index"][class_member_mask]
 
