@@ -1,0 +1,140 @@
+##fileformat=VCFv4.1
+##source=TIDDIT-4.0.0
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##ALT=<ID=TDUP,Description="Tandem duplication">
+##ALT=<ID=INV,Description="Inversion">
+##ALT=<ID=INS,Description="Insertion">
+##ALT=<ID=BND,Description="Break end">
+##contig=<ID=1,length=249250621>
+##contig=<ID=2,length=243199373>
+##contig=<ID=3,length=198022430>
+##contig=<ID=4,length=191154276>
+##contig=<ID=5,length=180915260>
+##contig=<ID=6,length=171115067>
+##contig=<ID=7,length=159138663>
+##contig=<ID=8,length=146364022>
+##contig=<ID=9,length=141213431>
+##contig=<ID=10,length=135534747>
+##contig=<ID=11,length=135006516>
+##contig=<ID=12,length=133851895>
+##contig=<ID=13,length=115169878>
+##contig=<ID=14,length=107349540>
+##contig=<ID=15,length=102531392>
+##contig=<ID=16,length=90354753>
+##contig=<ID=17,length=81195210>
+##contig=<ID=18,length=78077248>
+##contig=<ID=19,length=59128983>
+##contig=<ID=20,length=63025520>
+##contig=<ID=21,length=48129895>
+##contig=<ID=22,length=51304566>
+##contig=<ID=X,length=155270560>
+##contig=<ID=Y,length=59373566>
+##contig=<ID=MT,length=16569>
+##contig=<ID=GL000207.1,length=4262>
+##contig=<ID=GL000226.1,length=15008>
+##contig=<ID=GL000229.1,length=19913>
+##contig=<ID=GL000231.1,length=27386>
+##contig=<ID=GL000210.1,length=27682>
+##contig=<ID=GL000239.1,length=33824>
+##contig=<ID=GL000235.1,length=34474>
+##contig=<ID=GL000201.1,length=36148>
+##contig=<ID=GL000247.1,length=36422>
+##contig=<ID=GL000245.1,length=36651>
+##contig=<ID=GL000197.1,length=37175>
+##contig=<ID=GL000203.1,length=37498>
+##contig=<ID=GL000246.1,length=38154>
+##contig=<ID=GL000249.1,length=38502>
+##contig=<ID=GL000196.1,length=38914>
+##contig=<ID=GL000248.1,length=39786>
+##contig=<ID=GL000244.1,length=39929>
+##contig=<ID=GL000238.1,length=39939>
+##contig=<ID=GL000202.1,length=40103>
+##contig=<ID=GL000234.1,length=40531>
+##contig=<ID=GL000232.1,length=40652>
+##contig=<ID=GL000206.1,length=41001>
+##contig=<ID=GL000240.1,length=41933>
+##contig=<ID=GL000236.1,length=41934>
+##contig=<ID=GL000241.1,length=42152>
+##contig=<ID=GL000243.1,length=43341>
+##contig=<ID=GL000242.1,length=43523>
+##contig=<ID=GL000230.1,length=43691>
+##contig=<ID=GL000237.1,length=45867>
+##contig=<ID=GL000233.1,length=45941>
+##contig=<ID=GL000204.1,length=81310>
+##contig=<ID=GL000198.1,length=90085>
+##contig=<ID=GL000208.1,length=92689>
+##contig=<ID=GL000191.1,length=106433>
+##contig=<ID=GL000227.1,length=128374>
+##contig=<ID=GL000228.1,length=129120>
+##contig=<ID=GL000214.1,length=137718>
+##contig=<ID=GL000221.1,length=155397>
+##contig=<ID=GL000209.1,length=159169>
+##contig=<ID=GL000218.1,length=161147>
+##contig=<ID=GL000220.1,length=161802>
+##contig=<ID=GL000213.1,length=164239>
+##contig=<ID=GL000211.1,length=166566>
+##contig=<ID=GL000199.1,length=169874>
+##contig=<ID=GL000217.1,length=172149>
+##contig=<ID=GL000216.1,length=172294>
+##contig=<ID=GL000215.1,length=172545>
+##contig=<ID=GL000205.1,length=174588>
+##contig=<ID=GL000219.1,length=179198>
+##contig=<ID=GL000224.1,length=179693>
+##contig=<ID=GL000223.1,length=180455>
+##contig=<ID=GL000195.1,length=182896>
+##contig=<ID=GL000212.1,length=186858>
+##contig=<ID=GL000222.1,length=186861>
+##contig=<ID=GL000200.1,length=187035>
+##contig=<ID=GL000193.1,length=189789>
+##contig=<ID=GL000194.1,length=191469>
+##contig=<ID=GL000225.1,length=211173>
+##contig=<ID=GL000192.1,length=547496>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End of an intra-chromosomal variant">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=LFA,Number=1,Type=Integer,Description="Links from window A">
+##INFO=<ID=LFB,Number=1,Type=Integer,Description="Links from window B">
+##INFO=<ID=LTE,Number=1,Type=Integer,Description="Links to event">
+##INFO=<ID=COVA,Number=1,Type=Float,Description="Coverage on window A">
+##INFO=<ID=COVM,Number=1,Type=Float,Description="The coverage between A and B">
+##INFO=<ID=COVB,Number=1,Type=Float,Description="Coverage on window B">
+##INFO=<ID=OR,Number=4,Type=Integer,Description="Orientation of the pairs (FF,RR,RF,FR)">
+##INFO=<ID=ORSR,Number=2,Type=Integer,Description="Orientation of the split reads (inverted,normal)">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS for imprecise variants">
+##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END for imprecise variants">
+##INFO=<ID=QUALA,Number=1,Type=Float,Description="The average mapping quality of the reads in window A">
+##INFO=<ID=QUALB,Number=1,Type=Float,Description="The average mapping quality of the reads in window B">
+##FILTER=<ID=BelowExpectedLinks,Description="The number of links or reads between A and B is too small">
+##FILTER=<ID=FewLinks,Description="Unexpectedly low fraction of discordant reads betwen A and B">
+##FILTER=<ID=UnexpectedCoverage,Description="The coverage of the window on chromosome B or A is higher than 4*average coverage">
+##FILTER=<ID=Smear,Description="Window A and Window B overlap">
+##FILTER=<ID=RegionalQ,Description="The mapping quality of the region is lower than the user set limit">
+##FILTER=<ID=MinSize,Description="The variant is smaller than the user set limit">
+##FILTER=<ID=Ploidy,Description="Intrachromosomal variant on a chromosome having 0 ploidy">
+##FILTER=<ID=SplitsVSDiscs,Description="large variant supported mainly by split reads (and not discorant pairs) ">
+##FILTER=<ID=Density,Description="The discordant reads cluster too tightly">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
+##FORMAT=<ID=DV,Number=1,Type=Integer,Description="Number of paired-ends that support the event">
+##FORMAT=<ID=RV,Number=1,Type=Integer,Description="Number of split reads that support the event">
+##FORMAT=<ID=DR,Number=2,Type=Integer,Description="Number of paired-ends that supporting the reference allele (breakpoint A, and B)">
+##FORMAT=<ID=RR,Number=2,Type=Integer,Description="Number of reads supporting the reference allele (breakpoint A, and B)">
+##LibraryStats=TIDDIT-4.0.0 Coverage=22.0  ReadLength=147.93660844253566 MeanInsertSize=546.770598849176 STDInsertSize=671.2953384975441 Reverse_Forward=False
+##TIDDITcmd="main.py --sv --bam /proj/sens2017106/nobackup/wharf/jesperei/jesperei-sens2017106/NA12878_data/RMNISTHS_30xdownsample.nsort.bwa-mem.sorted.nonDupRead.rg.bam -o NA12878"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	RMNISTHS_30xdownsample
+X	121949688	SV_1097_2	N	N[1:115724811[	.	PASS	SVTYPE=BND;REGIONA=115724810,115724840;REGIONB=121949626,121949717;LFA=12,20;LFB=12,20;LTE=3,14	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:79,0,63:3:14:0.0,0.0:52,58:93,81
+X	37294627	SV_1989_2	N	N[2:181945272[	.	PASS	SVTYPE=BND;REGIONA=181945271,181945308;REGIONB=37294527,37294687;LFA=12,10;LFB=12,10;LTE=4,8	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:56,0,33:4:8:0.0,0.0:27,16:80,50
+X	148967472	SV_1992_2	N	]2:231095813]N	.	PASS	SVTYPE=BND;REGIONA=231095720,231095813;REGIONB=148967374,148967472;LFA=6,7;LFB=6,7;LTE=3,7	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:58,0,49:3:7:0.04,0.04:43,39:84,68
+X	107121595	SV_2621_2	N	N[3:166719608[	.	PASS	SVTYPE=BND;REGIONA=166719513,166719620;REGIONB=107121594,107121595;LFA=2,6;LFB=2,6;LTE=2,5	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:32,0,34:2:5:0.04918032786885246,0.04918032786885246:25,20:50,57
+X	132620530	SV_3279_2	N	]4:183149526]N	.	PASS	SVTYPE=BND;REGIONA=183149421,183149526;REGIONB=132620419,132620530;LFA=4,11;LFB=4,11;LTE=3,7	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:43,0,36:3:7:0.0,0.0:17,29:47,55
+X	138932077	SV_3819_2	N	]5:23314223]N	.	PASS	SVTYPE=BND;REGIONA=23314156,23314223;REGIONB=138932076,138932115;LFA=3,7;LFB=3,7;LTE=3,6	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:47,0,49:3:6:0.0,0.0:38,34:68,67
+X	86126386	SV_4417_2	N	N[6:6046076[	.	PASS	SVTYPE=BND;REGIONA=6045984,6046147;REGIONB=86126258,86126415;LFA=14,0;LFB=14,0;LTE=11,0	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:37,0,48:11:0:0.16883116883116883,0.16883116883116883:31,37:48,41
+X	109503088	SV_4421_2	N	N[6:159204431[	.	PASS	SVTYPE=BND;REGIONA=159204431,159204507;REGIONB=109503075,109503088;LFA=3,7;LFB=3,7;LTE=1,3	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:17,0,27:1:3:0.0,0.0:14,26:19,52
+X	641796	SV_7045_2	N	]10:7519617]N	.	PASS	SVTYPE=BND;REGIONA=7519574,7519617;REGIONB=641796,641828;LFA=6,9;LFB=6,9;LTE=2,7	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:36,0,47:2:7:0.08333333333333333,0.08333333333333333:24,27:61,61
+X	25034254	SV_9656_2	N	N[14:34791837[	.	PASS	SVTYPE=BND;REGIONA=34791766,34791865;REGIONB=25034253,25034283;LFA=4,18;LFB=4,18;LTE=3,10	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:57,0,55:3:10:0.046511627906976744,0.046511627906976744:57,22:86,73
+X	81651235	SV_12096_2	N	N[20:11281584[	.	PASS	SVTYPE=BND;REGIONA=11281584,11281695;REGIONB=81651234,81651337;LFA=6,13;LFB=6,13;LTE=5,13	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:34,0,48:5:13:0.0,0.0:1,33:51,61
+X	8395213	SV_12097_2	N	]20:18688997]N	.	PASS	SVTYPE=BND;REGIONA=18688941,18688997;REGIONB=8395103,8395286;LFA=6,0;LFB=6,0;LTE=6,0	GT:CN:DP:DR:SR:LQ:RR:RD	./.:.:36,0,24:6:0:0.13793103448275862,0.13793103448275862:26,21:56,45
+X	724408	SV_12826_1	N	<DEL>	.	PASS	SVTYPE=DEL;SVLEN=1065;END=725473;REGIONA=724055,724430;REGIONB=725405,725805;LFA=13,1;LFB=13,1;LTE=13,0	GT:CN:DP:DR:SR:LQ:RR:RD	0/1:1:29,10.272727272727273,30:13:0:0.0,0.0:13,27:33,45
+X	774817	SV_12828_1	N	<DEL>	.	PASS	SVTYPE=DEL;SVLEN=648360;END=1423177;REGIONA=774762,774882;REGIONB=1423121,1423232;LFA=11,0;LFB=11,0;LTE=8,0	GT:CN:DP:DR:SR:LQ:RR:RD	0/1:1:36,14.224861196792103,13:8:0:0.015873015873015872,0.015873015873015872:33,11:50,11
+X	877927	SV_12829_1	N	<DEL>	.	PASS	SVTYPE=DEL;SVLEN=2499;END=880426;REGIONA=877927,878171;REGIONB=880412,880437;LFA=16,0;LFB=16,0;LTE=6,0	GT:CN:DP:DR:SR:LQ:RR:RD	0/1:1:33,15.117647058823529,35:6:0:0.0,0.0:29,32:40,56
