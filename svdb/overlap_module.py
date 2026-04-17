@@ -10,8 +10,9 @@ def precise_overlap(
     """Return (max_breakpoint_distance, True) if both breakpoints are within distance, else (None, False)."""
     Adist = abs(chrApos_query - chrApos_db)
     Bdist = abs(chrBpos_query - chrBpos_db)
-    if max([Adist, Bdist]) <= distance:
-        return float(max([Adist, Bdist])), True
+    max_dist = Adist if Adist >= Bdist else Bdist  # avoid list allocation vs max([a, b])
+    if max_dist <= distance:
+        return float(max_dist), True
     return None, False
 
 
@@ -23,11 +24,11 @@ def isSameVariation(
 ) -> Tuple[Optional[float], bool]:
     """Return (overlap_ratio, True) if variants overlap sufficiently, else (None, False)."""
     if abs(chrApos_query - chrApos_db) <= distance and abs(chrBpos_query - chrBpos_db) <= distance:
-        region_start = min([chrApos_db, chrApos_query])
-        overlap_start = max([chrApos_db, chrApos_query])
+        region_start = min(chrApos_db, chrApos_query)   # avoid list allocation vs min([a, b])
+        overlap_start = max(chrApos_db, chrApos_query)
 
-        region_end = max([chrBpos_db, chrBpos_query])
-        overlap_end = min([chrBpos_db, chrBpos_query])
+        region_end = max(chrBpos_db, chrBpos_query)
+        overlap_end = min(chrBpos_db, chrBpos_query)
 
         event_ratio = float(overlap_end - overlap_start + 1) / float(region_end - region_start + 1)
 

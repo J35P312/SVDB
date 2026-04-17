@@ -130,10 +130,11 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
     format_entry_length = []
 
     if not args.same_order:
+        sorted_samples = sorted(samples)  # constant across all input_files — compute once
         for input_file in priority_order:
             if input_file not in files:
                 continue
-            for sample in sorted(samples):
+            for sample in sorted_samples:
                 if sample not in format_columns and input_file in sample_order[sample]:
 
                     vcf_line = files[input_file].strip().split("\t")
@@ -181,7 +182,7 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
 
     # generate a union of the info fields
     info_union = []
-    tags_in_info = []
+    tags_in_info = set()  # set for O(1) membership test vs O(n) list
 
     # tags only to be copied from the file with highest priority (to avoid problems in downstream analyses
     blacklist=set(["SVLEN","END","SVTYPE"])
@@ -201,7 +202,7 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
                 continue
 
             if tag not in tags_in_info:
-                tags_in_info.append(tag)
+                tags_in_info.add(tag)
                 info_union.append(content)
 
         first=False
@@ -285,11 +286,11 @@ def merge(variants, samples, sample_order, priority_order, args):
                 if type_i != var_j.event_type and not no_var:
                     continue
 
-                # Only split the raw line once we know we might use this variant
-                vcf_line_B = var_j.raw_line.strip().split("\t")
-
-                if pass_only and vcf_line_B[6] not in ('PASS', '.'):
-                    continue
+                # pass_only: need to inspect the filter field — split early only when required
+                if pass_only:
+                    vcf_line_B = var_j.raw_line.strip().split("\t")
+                    if vcf_line_B[6] not in ('PASS', '.'):
+                        continue
 
                 # if no_intra is chosen, variants may only be merged if they belong to different input files
                 if no_intra and source_i == var_j.source:
@@ -303,6 +304,10 @@ def merge(variants, samples, sample_order, priority_order, args):
                         chrA, chrB_i, posA_i, posB_i, var_j.posA, var_j.posB, overlap_param, bnd_distance)
 
                 if match:
+                    # Split only on confirmed match (pass_only case already split above)
+                    if not pass_only:
+                        vcf_line_B = var_j.raw_line.strip().split("\t")
+
                     # add similar variants to the merge list and remove them
                     if args.priority:
                         match_id = var_j.source
