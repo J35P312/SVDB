@@ -122,15 +122,14 @@ def _load_vcf_db(args):
                     DBvariants[chrA][chrB][event_type]["samples"].append([OCC, FRQ])
                     use_OCC_tag = True
                 except KeyError:
-                    logger.error(
-                        "frequency or hit tag not found — set --in_occ and --in_frq to the "
-                        "OCC/FRQ tags in the INFO column of the input db (usually AC/OCC and AF/FRQ)"
+                    logger.warning(
+                        "skipping db variant at %s:%s — OCC/FRQ tag not found in INFO "
+                        "(expected %s / %s); use --in_occ/--in_frq to set the correct tag names",
+                        chrA, posA, OCC_tag, FRQ_tag,
                     )
-                    logger.error("database variants without those tags must be removed first")
-                    logger.error(
-                        "alternatively omit --in_occ/--in_frq and let SVDB use the GT field instead"
-                    )
-                    sys.exit(1)
+                    # remove the coordinate entry added above for this variant
+                    DBvariants[chrA][chrB][event_type]["coordinates"].pop()
+                    continue
 
     for chrA in DBvariants:
         for chrB in DBvariants[chrA]:
