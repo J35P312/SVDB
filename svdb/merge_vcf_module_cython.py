@@ -223,6 +223,11 @@ def merge(variants, samples, sample_order, priority_order, args):
     # search for similar variants
     to_be_printed = {}
     for chrA in variants:
+        # Sort by posA so the positional early-exit break below is valid.
+        # Input variants[chrA] is built by concatenating multiple VCF files
+        # which may themselves be unsorted, so we normalise here.
+        # O(n log n) is negligible compared to the O(n²) loop it enables.
+        variants[chrA].sort(key=lambda v: v.posA)
         analysed_variants = set([])
         for i in range(len(variants[chrA])):
             if i in analysed_variants:
@@ -279,6 +284,13 @@ def merge(variants, samples, sample_order, priority_order, args):
                     continue
 
                 var_j = variants[chrA][j]
+
+                # VCF files are sorted by (chrom, posA).  Once var_j.posA is
+                # further than bnd_distance ahead of posA_i, no subsequent j
+                # can overlap either — break out of the inner loop entirely.
+                # BND/interchromosomal pairs skip this check (chrA != chrB_i).
+                if chrA == chrB_i and var_j.posA - posA_i > bnd_distance:
+                    break
 
                 if chrB_i != var_j.chrB:
                     continue

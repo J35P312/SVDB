@@ -20,6 +20,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Always profile the local checkout, not any installed package.
+_REPO_ROOT = str(Path(__file__).parent.parent.resolve())
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 
 def _run_profiled(argv: list[str]) -> tuple[pstats.Stats, io.StringIO]:
     import importlib
@@ -63,20 +68,29 @@ def main():
     args = parser.parse_args()
 
     vcf_dir = Path(args.vcf_dir)
-    manta = vcf_dir / "manta.vcf"
+    manta  = vcf_dir / "manta.vcf"
     tiddit = vcf_dir / "NA12878.tiddit.pass.vcf"
-    truth = vcf_dir / "Personalis_1000_Genomes_deduplicated_deletions.vcf"
+    truth  = vcf_dir / "Personalis_1000_Genomes_deduplicated_deletions.vcf"
+    # HG002 (DRAGEN) — present when running on the full vcf_files directory
+    dr_sv    = vcf_dir / "Diag-wgs610-NA24385K4-DR.sv.vcf"
+    dr_cnv   = vcf_dir / "Diag-wgs610-NA24385K4-DR.cnv.vcf"
+    dr_cnvsv = vcf_dir / "Diag-wgs610-NA24385K4-DR.cnv_sv.vcf"
 
     for f in [manta, tiddit, truth]:
         if not f.exists():
             print(f"ERROR: {f} not found — pass the correct vcf_dir", file=sys.stderr)
             sys.exit(1)
 
+    has_dragen = all(f.exists() for f in [dr_sv, dr_cnv, dr_cnvsv])
+    if not has_dragen:
+        print("NOTE: DRAGEN files not found — skipping 6-VCF and HG002 commands",
+              file=sys.stderr)
+
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
 
         commands = [
-            ("merge (3 VCFs)",
+            ("merge (3 VCFs — HG001 only)",
              ["svdb", "--merge", "--vcf", str(manta), str(tiddit), str(truth)]),
 
             ("query vcf-db (tiddit vs truth)",
@@ -101,6 +115,32 @@ def main():
              ["svdb", "--query", "--sqdb", str(tmp / "svdb.db"),
               "--query_vcf", str(truth)]),
         ]
+
+        if has_dragen:
+            commands += [
+                # Full 6-VCF merge — stresses the O(n²) inner loop at ~50k variants
+                ("merge (6 VCFs — HG001+HG002, no_var)",
+                 ["svdb", "--merge", "--no_var", "--vcf",
+                  str(manta), str(tiddit), str(truth),
+                  str(dr_sv), str(dr_cnv), str(dr_cnvsv)]),
+
+                # Large DRAGEN SV merge against itself (same-caller, no_intra would prevent)
+                ("merge (DRAGEN sv × 2)",
+                 ["svdb", "--merge", "--vcf", str(dr_sv), str(dr_sv)]),
+
+                # Population DB from all 5 non-truth VCFs
+                ("build (5 VCFs — HG001+HG002)",
+                 ["svdb", "--build", "--files",
+                  str(manta), str(tiddit), str(dr_sv), str(dr_cnv), str(dr_cnvsv),
+                  "--prefix", str(tmp / "svdb5")]),
+
+                ("query sqdb (truth vs 5-VCF db)",
+                 ["svdb", "--query", "--sqdb", str(tmp / "svdb5.db"),
+                  "--query_vcf", str(truth)]),
+
+                ("query vcf-db (DRAGEN sv vs truth)",
+                 ["svdb", "--query", "--db", str(truth), "--query_vcf", str(dr_sv)]),
+            ]
 
         # build must run before export/sqdb query
         results = {}
