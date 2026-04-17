@@ -9,7 +9,7 @@ except ImportError:
 if has_cython:
     ext_modules = cythonize([
         "svdb/build_module.py",
-        "svdb/overlap_module.py",
+        "svdb/overlap_module.py",  # int annotations on params → typed C via annotation_typing
         "svdb/dbscan.py",
         "svdb/read_vcf.py",
         "svdb/merge_vcf_module_cython.py",
