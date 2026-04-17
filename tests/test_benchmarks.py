@@ -6,38 +6,40 @@ is to catch catastrophic regressions (e.g., an O(n²) loop becoming O(n³)),
 not sub-second differences.
 
 Baselines established 2026-04-17 on full VCF data (~17k variants, macOS arm64,
-Python 3.12). All timings are wall-clock without profiler overhead (subprocess).
-To reproduce: remove svdb/*.so (pure Python), or run setup.py build_ext --inplace (Cython).
+Python 3.12). All wall-clock timings via subprocess (no profiler overhead).
+To reproduce: remove svdb/*.so for pure Python, or run setup.py build_ext --inplace.
 
-Profiling results — cumulative optimisations (macOS arm64, Python 3.12, ~17k variants):
+Timing results (subprocess, no cProfile):
 
-  Command               Baseline (py)  + attr cache  + deferred split  Cython final
-  merge (3 VCFs)             7.5s          6.5s           3.3s            3.0s
-  query vcf-db (manta)       0.32s         0.32s          0.32s           0.30s
-  build (manta+tiddit)       0.45s         0.37s          0.37s           0.36s
+  Command               Pure Py baseline  Pure Py final  Cython final
+  merge (3 VCFs)             7.5s              2.2s          2.3s
+  query vcf-db (manta)       0.32s             0.32s         0.30s
+  build (manta+tiddit)       0.45s             0.37s         0.39s
 
-  Total merge speedup: 2.5× (pure Python 7.5s → Cython 3.0s)
+  Pure Python merge speedup: 3.4×
 
-Optimisations applied (all in merge_vcf_module_cython.py):
-  1. Cache var_i attributes + pre-compute is_insertion() outside O(n²) j-loop
-     → eliminates ~6.8M repeated attribute lookups  → 14% gain
-  2. Defer raw_line.strip().split() until after cheap early-exit checks
-     → 7.4M str.split() calls (3.97s) reduced to only matched variants → 2.3× gain
-  3. Inline skip_variant() checks in the j-loop (was 6.8M Python function calls)
-     → eliminates function-call overhead for the most common path
-  4. Cython compiles overlap_module with typed C parameters (int annotations
-     on function args, used by annotation_typing=True in Cython 3.x)
-     → abs() and comparisons are C-level operations → ~8% additional gain
+Caveat: clean Cython baseline (before changes, no cProfile) was not measured —
+build/ was cleared before taking that reading. Previous-session cProfile showed
+pure-Py 17.1s vs Cython 7.5s (2.3× ratio valid, but both numbers include the
+profiler's own overhead which is higher for pure Python due to more call frames).
+In practice Cython pure-Python mode without typed locals offers little speedup
+over CPython 3.12's adaptive interpreter; the algorithmic gains dominate both.
 
-Notes on Cython pure-Python mode:
-  - .pxd companion files conflict with PEP 484 annotations under
-    annotation_typing=True; the existing int annotations are sufficient.
-  - To get C-level calls between modules (cimport), files would need to be
-    converted to .pyx format — that's the next step if further speedup needed.
-  - Export is bottlenecked by SQLite I/O (~14k execute() calls); no amount
-    of Cython typing helps there.
+Optimisations applied (merge_vcf_module_cython.py + overlap_module.py):
+  1. Cache var_i attributes + is_insertion() before the O(n²) j-loop
+  2. Inline skip_variant() guards before any string splitting
+  3. Defer raw_line.strip().split() past type/chrB guards (7.4M → 2.5M splits)
+  4. Defer split to inside `if match:` for pass_only=False (2.5M → 560k splits)
+  5. Cache sorted(samples) before the priority_order loop in sort_format_field
+  6. Convert tags_in_info list → set (O(1) membership test)
+  7. min/max with scalar args instead of list literals in overlap_module
+     (avoids 7.8M temporary list allocations per merge run)
+  8. Cache max_dist in precise_overlap (was computed twice)
 
-See scripts/profile_svdb.py for cProfile-instrumented analysis on full data.
+Next bottleneck: 1.96M variant_overlap() Python function calls (~1.1s).
+Eliminating that requires .pyx + cimport (C-level inter-module calls).
+
+See scripts/profile_svdb.py for cProfile-instrumented deep-dive on full data.
 """
 
 import subprocess
