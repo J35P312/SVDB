@@ -4,5 +4,7 @@
 #
 #    pip-compile --output-file=requirements.txt --strip-extras requirements.in
 #
+cython==3.2.4
+    # via -r requirements.in
 numpy==2.4.4
     # via -r requirements.in
