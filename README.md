@@ -168,9 +168,18 @@ The merge module merges variants within one or more vcf files. This could be use
 
 # For developers
 
+Dependencies are managed with [pip-tools](https://pip-tools.readthedocs.io/). Edit `requirements.in` or `requirements-dev.in`, then regenerate pinned files:
+
+```bash
+pip-compile requirements.in --output-file requirements.txt --strip-extras
+pip-compile requirements-dev.in --output-file requirements-dev.txt --strip-extras
+```
+
 Install development dependencies:
 
-    pip install -r requirements-dev.txt
+```bash
+pip install -r requirements-dev.txt
+```
 
 Run tests (includes ruff linting and mypy type checking):
 
