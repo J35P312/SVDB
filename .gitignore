@@ -29,7 +29,8 @@ htmlcov/
 # macOS
 .DS_Store
 
-# SVDB data files
+# SVDB data files (exclude test fixtures)
 *.vcf
 *.vcf.gz
 *.db
+!tests/fixtures/*.vcf
