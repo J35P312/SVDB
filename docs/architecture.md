@@ -82,10 +82,10 @@ classDiagram
     class DB {
         +query(sql) list
         +query_column(sql) list
+        +drop(sql)
         +insert_many(data)
         +create_index(name, columns)
         +tables list
-        +sample_ids list
     }
 ```
 

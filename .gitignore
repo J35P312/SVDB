@@ -30,6 +30,9 @@ htmlcov/
 # macOS
 .DS_Store
 
+# Local profiling config (contains machine-specific paths)
+scripts/profile_config.toml
+
 # SVDB data files (exclude test fixtures)
 *.vcf
 *.vcf.gz

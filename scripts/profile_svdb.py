@@ -1,15 +1,39 @@
-"""Profile SVDB commands on real VCF data to establish a pure-Python baseline.
+"""Profile SVDB commands on real VCF data.
 
-Run with:
-    python scripts/profile_svdb.py [vcf_dir]
+Usage
+-----
+Copy scripts/profile_config.toml.example to scripts/profile_config.toml,
+fill in your file paths and caller names, then run:
 
-vcf_dir defaults to ../vcf_files relative to repo root.
-Output: profiling stats per command, sorted by cumulative time.
+    python scripts/profile_svdb.py [--config PATH] [--top N] [--sort KEY]
 
-Purpose: compare against a Cython-compiled run once setup.py compilation
-is confirmed working. The Cython modules are:
-  build_module, overlap_module, dbscan, read_vcf,
-  merge_vcf_module_cython, query_module, export_module
+Options
+-------
+--config PATH   TOML config file describing the VCFs to profile.
+                Defaults to scripts/profile_config.toml next to this script.
+--top N         Number of top functions to show per command (default: 15).
+--sort KEY      cProfile sort key: cumulative (default), tottime, calls.
+
+Config format
+-------------
+See profile_config.toml.example for the full schema. In brief:
+
+  [vcfs]
+  caller_name = "/abs/path/to/caller.vcf"
+  ...
+
+  [options]
+  truth = "caller_name"          # used as --db for vcf-db query commands
+  merge_keys = ["a", "b", ...]   # subset to merge (default: all non-truth)
+  build_keys  = ["a", "b", ...]  # subset to build  (default: all non-truth)
+  no_var_merge = false            # pass --no_var to the multi-VCF merge
+
+Purpose
+-------
+Catches algorithmic regressions and validates optimisation work.  Always
+profiles the local checkout (repo root is inserted into sys.path before
+any svdb import).  Wall-clock numbers include cProfile overhead; ratios
+between runs on the same machine are reliable, absolute numbers are not.
 """
 
 import argparse
@@ -25,8 +49,21 @@ _REPO_ROOT = str(Path(__file__).parent.parent.resolve())
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+try:
+    import tomllib  # stdlib on Python 3.11+
+except ImportError:
+    try:
+        import tomli as tomllib  # pip install tomli  (Python 3.9 / 3.10)
+    except ImportError:
+        tomllib = None  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# Profiling helpers
+# ---------------------------------------------------------------------------
 
 def _run_profiled(argv: list[str]) -> tuple[pstats.Stats, io.StringIO]:
+    """Run an svdb command in-process under cProfile, return stats."""
     import importlib
     import svdb.__main__ as entry
     importlib.reload(entry)
@@ -34,7 +71,6 @@ def _run_profiled(argv: list[str]) -> tuple[pstats.Stats, io.StringIO]:
     sys.argv = argv
     pr = cProfile.Profile()
     pr.enable()
-    # suppress VCF stdout during profiling
     _real_stdout = sys.stdout
     sys.stdout = io.StringIO()
     try:
@@ -50,107 +86,175 @@ def _run_profiled(argv: list[str]) -> tuple[pstats.Stats, io.StringIO]:
     return stats, stream
 
 
-def print_profile(label: str, stats: pstats.Stats, stream: io.StringIO, n: int = 20):
-    print(f"\n{'='*60}")
+def _print_profile(
+    label: str, stats: pstats.Stats, stream: io.StringIO,
+    n: int, sort_key: str,
+) -> None:
+    print(f"\n{'=' * 60}")
     print(f"  {label}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
+    stats.sort_stats(sort_key)
     stats.print_stats(n)
     print(stream.getvalue())
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("vcf_dir", nargs="?", default="../vcf_files",
-                        help="Directory containing manta.vcf, NA12878.tiddit.pass.vcf, "
-                             "Personalis_1000_Genomes_deduplicated_deletions.vcf")
-    parser.add_argument("--top", type=int, default=15,
-                        help="Number of top functions to show per command (default: 15)")
+# ---------------------------------------------------------------------------
+# Config loading
+# ---------------------------------------------------------------------------
+
+def _load_config(path: Path) -> dict:
+    if tomllib is None:
+        print(
+            "ERROR: TOML support not available.\n"
+            "  Python 3.11+ has tomllib built-in.\n"
+            "  For Python 3.9/3.10: pip install tomli",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if not path.exists():
+        print(
+            f"ERROR: config file not found: {path}\n"
+            f"  Copy scripts/profile_config.toml.example to {path} and fill in your paths.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
+def _resolve_vcfs(config: dict) -> dict[str, Path]:
+    """Return {name: Path} for every VCF in [vcfs], erroring on missing files."""
+    raw = config.get("vcfs", {})
+    if not raw:
+        print("ERROR: [vcfs] section is empty in config.", file=sys.stderr)
+        sys.exit(1)
+    vcfs: dict[str, Path] = {}
+    missing = []
+    for name, path_str in raw.items():
+        p = Path(path_str)
+        if not p.exists():
+            missing.append(f"  {name}: {path_str}")
+        else:
+            vcfs[name] = p
+    if missing:
+        print("ERROR: the following VCF files were not found:", file=sys.stderr)
+        print("\n".join(missing), file=sys.stderr)
+        sys.exit(1)
+    return vcfs
+
+
+# ---------------------------------------------------------------------------
+# Command generation
+# ---------------------------------------------------------------------------
+
+def _build_commands(vcfs: dict[str, Path], opts: dict, tmp: Path) -> list[tuple[str, list[str]]]:
+    truth_key = opts.get("truth")
+    merge_keys = opts.get("merge_keys") or [k for k in vcfs if k != truth_key]
+    build_keys = opts.get("build_keys") or [k for k in vcfs if k != truth_key]
+    no_var = opts.get("no_var_merge", False)
+
+    merge_vcfs = [str(vcfs[k]) for k in merge_keys if k in vcfs]
+    build_vcfs = [str(vcfs[k]) for k in build_keys if k in vcfs]
+    truth_vcf = str(vcfs[truth_key]) if truth_key and truth_key in vcfs else None
+
+    commands: list[tuple[str, list[str]]] = []
+
+    # --- merge ---
+    if len(merge_vcfs) >= 2:
+        label = f"merge ({len(merge_vcfs)} VCFs: {', '.join(merge_keys)})"
+        cmd = ["svdb", "--merge", "--vcf"] + merge_vcfs
+        if no_var:
+            cmd.insert(2, "--no_var")
+        commands.append((label, cmd))
+
+    # --- single large file merged with itself (stress-test) ---
+    # Pick the build VCF with the most variants if we can stat file size as proxy
+    if build_vcfs:
+        largest = max(build_vcfs, key=lambda p: Path(p).stat().st_size)
+        largest_name = next(k for k in build_keys if str(vcfs[k]) == largest)
+        commands.append((
+            f"merge ({largest_name} × 2, self-merge stress)",
+            ["svdb", "--merge", "--vcf", largest, largest],
+        ))
+
+    # --- build ---
+    if build_vcfs:
+        label = f"build ({len(build_vcfs)} VCFs: {', '.join(build_keys)})"
+        commands.append((label, [
+            "svdb", "--build", "--files"] + build_vcfs + ["--prefix", str(tmp / "svdb")],
+        ))
+        commands.append(("export (default)", [
+            "svdb", "--export", "--db", str(tmp / "svdb.db"),
+            "--prefix", str(tmp / "export"),
+        ]))
+        commands.append(("export (DBSCAN)", [
+            "svdb", "--export", "--db", str(tmp / "svdb.db"),
+            "--DBSCAN", "--prefix", str(tmp / "export_dbscan"),
+        ]))
+
+    # --- query ---
+    if truth_vcf and build_vcfs:
+        commands.append((
+            f"query vcf-db (truth={truth_key} vs {build_keys[0]})",
+            ["svdb", "--query", "--db", str(vcfs[build_keys[0]]),
+             "--query_vcf", truth_vcf],
+        ))
+        if (tmp / "svdb.db").exists():
+            commands.append((
+                f"query sqdb (truth={truth_key} vs built db)",
+                ["svdb", "--query", "--sqdb", str(tmp / "svdb.db"),
+                 "--query_vcf", truth_vcf],
+            ))
+
+    return commands
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    _default_config = Path(__file__).parent / "profile_config.toml"
+
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--config", type=Path, default=_default_config,
+        help=f"TOML config file (default: {_default_config})",
+    )
+    parser.add_argument(
+        "--top", type=int, default=15,
+        help="Number of top functions to show per command (default: 15)",
+    )
+    parser.add_argument(
+        "--sort", default="cumulative",
+        choices=["cumulative", "tottime", "calls"],
+        help="cProfile sort key (default: cumulative)",
+    )
     args = parser.parse_args()
 
-    vcf_dir = Path(args.vcf_dir)
-    manta  = vcf_dir / "manta.vcf"
-    tiddit = vcf_dir / "NA12878.tiddit.pass.vcf"
-    truth  = vcf_dir / "Personalis_1000_Genomes_deduplicated_deletions.vcf"
-    # HG002 (DRAGEN) — present when running on the full vcf_files directory
-    dr_sv    = vcf_dir / "Diag-wgs610-NA24385K4-DR.sv.vcf"
-    dr_cnv   = vcf_dir / "Diag-wgs610-NA24385K4-DR.cnv.vcf"
-    dr_cnvsv = vcf_dir / "Diag-wgs610-NA24385K4-DR.cnv_sv.vcf"
+    config = _load_config(args.config)
+    vcfs = _resolve_vcfs(config)
+    opts = config.get("options", {})
 
-    for f in [manta, tiddit, truth]:
-        if not f.exists():
-            print(f"ERROR: {f} not found — pass the correct vcf_dir", file=sys.stderr)
-            sys.exit(1)
+    print(f"Loaded {len(vcfs)} VCF(s) from {args.config}:", file=sys.stderr)
+    for name, path in vcfs.items():
+        print(f"  {name}: {path}", file=sys.stderr)
 
-    has_dragen = all(f.exists() for f in [dr_sv, dr_cnv, dr_cnvsv])
-    if not has_dragen:
-        print("NOTE: DRAGEN files not found — skipping 6-VCF and HG002 commands",
-              file=sys.stderr)
+    with tempfile.TemporaryDirectory() as _tmp:
+        tmp = Path(_tmp)
+        commands = _build_commands(vcfs, opts, tmp)
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-
-        commands = [
-            ("merge (3 VCFs — HG001 only)",
-             ["svdb", "--merge", "--vcf", str(manta), str(tiddit), str(truth)]),
-
-            ("query vcf-db (tiddit vs truth)",
-             ["svdb", "--query", "--db", str(truth), "--query_vcf", str(tiddit)]),
-
-            ("query vcf-db (manta vs truth)",
-             ["svdb", "--query", "--db", str(truth), "--query_vcf", str(manta)]),
-
-            ("build (manta + tiddit)",
-             ["svdb", "--build", "--files", str(manta), str(tiddit),
-              "--prefix", str(tmp / "svdb")]),
-
-            ("export default",
-             ["svdb", "--export", "--db", str(tmp / "svdb.db"),
-              "--prefix", str(tmp / "export")]),
-
-            ("export DBSCAN",
-             ["svdb", "--export", "--db", str(tmp / "svdb.db"),
-              "--DBSCAN", "--prefix", str(tmp / "export_dbscan")]),
-
-            ("query sqdb (truth vs manta+tiddit db)",
-             ["svdb", "--query", "--sqdb", str(tmp / "svdb.db"),
-              "--query_vcf", str(truth)]),
-        ]
-
-        if has_dragen:
-            commands += [
-                # Full 6-VCF merge — stresses the O(n²) inner loop at ~50k variants
-                ("merge (6 VCFs — HG001+HG002, no_var)",
-                 ["svdb", "--merge", "--no_var", "--vcf",
-                  str(manta), str(tiddit), str(truth),
-                  str(dr_sv), str(dr_cnv), str(dr_cnvsv)]),
-
-                # Large DRAGEN SV merge against itself (same-caller, no_intra would prevent)
-                ("merge (DRAGEN sv × 2)",
-                 ["svdb", "--merge", "--vcf", str(dr_sv), str(dr_sv)]),
-
-                # Population DB from all 5 non-truth VCFs
-                ("build (5 VCFs — HG001+HG002)",
-                 ["svdb", "--build", "--files",
-                  str(manta), str(tiddit), str(dr_sv), str(dr_cnv), str(dr_cnvsv),
-                  "--prefix", str(tmp / "svdb5")]),
-
-                ("query sqdb (truth vs 5-VCF db)",
-                 ["svdb", "--query", "--sqdb", str(tmp / "svdb5.db"),
-                  "--query_vcf", str(truth)]),
-
-                ("query vcf-db (DRAGEN sv vs truth)",
-                 ["svdb", "--query", "--db", str(truth), "--query_vcf", str(dr_sv)]),
-            ]
-
-        # build must run before export/sqdb query
-        results = {}
+        # build must run before export/sqdb-query; execute in order, collect results
+        results: dict[str, tuple[pstats.Stats, io.StringIO]] = {}
         for label, argv in commands:
             print(f"Profiling: {label} ...", file=sys.stderr)
             stats, stream = _run_profiled(argv)
             results[label] = (stats, stream)
 
         for label, (stats, stream) in results.items():
-            print_profile(label, stats, stream, n=args.top)
+            _print_profile(label, stats, stream, n=args.top, sort_key=args.sort)
 
 
 if __name__ == "__main__":
