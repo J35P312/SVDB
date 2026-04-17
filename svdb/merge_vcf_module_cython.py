@@ -246,12 +246,21 @@ def merge(variants, samples, sample_order, priority_order, args):
             #chrom
             chrom_tag ={}
 
-            if args.priority:
-               id=variants[chrA][i].source
-            else:
-               id=variants[chrA][i].source.split(".vcf")[0].split("/")[-1]
+            # Cache variant_i attributes — avoids repeated attribute lookups inside the O(n²) j-loop
+            var_i = variants[chrA][i]
+            source_i = var_i.source
+            chrB_i = var_i.chrB
+            type_i = var_i.event_type
+            posA_i = var_i.posA
+            posB_i = var_i.posB
+            insertion_i = var_i.is_insertion()  # pre-compute once; was called per-j-iteration
 
-            vcf_line_A=variants[chrA][i].raw_line.strip().split("\t")
+            if args.priority:
+               id = source_i
+            else:
+               id = source_i.split(".vcf")[0].split("/")[-1]
+
+            vcf_line_A=var_i.raw_line.strip().split("\t")
             chrom_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[0]) ]
             pos_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[1]) ]
             qual_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[5]) ]
@@ -268,20 +277,20 @@ def merge(variants, samples, sample_order, priority_order, args):
                     if filter_tag not in ['PASS', '.']:
                         break
 
-                if skip_variant(variants[chrA][i].chrB,variants[chrA][j].chrB,variants[chrA][i].event_type,variants[chrA][j].event_type,vcf_line_A,vcf_line_B,pass_only,j,analysed_variants,no_var):
+                if skip_variant(chrB_i, variants[chrA][j].chrB, type_i, variants[chrA][j].event_type, vcf_line_A, vcf_line_B, pass_only, j, analysed_variants, no_var):
                     continue
 
                 # if no_intra is chosen, variants may only be merged if they belong to different input files
-                if no_intra and variants[chrA][i].source == variants[chrA][j].source:
+                if no_intra and source_i == variants[chrA][j].source:
                     continue
 
-                if variants[chrA][i].is_insertion():
+                if insertion_i:
                     overlap, match = overlap_module.variant_overlap(
-                        chrA, variants[chrA][i].chrB, variants[chrA][i].posA, variants[chrA][i].posB, variants[chrA][j].posA, variants[chrA][j].posB, -1, ins_distance)
+                        chrA, chrB_i, posA_i, posB_i, variants[chrA][j].posA, variants[chrA][j].posB, -1, ins_distance)
 
                 else:
                     overlap, match = overlap_module.variant_overlap(
-                        chrA, variants[chrA][i].chrB, variants[chrA][i].posA, variants[chrA][i].posB, variants[chrA][j].posA, variants[chrA][j].posB, overlap_param, bnd_distance)
+                        chrA, chrB_i, posA_i, posB_i, variants[chrA][j].posA, variants[chrA][j].posB, overlap_param, bnd_distance)
 
                 if match:
                     # add similar variants to the merge list and remove them
@@ -300,16 +309,16 @@ def merge(variants, samples, sample_order, priority_order, args):
                         pos_tag[match_id]=[]
                         qual_tag[match_id]=[]
 
-                    raw_B = variants[chrA][j].raw_line.split("\t")
-                    chrom_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[0]))
-                    pos_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[1]))
-                    qual_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[5]))
-                    filters_tag[match_id].append(format_tag(vcf_line_B[2], raw_B[6]))
+                    # vcf_line_B is already the split form of raw_line; reuse it directly
+                    chrom_tag[match_id].append(format_tag(vcf_line_B[2], vcf_line_B[0]))
+                    pos_tag[match_id].append(format_tag(vcf_line_B[2], vcf_line_B[1]))
+                    qual_tag[match_id].append(format_tag(vcf_line_B[2], vcf_line_B[5]))
+                    filters_tag[match_id].append(format_tag(vcf_line_B[2], vcf_line_B[6]))
 
                     samples_tag[match_id].append(collect_sample(vcf_line_B ,samples,sample_order,match_id))
                     info_tag[match_id].append( collect_info(vcf_line_B) )
 
-                    if variants[chrA][i].chrB != chrA and "CSQ=" in variants[chrA][j].raw_line:
+                    if chrB_i != chrA and "CSQ=" in variants[chrA][j].raw_line:
                         info = vcf_line_B[7]
                         csq.append(info.split("CSQ=")[-1].split(";")[0])
                     analysed_variants.add(j)
@@ -322,15 +331,14 @@ def merge(variants, samples, sample_order, priority_order, args):
                 to_be_printed[line[0]] = []
 
             if args.priority:
-                files[variants[chrA][i].source] = "\t".join(line)
+                files[source_i] = "\t".join(line)
             else:
-                files[variants[chrA][i].source.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
+                files[source_i.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
             line = sort_format_field(
                 line, samples, sample_order, priority_order, files, args)
             if merge and not args.notag:
                 line[7] += ";VARID=" + "|".join(merge)
-                line[2] += ":{}|".format(variants[chrA][i].source.split(".vcf")
-                                         [0].split("/")[-1]) + "|".join(merge)
+                line[2] += ":{}|".format(source_i.split(".vcf")[0].split("/")[-1]) + "|".join(merge)
             if not args.notag:
                 set_tag = determine_set_tag(priority_order, files)
                 line[7] += f";set={set_tag}"

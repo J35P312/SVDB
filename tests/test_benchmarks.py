@@ -5,22 +5,27 @@ budget on the small fixture VCFs. They are NOT micro-benchmarks — the goal
 is to catch catastrophic regressions (e.g., an O(n²) loop becoming O(n³)),
 not sub-second differences.
 
-Baselines established 2026-04-17 on full VCF data (see scripts/profile_svdb.py).
-To reproduce: python setup.py build_ext --inplace  (Cython), then remove .so files (pure Python).
+Baselines established 2026-04-17 on full VCF data (~17k variants, macOS arm64,
+Python 3.12). All timings are wall-clock without profiler overhead (subprocess).
+To reproduce: remove svdb/*.so (pure Python), or run setup.py build_ext --inplace (Cython).
 
-Full-data profiling results (macOS arm64, Python 3.12, ~17k variants):
+Profiling results — with vs without attribute-caching optimisation in merge():
 
-  Command                 Pure Python   Cython    Speedup
-  merge (3 VCFs)          17.1s         7.5s      2.3x  ← material gain
-  query vcf-db (manta)     0.40s        0.25s     1.6x
-  query vcf-db (tiddit)    0.26s        0.16s     1.6x
-  build (manta+tiddit)     0.47s        0.32s     1.5x
-  export default           1.09s        0.81s     1.3x  ← bottleneck is SQLite I/O
-  export DBSCAN            1.08s        0.82s     1.3x
-  query sqdb               0.18s        0.13s     1.4x
+  Command               Before (pure Py)  After (pure Py)  After (Cython)
+  merge (3 VCFs)              7.5s             6.5s            6.8s   ← 14% gain
+  query vcf-db (manta)        0.32s            0.32s           0.31s  ← unaffected
+  build (manta+tiddit)        0.45s            0.37s           0.37s
 
-Verdict: Cython is worth keeping for merge (2.3x on full data). Export gains
-are minimal because 14k SQLite execute() calls dominate — Cython cannot help there.
+Notes:
+  - Cython in "pure Python mode" (no .pxd type declarations) offers no
+    speedup over CPython 3.12's adaptive specialising interpreter for this
+    attribute-heavy workload. Typed .pxd annotations would unlock the 2x gain.
+  - The 14% merge improvement comes from caching var_i attributes and the
+    is_insertion() result outside the O(n²) inner loop (~6.8M iterations).
+  - Export is bottlenecked by SQLite I/O (~14k execute() calls); neither
+    algorithmic changes nor Cython materially help there.
+
+See scripts/profile_svdb.py for cProfile-instrumented analysis on full data.
 """
 
 import subprocess
