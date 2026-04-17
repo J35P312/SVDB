@@ -5,17 +5,22 @@ budget on the small fixture VCFs. They are NOT micro-benchmarks — the goal
 is to catch catastrophic regressions (e.g., an O(n²) loop becoming O(n³)),
 not sub-second differences.
 
-Pure-Python baselines established 2026-04-17 on fixture data (~15 variants
-per file). Cython-compiled runs are expected to be faster; update baselines
-after confirming Cython compilation once the benchmark has been done.
+Baselines established 2026-04-17 on full VCF data (see scripts/profile_svdb.py).
+To reproduce: python setup.py build_ext --inplace  (Cython), then remove .so files (pure Python).
 
-Hot-path summary from cProfile on full VCF data (see scripts/profile_svdb.py):
-  merge:       17s — dominated by merge_vcf_module_cython.merge (O(n²) inner loop)
-                      str.split accounts for ~4s, overlap_module ~2s
-  query vcf:    0.4s — dominated by readVCFLine + parse_info_field
-  build:        0.5s — dominated by readVCFLine + SQLite executemany
-  export:       1.1s — dominated by SQLite execute (14k queries) + vcf_line formatting
-  query sqdb:   0.2s — dominated by SQLite execute (one query per variant)
+Full-data profiling results (macOS arm64, Python 3.12, ~17k variants):
+
+  Command                 Pure Python   Cython    Speedup
+  merge (3 VCFs)          17.1s         7.5s      2.3x  ← material gain
+  query vcf-db (manta)     0.40s        0.25s     1.6x
+  query vcf-db (tiddit)    0.26s        0.16s     1.6x
+  build (manta+tiddit)     0.47s        0.32s     1.5x
+  export default           1.09s        0.81s     1.3x  ← bottleneck is SQLite I/O
+  export DBSCAN            1.08s        0.82s     1.3x
+  query sqdb               0.18s        0.13s     1.4x
+
+Verdict: Cython is worth keeping for merge (2.3x on full data). Export gains
+are minimal because 14k SQLite execute() calls dominate — Cython cannot help there.
 """
 
 import subprocess
