@@ -270,3 +270,97 @@ class TestMerge:
     def test_merge_supp_vec_in_header(self):
         r = run("--merge", "--vcf", str(MANTA), str(TIDDIT))
         assert "SUPP_VEC" in r.stdout
+
+
+# ---------------------------------------------------------------------------
+# Query consistency — --db vs --sqdb (issue #70)
+# ---------------------------------------------------------------------------
+
+
+class TestQueryDbVsSqDbConsistency:
+    """Regression tests for issue #70: --db and --sqdb must produce identical
+    OCC/FRQ annotations when the SQLite database was built from the same VCF
+    used as the direct --db input.
+
+    These tests document the expected behaviour.  If they fail, the two code
+    paths have drifted and the discrepancy needs investigation before fixing.
+    """
+
+    @pytest.fixture
+    def sqdb_from_manta(self, tmp_path):
+        """SQLite DB built from MANTA only — mirrors using MANTA as --db."""
+        prefix = tmp_path / "svdb"
+        run("--build", "--files", str(MANTA), "--prefix", str(prefix))
+        return tmp_path / "svdb.db"
+
+    @staticmethod
+    def _annotations(vcf_text: str, occ_tag: str = "OCC", frq_tag: str = "FRQ") -> dict:
+        """Return {(chrom, pos): (occ, frq)} for every annotated variant."""
+        result = {}
+        for line in vcf_text.splitlines():
+            if not line or line.startswith("#"):
+                continue
+            fields = line.split("\t")
+            chrom, pos, info = fields[0], fields[1], fields[7]
+            occ = frq = None
+            for part in info.split(";"):
+                if part.startswith(occ_tag + "="):
+                    occ = int(part.split("=", 1)[1])
+                elif part.startswith(frq_tag + "="):
+                    frq = float(part.split("=", 1)[1])
+            if occ is not None:
+                result[(chrom, pos)] = (occ, frq)
+        return result
+
+    def test_same_variants_annotated(self, sqdb_from_manta):
+        """Every variant annotated by --db should also be annotated by --sqdb
+        built from the same source, and vice versa."""
+        vcf_r = run("--query", "--db", str(MANTA), "--query_vcf", str(TRUTH))
+        sq_r  = run("--query", "--sqdb", str(sqdb_from_manta), "--query_vcf", str(TRUTH))
+        assert vcf_r.returncode == 0
+        assert sq_r.returncode == 0
+
+        vcf_hits  = set(self._annotations(vcf_r.stdout).keys())
+        sqdb_hits = set(self._annotations(sq_r.stdout).keys())
+
+        only_vcf  = vcf_hits - sqdb_hits
+        only_sqdb = sqdb_hits - vcf_hits
+        assert vcf_hits == sqdb_hits, (
+            f"Annotated variant sets differ.\n"
+            f"  Only in --db:   {sorted(only_vcf)}\n"
+            f"  Only in --sqdb: {sorted(only_sqdb)}"
+        )
+
+    def test_occ_values_match(self, sqdb_from_manta):
+        """OCC counts must be identical for every variant annotated by both paths."""
+        vcf_r = run("--query", "--db", str(MANTA), "--query_vcf", str(TRUTH))
+        sq_r  = run("--query", "--sqdb", str(sqdb_from_manta), "--query_vcf", str(TRUTH))
+
+        vcf_ann  = self._annotations(vcf_r.stdout)
+        sqdb_ann = self._annotations(sq_r.stdout)
+
+        mismatches = [
+            f"  {key}: --db OCC={vcf_ann[key][0]}, --sqdb OCC={sqdb_ann[key][0]}"
+            for key in vcf_ann.keys() & sqdb_ann.keys()
+            if vcf_ann[key][0] != sqdb_ann[key][0]
+        ]
+        assert not mismatches, (
+            "OCC mismatch between --db and --sqdb:\n" + "\n".join(mismatches)
+        )
+
+    def test_frq_values_match(self, sqdb_from_manta):
+        """FRQ values must be identical for every variant annotated by both paths."""
+        vcf_r = run("--query", "--db", str(MANTA), "--query_vcf", str(TRUTH))
+        sq_r  = run("--query", "--sqdb", str(sqdb_from_manta), "--query_vcf", str(TRUTH))
+
+        vcf_ann  = self._annotations(vcf_r.stdout)
+        sqdb_ann = self._annotations(sq_r.stdout)
+
+        mismatches = [
+            f"  {key}: --db FRQ={vcf_ann[key][1]}, --sqdb FRQ={sqdb_ann[key][1]}"
+            for key in vcf_ann.keys() & sqdb_ann.keys()
+            if vcf_ann[key][1] != sqdb_ann[key][1]
+        ]
+        assert not mismatches, (
+            "FRQ mismatch between --db and --sqdb:\n" + "\n".join(mismatches)
+        )
