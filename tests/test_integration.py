@@ -16,6 +16,7 @@ MANTA = FIXTURES / "manta_chr1_del.vcf"
 TIDDIT = FIXTURES / "tiddit_chr1_del.vcf"
 TRUTH = FIXTURES / "truth_chr1_del.vcf"
 MANTA_BND = FIXTURES / "manta_bnd.vcf"
+CNVKIT = FIXTURES / "cnvkit_chr1_del.vcf"
 
 SVDB = [sys.executable, "-m", "svdb"]
 
@@ -270,6 +271,69 @@ class TestMerge:
     def test_merge_supp_vec_in_header(self):
         r = run("--merge", "--vcf", str(MANTA), str(TIDDIT))
         assert "SUPP_VEC" in r.stdout
+
+
+# ---------------------------------------------------------------------------
+# CNVkit parenthesised CIPOS/CIEND preservation (issue #72)
+# ---------------------------------------------------------------------------
+
+
+class TestCNVkitCiposPreservation:
+    """Regression tests for issue #72.
+
+    CNVkit emits confidence intervals as CIPOS=(0,166417) — parenthesised,
+    with a zero lower bound.  The bug: SVDB was converting these to
+    CIPOS=.,166417 (lower bound replaced with the VCF missing-value sentinel).
+
+    Tests run the full merge and build→export pipelines and assert that no
+    CIPOS or CIEND value in the output contains '.' as a bound.  This catches
+    the corruption wherever it occurs in the pipeline without being tied to
+    a specific code location.
+    """
+
+    @staticmethod
+    def _ci_values(vcf_text: str) -> list[str]:
+        """Return every raw CIPOS=... and CIEND=... token from data lines."""
+        values = []
+        for line in vcf_text.splitlines():
+            if not line or line.startswith("#"):
+                continue
+            for part in line.split("\t")[7].split(";"):
+                if part.startswith("CIPOS=") or part.startswith("CIEND="):
+                    values.append(part)
+        return values
+
+    def test_merge_preserves_cipos_lower_bound(self):
+        """After merge the CIPOS lower bound must be a number, not '.'."""
+        r = run("--merge", "--vcf", str(CNVKIT))
+        assert r.returncode == 0
+        ci_tokens = self._ci_values(r.stdout)
+        assert ci_tokens, "expected CIPOS/CIEND tokens in merged output"
+        bad = [t for t in ci_tokens if t.split("=", 1)[1].startswith(".")]
+        assert not bad, (
+            "CIPOS/CIEND lower bound corrupted to '.' in merge output:\n"
+            + "\n".join(bad)
+        )
+
+    def test_build_export_preserves_cipos_bounds(self, tmp_path):
+        """After build→export neither CIPOS bound must be '.'."""
+        prefix = tmp_path / "svdb"
+        r_build = run("--build", "--files", str(CNVKIT), "--prefix", str(prefix))
+        assert r_build.returncode == 0
+
+        out_prefix = tmp_path / "export"
+        r_export = run("--export", "--db", str(tmp_path / "svdb.db"),
+                       "--prefix", str(out_prefix))
+        assert r_export.returncode == 0
+
+        exported_vcf = (tmp_path / "export.vcf").read_text()
+        ci_tokens = self._ci_values(exported_vcf)
+        assert ci_tokens, "expected CIPOS/CIEND tokens in exported output"
+        bad = [t for t in ci_tokens if "." in t.split("=", 1)[1].split(",")]
+        assert not bad, (
+            "CIPOS/CIEND bound corrupted to '.' in build→export output:\n"
+            + "\n".join(bad)
+        )
 
 
 # ---------------------------------------------------------------------------
