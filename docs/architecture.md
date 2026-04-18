@@ -74,7 +74,7 @@ classDiagram
         +int posA
         +int posB
         +str source
-        +int index
+        +int sort_index
         +str raw_line
         +is_insertion() bool
     }
@@ -83,9 +83,11 @@ classDiagram
         +query(sql) list
         +query_column(sql) list
         +drop(sql)
+        +create(sql)
         +insert_many(data)
         +create_index(name, columns)
         +tables list
+        +sample_ids list
     }
 ```
 

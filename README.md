@@ -194,3 +194,24 @@ Run ruff or mypy standalone:
 Configuration lives in `pyproject.toml` (build system, ruff, pytest settings). The legacy `setup.py` is retained only for optional Cython compilation of `merge_vcf_module_cython`.
 
 See [docs/architecture.md](docs/architecture.md) for a module overview and data flow diagrams.
+
+## Profiling
+
+A cProfile-based profiling harness lives in `scripts/profile_svdb.py`. It runs a standard battery of commands (merge, build, export, query) on real VCF data and prints per-function timing.
+
+Set up a local config file (gitignored):
+
+```bash
+cp scripts/profile_config.toml.example scripts/profile_config.toml
+# fill in your VCF paths and caller names
+```
+
+Then run:
+
+```bash
+python scripts/profile_svdb.py               # default: top 15 functions, sorted by cumulative time
+python scripts/profile_svdb.py --top 20 --sort tottime
+python scripts/profile_svdb.py --config /path/to/my_config.toml
+```
+
+The script always profiles the local checkout (not any installed package), so it is safe to use during optimisation work.
