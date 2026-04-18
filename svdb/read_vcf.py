@@ -29,11 +29,9 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
             i += 1
         format_fields = variation[9:]
         for sample in format_fields:
-            i = 0
             format_string = sample.split(":")
             for i in range(0, len(format_keys)):
-                fmt[format_keys[i]].append(format_string[i])
-                i += 1
+                fmt[format_keys[i]].append(format_string[i] if i < len(format_string) else ".")
 
     # Delly translocations
     if "TRA" in variation[4]:

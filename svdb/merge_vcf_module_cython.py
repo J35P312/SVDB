@@ -56,11 +56,15 @@ def collect_sample(vcf_line,samples,sample_order,f):
            continue
         sample_position = sample_order[sample][f]
 
+        if 9 + sample_position >= len(vcf_line):
+            continue
+
         entries = vcf_line[8].split(":")
         sample_entries = vcf_line[9 + sample_position].split(":")
         sample_data.append(sample)
         for i, entry in enumerate(entries):
-            sample_data.append(f"{entry}:{sample_entries[i]}" )
+            value = sample_entries[i] if i < len(sample_entries) else "."
+            sample_data.append(f"{entry}:{value}")
 
     return "|".join(sample_data).replace(",",":")
 
@@ -139,12 +143,14 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
 
                     vcf_line = files[input_file].strip().split("\t")
                     sample_position = sample_order[sample][input_file]
+                    if 9 + sample_position >= len(vcf_line):
+                        continue
                     format_columns[sample] = {}
                     entries = vcf_line[8].split(":")
                     sample_entries = vcf_line[9 + sample_position].split(":")
 
                     for i, entry in enumerate(entries):
-                        format_columns[sample][entry] = sample_entries[i]
+                        format_columns[sample][entry] = sample_entries[i] if i < len(sample_entries) else "."
                         if entry not in format_entries:
                             n = sample_entries[i].count(",")
                             format_entries.append(entry)
