@@ -1,9 +1,40 @@
+# Python
 *.pyc
+*.pyo
+*.pyd
+__pycache__/
 *~
 *.egg-info/
 build/
 dist/
+*.so
+# Cython-generated C files
+*.c
 
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# Local profiling config (contains machine-specific paths)
+scripts/profile_config.toml
+
+# SVDB data files (exclude test fixtures)
 *.vcf
 *.vcf.gz
 *.db
+!tests/fixtures/*.vcf

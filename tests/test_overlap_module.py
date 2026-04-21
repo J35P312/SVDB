@@ -77,3 +77,14 @@ class TestOverlapModule(unittest.TestCase):
         distance=1000
         assert( (1,True) == variant_overlap(chrA,chrB,chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance) )
 
+    def test_variant_overlap_interchromosomal(self):
+        """When chrA != chrB, variant_overlap dispatches to precise_overlap (line 52)."""
+        overlap, match = variant_overlap("1", "2", 1000, 5000, 1050, 5050, 0.5, 200)
+        assert match is True
+        assert overlap == 50.0  # max(abs(1000-1050), abs(5000-5050)) = 50
+
+    def test_variant_overlap_interchromosomal_miss(self):
+        """Interchromosomal breakpoints beyond bnd_distance do not match."""
+        _, match = variant_overlap("1", "2", 1000, 5000, 2000, 5000, 0.5, 500)
+        assert match is False
+

@@ -1,0 +1,146 @@
+##fileformat=VCFv4.1
+##source=MergeVCF
+##SVDB_version=2.3.0 cmd="/home/jesperei/anaconda2/bin/svdb --merge --no_var --vcf truth/Personalis_1000_Genomes_deduplicated_deletions.vcf NA12878_benchmark/manta.diploidSV.vcf --bnd_distance 500 --overlap 0.1 --no_intra"
+##ALT=<ID=BND,Description="Translocation Breakend">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP:TANDEM,Description="Tandem Duplication">
+##ALT=<ID=INS,Description="Insertion">
+##ALT=<ID=INV,Description="Inversion">
+##INFO=<ID=BND_DEPTH,Number=1,Type=Integer,Description="Read depth at local translocation breakend">
+##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END">
+##INFO=<ID=CIGAR,Number=A,Type=String,Description="CIGAR alignment for each alternate indel allele">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">
+##INFO=<ID=HOMLEN,Number=.,Type=Integer,Description="Length of base pair identical homology at event breakpoints">
+##INFO=<ID=HOMSEQ,Number=.,Type=String,Description="Sequence of base pair identical homology at event breakpoints">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
+##INFO=<ID=INV3,Number=0,Type=Flag,Description="Inversion breakends open 3' of reported location">
+##INFO=<ID=INV5,Number=0,Type=Flag,Description="Inversion breakends open 5' of reported location">
+##INFO=<ID=JUNCTION_QUAL,Number=1,Type=Integer,Description="If the SV junction is part of an EVENT (ie. a multi-adjacency variant), this field provides the QUAL value for the adjacency in question only">
+##INFO=<ID=LEFT_SVINSSEQ,Number=.,Type=String,Description="Known left side of insertion for an insertion of unknown length">
+##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">
+##INFO=<ID=MATE_BND_DEPTH,Number=1,Type=Integer,Description="Read depth at remote translocation mate breakend">
+##INFO=<ID=RIGHT_SVINSSEQ,Number=.,Type=String,Description="Known right side of insertion for an insertion of unknown length">
+##INFO=<ID=SVINSLEN,Number=.,Type=Integer,Description="Length of insertion">
+##INFO=<ID=SVINSSEQ,Number=.,Type=String,Description="Sequence of insertion">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##reference=file:///pica/h1/jesperei/human_g1k_v37.fasta
+##contig=<ID=1,length=249250621>
+##contig=<ID=2,length=243199373>
+##contig=<ID=3,length=198022430>
+##contig=<ID=4,length=191154276>
+##contig=<ID=5,length=180915260>
+##contig=<ID=6,length=171115067>
+##contig=<ID=7,length=159138663>
+##contig=<ID=8,length=146364022>
+##contig=<ID=9,length=141213431>
+##contig=<ID=10,length=135534747>
+##contig=<ID=11,length=135006516>
+##contig=<ID=12,length=133851895>
+##contig=<ID=13,length=115169878>
+##contig=<ID=14,length=107349540>
+##contig=<ID=15,length=102531392>
+##contig=<ID=16,length=90354753>
+##contig=<ID=17,length=81195210>
+##contig=<ID=18,length=78077248>
+##contig=<ID=19,length=59128983>
+##contig=<ID=20,length=63025520>
+##contig=<ID=21,length=48129895>
+##contig=<ID=22,length=51304566>
+##contig=<ID=X,length=155270560>
+##contig=<ID=Y,length=59373566>
+##contig=<ID=MT,length=16569>
+##contig=<ID=GL000207.1,length=4262>
+##contig=<ID=GL000226.1,length=15008>
+##contig=<ID=GL000229.1,length=19913>
+##contig=<ID=GL000231.1,length=27386>
+##contig=<ID=GL000210.1,length=27682>
+##contig=<ID=GL000239.1,length=33824>
+##contig=<ID=GL000235.1,length=34474>
+##contig=<ID=GL000201.1,length=36148>
+##contig=<ID=GL000247.1,length=36422>
+##contig=<ID=GL000245.1,length=36651>
+##contig=<ID=GL000197.1,length=37175>
+##contig=<ID=GL000203.1,length=37498>
+##contig=<ID=GL000246.1,length=38154>
+##contig=<ID=GL000249.1,length=38502>
+##contig=<ID=GL000196.1,length=38914>
+##contig=<ID=GL000248.1,length=39786>
+##contig=<ID=GL000244.1,length=39929>
+##contig=<ID=GL000238.1,length=39939>
+##contig=<ID=GL000202.1,length=40103>
+##contig=<ID=GL000234.1,length=40531>
+##contig=<ID=GL000232.1,length=40652>
+##contig=<ID=GL000206.1,length=41001>
+##contig=<ID=GL000240.1,length=41933>
+##contig=<ID=GL000236.1,length=41934>
+##contig=<ID=GL000241.1,length=42152>
+##contig=<ID=GL000243.1,length=43341>
+##contig=<ID=GL000242.1,length=43523>
+##contig=<ID=GL000230.1,length=43691>
+##contig=<ID=GL000237.1,length=45867>
+##contig=<ID=GL000233.1,length=45941>
+##contig=<ID=GL000204.1,length=81310>
+##contig=<ID=GL000198.1,length=90085>
+##contig=<ID=GL000208.1,length=92689>
+##contig=<ID=GL000191.1,length=106433>
+##contig=<ID=GL000227.1,length=128374>
+##contig=<ID=GL000228.1,length=129120>
+##contig=<ID=GL000214.1,length=137718>
+##contig=<ID=GL000221.1,length=155397>
+##contig=<ID=GL000209.1,length=159169>
+##contig=<ID=GL000218.1,length=161147>
+##contig=<ID=GL000220.1,length=161802>
+##contig=<ID=GL000213.1,length=164239>
+##contig=<ID=GL000211.1,length=166566>
+##contig=<ID=GL000199.1,length=169874>
+##contig=<ID=GL000217.1,length=172149>
+##contig=<ID=GL000216.1,length=172294>
+##contig=<ID=GL000215.1,length=172545>
+##contig=<ID=GL000205.1,length=174588>
+##contig=<ID=GL000219.1,length=179198>
+##contig=<ID=GL000224.1,length=179693>
+##contig=<ID=GL000223.1,length=180455>
+##contig=<ID=GL000195.1,length=182896>
+##contig=<ID=GL000212.1,length=186858>
+##contig=<ID=GL000222.1,length=186861>
+##contig=<ID=GL000200.1,length=187035>
+##contig=<ID=GL000193.1,length=189789>
+##contig=<ID=GL000194.1,length=191469>
+##contig=<ID=GL000225.1,length=211173>
+##contig=<ID=GL000192.1,length=547496>
+##FILTER=<ID=MaxDepth,Description="Depth is greater than 3x the median chromosome depth near one or both variant breakends">
+##FILTER=<ID=MaxMQ0Frac,Description="For a small variant (<1000 bases), the fraction of reads in all samples with MAPQ0 around either breakend exceeds 0.4">
+##FILTER=<ID=MinGQ,Description="GQ score is less than 15 (filter applied at sample level and record level if all samples are filtered)">
+##FILTER=<ID=MinQUAL,Description="QUAL score is less than 20">
+##FILTER=<ID=NoPairSupport,Description="For variants significantly larger than the paired read fragment size, no paired reads support the alternate allele in any sample.">
+##FILTER=<ID=Ploidy,Description="For DEL & DUP variants, the genotypes of overlapping variants (with similar size) are inconsistent with diploid expectation">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
+##FORMAT=<ID=FT,Number=1,Type=String,Description="Sample filter, 'PASS' indicates that all filters have passed for this sample">
+##FORMAT=<ID=GQ,Number=1,Type=Float,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=PR,Number=.,Type=Integer,Description="Spanning paired-read support for the ref and alt alleles in the order listed">
+##FORMAT=<ID=SR,Number=.,Type=Integer,Description="Split reads for the ref and alt alleles in the order listed, for reads where P(allele|read)>0.999">
+##cmdline=/sw/apps/bioinfo/manta/1.0.3/milou/bin/configManta.py --normalBam cancer_sample.bam --reference human_g1k_v37.fasta --runDir NA12878_latest_manta
+##INFO=<ID=VARID,Number=1,Type=String,Description="The variant ID of merged samples">
+##INFO=<ID=set,Number=1,Type=String,Description="Source VCF for the merged record in SVDB">
+##svdbcmdline=/home/jesperei/anaconda2/bin/svdb --merge --no_var --vcf truth/Personalis_1000_Genomes_deduplicated_deletions.vcf NA12878_benchmark/manta.diploidSV.vcf --bnd_distance 500 --overlap 0.1 --no_intra
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+1	826137	MantaDEL:34:0:2:0:4:0	G	<DEL>	722	PASS	END=5727343;SVTYPE=DEL;SVLEN=-4901206;CIPOS=0,1;CIEND=0,1;HOMLEN=1;HOMSEQ=G;SVINSLEN=3;SVINSSEQ=AGG;set=manta.diploidSV	GT:FT:GQ:PL:PR:SR	0/1:PASS:722:772,0,999:68,4:48,30
+1	1584681	MantaDEL:63:0:1:0:0:0	G	<DEL>	123	Ploidy	END=1647523;SVTYPE=DEL;SVLEN=-62842;IMPRECISE;CIPOS=-387,388;CIEND=-405,406;set=filterInmanta.diploidSV	GT:FT:GQ:PL:PR	0/1:PASS:123:173,0,749:37,16
+1	1598414	SV_0:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:64:0:0:0:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=1598580;SVLEN=166;TRUTH;CIGAR=1M167D;CIPOS=0,18;HOMLEN=18;HOMSEQ=CACGCCTGTAATCCCAGC;VARID=MantaDEL:64:0:0:0:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	2041460	SV_1	N	<DEL>	.	PASS	SVTYPE=DEL;END=2041556;SVLEN=96;TRUTH;set=Personalis_1000_Genomes_deduplicated_deletions	GT:CN	./1:.
+1	2911537	SV_2:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:131:0:0:1:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=2911850;SVLEN=313;TRUTH;CIGAR=1M314D;CIPOS=0,12;HOMLEN=12;HOMSEQ=AAGAAATTAATG;VARID=MantaDEL:131:0:0:1:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	2919032	SV_3:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:135:0:0:1:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=2919366;SVLEN=334;TRUTH;CIGAR=1M335D;CIPOS=0,3;HOMLEN=3;HOMSEQ=GGG;VARID=MantaDEL:135:0:0:1:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	7570072	SV_4:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:411:0:1:0:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=7571526;SVLEN=1454;TRUTH;VARID=MantaDEL:411:0:1:0:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	9595643	SV_5:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:575:0:1:0:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=9597706;SVLEN=2063;TRUTH;CIPOS=0,30;CIEND=0,30;HOMLEN=30;HOMSEQ=TGCCACTGCACTCCAGCCTGGGTGACAGAG;VARID=MantaDEL:575:0:1:0:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	10482481	SV_6:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:622:0:1:0:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=10483779;SVLEN=1298;TRUTH;CIPOS=0,22;CIEND=0,22;HOMLEN=22;HOMSEQ=CAAAGTGCTGGGATTACAGGCA;VARID=MantaDEL:622:0:1:0:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	11682894	SV_7:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:683:0:0:0:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=11683189;SVLEN=295;TRUTH;CIGAR=1M3I296D;VARID=MantaDEL:683:0:0:0:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	13180823	MantaDEL:774:2:2:1:0:0	T	<DEL>	73	MaxDepth	END=13181830;SVTYPE=DEL;SVLEN=-1007;IMPRECISE;CIPOS=-465,466;CIEND=-404,405;set=filterInmanta.diploidSV	GT:FT:GQ:PL:PR	0/1:PASS:73:123,0,999:62,15
+1	16151940	MantaDEL:971:0:1:0:0:0	C	<DEL>	888	PASS	END=16155439;SVTYPE=DEL;SVLEN=-3499;SVINSLEN=15;SVINSSEQ=GGGCCTTCCAAAATA;set=manta.diploidSV	GT:FT:GQ:PL:PR:SR	0/1:PASS:554:938,0,551:22,18:17,15
+1	19151770	SV_8	N	<DEL>	.	PASS	SVTYPE=DEL;END=19152035;SVLEN=265;TRUTH;set=Personalis_1000_Genomes_deduplicated_deletions	GT:CN	./1:.
+1	21786419	SV_9:Personalis_1000_Genomes_deduplicated_deletions|MantaDEL:1377:0:0:1:0:0:manta.diploidSV	N	<DEL>	.	PASS	SVTYPE=DEL;END=21786690;SVLEN=271;TRUTH;CIGAR=1M272D;CIPOS=0,2;HOMLEN=2;HOMSEQ=GC;VARID=MantaDEL:1377:0:0:1:0:0:manta.diploidSV;set=Intersection	GT:CN	./1:.
+1	22024081	MantaDEL:1442:0:1:0:0:0	G	<DEL>	921	PASS	END=22287730;SVTYPE=DEL;SVLEN=-263649;CIPOS=0,6;CIEND=0,6;HOMLEN=6;HOMSEQ=GGAGGC;set=manta.diploidSV	GT:FT:GQ:PL:PR:SR	0/1:PASS:921:971,0,999:44,4:19,25

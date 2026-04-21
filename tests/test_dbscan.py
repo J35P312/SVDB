@@ -1,7 +1,7 @@
 import unittest
 import numpy
 
-from svdb.DBSCAN import main
+from svdb.dbscan import main
 
 
 class TestDBSCAN(unittest.TestCase):

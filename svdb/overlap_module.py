@@ -1,48 +1,52 @@
-from __future__ import absolute_import
-
 # check the "overlap" of interchromosomaltranslocations
+from typing import Optional, Tuple
 
 
-def precise_overlap(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distance):
+def precise_overlap(
+    chrApos_query: int, chrBpos_query: int,
+    chrApos_db: int, chrBpos_db: int,
+    distance: int,
+) -> Tuple[Optional[float], bool]:
+    """Return (max_breakpoint_distance, True) if both breakpoints are within distance, else (None, False)."""
     Adist = abs(chrApos_query - chrApos_db)
     Bdist = abs(chrBpos_query - chrBpos_db)
-    if max([Adist, Bdist]) <= distance:
-        return max([Adist, Bdist]), True
-    return False, False
+    max_dist = Adist if Adist >= Bdist else Bdist  # avoid list allocation vs max([a, b])
+    if max_dist <= distance:
+        return float(max_dist), True
+    return None, False
 
-# check if intrachromosomal vaiants overlap
 
-
-# event is in the DB, variation is the new variation I want to insert
-def isSameVariation(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance):
+def isSameVariation(
+    chrApos_query: int, chrBpos_query: int,
+    chrApos_db: int, chrBpos_db: int,
+    ratio: float,
+    distance: int,
+) -> Tuple[Optional[float], bool]:
+    """Return (overlap_ratio, True) if variants overlap sufficiently, else (None, False)."""
     if abs(chrApos_query - chrApos_db) <= distance and abs(chrBpos_query - chrBpos_db) <= distance:
+        region_start = min(chrApos_db, chrApos_query)   # avoid list allocation vs min([a, b])
+        overlap_start = max(chrApos_db, chrApos_query)
 
-        region_start = min([chrApos_db, chrApos_query])
-        overlap_start = max([chrApos_db, chrApos_query])
+        region_end = max(chrBpos_db, chrBpos_query)
+        overlap_end = min(chrBpos_db, chrBpos_query)
 
-        region_end = max([chrBpos_db, chrBpos_query])
-        overlap_end = min([chrBpos_db, chrBpos_query])
-
-        try:
-            event_ratio = float(overlap_end - overlap_start + 1) / \
-                float(region_end - region_start + 1)
-        except Exception:
-            event_ratio = 0
+        event_ratio = float(overlap_end - overlap_start + 1) / float(region_end - region_start + 1)
 
         if event_ratio >= ratio:
             return event_ratio, True
         return None, False
-    else:
-        return None, False
+    return None, False
 
 
-def variant_overlap(chrA, chrB, chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance):
-    match = False
-    overlap = False
+def variant_overlap(
+    chrA: str, chrB: str,
+    chrApos_query: int, chrBpos_query: int,
+    chrApos_db: int, chrBpos_db: int,
+    ratio: float,
+    distance: int,
+) -> Tuple[Optional[float], bool]:
+    """Dispatch to precise_overlap (interchromosomal) or isSameVariation (intrachromosomal)."""
     if chrA == chrB:
-        overlap, match = isSameVariation(
-            chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance)
+        return isSameVariation(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance)
     else:
-        overlap, match = precise_overlap(
-            chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distance)
-    return overlap, match
+        return precise_overlap(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distance)

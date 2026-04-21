@@ -1,7 +1,37 @@
 import unittest
-import numpy
 
-from svdb.merge_vcf_module_cython import collect_info, skip_variant, retrieve_key, collect_sample
+from svdb.merge_vcf_module_cython import collect_info, skip_variant, retrieve_key, collect_sample, sanitize_id, format_tag
+
+
+class TestSanitizeId(unittest.TestCase):
+
+    def test_replaces_semicolons(self):
+        assert sanitize_id("a;b") == "a_b"
+
+    def test_replaces_colons(self):
+        assert sanitize_id("a:b") == "a_b"
+
+    def test_replaces_pipes(self):
+        assert sanitize_id("a|b") == "a_b"
+
+    def test_replaces_all_three_delimiters(self):
+        assert sanitize_id("a;b:c|d") == "a_b_c_d"
+
+    def test_plain_string_unchanged(self):
+        assert sanitize_id("SV001") == "SV001"
+
+
+class TestFormatTag(unittest.TestCase):
+
+    def test_basic(self):
+        assert format_tag("SV001", "chr1") == "SV001|chr1"
+
+    def test_sanitizes_var_id(self):
+        assert format_tag("SV;001:x|y", "chr1") == "SV_001_x_y|chr1"
+
+    def test_value_is_not_sanitized(self):
+        # the value side (e.g. a chromosome name) is kept verbatim
+        assert format_tag("SV001", "chr1;extra") == "SV001|chr1;extra"
 
 
 class TestMerge(unittest.TestCase):
@@ -15,8 +45,13 @@ class TestMerge(unittest.TestCase):
     def test_retrieve_key2(self):
         line="Y\t13799001\tCNVnator_dup_810:concatenated_ACC5821A7_XXXXXX_R_CNVnator|CNVnator_dup_1313:concatenated_ACC5838A1_XXXXXX_R_CNVnator\tN\t<DUP>\t.\tPASS\tEND=13870000;SVTYPE=DUP;SVLEN=71000;IMPRECISE;natorRD=25.6613;natorP1=0.000938744;natorP2=1.33071e-34;natorP3=0.00215104;natorP4=2.21186e-33;natorQ0=1;VARID=CNVnator_dup_1313:concatenated_ACC5838A1_XXXXXX_R_CNVnator;set=Intersection;concatenated_ACC5821A7_XXXXXX_R_CNVnator_FILTERS=CNVnator_dup_810|PASS;concatenated_ACC5838A1_XXXXXX_R_CNVnator_FILTERS=CNVnator_dup_1313|PASS;concatenated_ACC5821A7_XXXXXX_R_CNVnator_SAMPLES=CNVnator_dup_810|concatenated_ACC5821A7_XXXXXX_R_CNVnator|GT:./1|CN:26;concatenated_ACC5838A1_XXXXXX_R_CNVnator_SAMPLES=CNVnator_dup_1313|concatenated_ACC5838A1_XXXXXX_R_CNVnator|GT:./1|CN:35;concatenated_ACC5821A7_XXXXXX_R_CNVnator_INFO=CNVnator_dup_810|END:13870000|SVTYPE:DUP|SVLEN:71000|IMPRECISE|natorRD:25.6613|natorP1:0.000938744|natorP2:1.33071e-34|natorP3:0.00215104|natorP4:2.21186e-33|natorQ0:1;concatenated_ACC5838A1_XXXXXX_R_CNVnator_INFO=CNVnator_dup_1313|END:13870000|SVTYPE:DUP|SVLEN:71000|IMPRECISE|natorRD:35.4121|natorP1:0.000300039|natorP2:0|natorP3:0.00099868|natorP4:0|natorQ0:1\tGT:CN"
         key="VLEN"
-        assert(retrieve_key(line, key) == False)
- 
+        assert not retrieve_key(line, key)
+
+    def test_retrieve_key_absent(self):
+        # key is completely absent from line — previously caused UnboundLocalError
+        line = "1\t100\tSV1\tN\t<DEL>\t.\tPASS\tEND=200;SVTYPE=DEL"
+        assert not retrieve_key(line, "CIPOS")
+
     #check that the info field is summarised properly
     def test_collect_info(self):
         info = ["chr1", "1" , "hej" , "." ,"<DEL>", "." , "PASS" ,"END=5;SVTYPE=DEL;TEST=1,2,3,4,5"]
@@ -69,4 +104,4 @@ class TestMerge(unittest.TestCase):
 
 
 
- 
+

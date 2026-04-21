@@ -1,10 +1,11 @@
-from __future__ import absolute_import
-
 import glob
-import gzip
+import logging
 import os
+from pathlib import Path
 
-from . import database, readVCF
+from . import database, read_vcf, vcf_utils
+
+logger = logging.getLogger(__name__)
 
 
 def populate_db(args):
@@ -13,8 +14,7 @@ def populate_db(args):
 
     idx = 0
     if "SVDB" not in tables:
-        query = "CREATE TABLE SVDB (var TEXT,chrA TEXT, chrB TEXT,posA INT,ci_A_lower INT,ci_A_upper INT,posB INT,ci_B_lower INT,ci_B_upper INT, sample TEXT, idx INT)"
-        db.create(query)
+        db.create(database.CREATE_TABLE_SQL)
         sample_IDs = []
     else:
         db.drop("DROP INDEX SV")
@@ -27,23 +27,21 @@ def populate_db(args):
 
     # populate the tables
     for vcf in args.files:
-        sample_name = vcf.split("/")[-1].split(".vcf")[0]
-        sample_name = sample_name.replace(".", "_")
+        sample_name = Path(vcf).stem.replace(".", "_")
         sample_IDs.append(sample_name)
-        A = 'SELECT sample FROM SVDB WHERE sample == \'{}\' '.format(sample_name)
+        A = f'SELECT sample FROM SVDB WHERE sample == \'{sample_name}\' '
         hits = [hit for hit in db.query(A)]
         if hits:
+            logger.debug("sample %s already in database — skipping", sample_name)
             continue
         if not os.path.exists(vcf):
-            print("error: unnable to open {}".format(vcf))
+            logger.warning("unable to open %s — skipping", vcf)
             continue
 
         var = []
         sample_names = []
 
-        # TODO: Move this into a VCF class
-        opener = gzip.open if vcf.endswith('.vcf.gz') else open
-        with opener(vcf, 'rt') as lines:
+        with vcf_utils.open_vcf(vcf) as lines:
             for line in lines:
                 if line.startswith("#"):
                     if "CHROM" in line:
@@ -55,37 +53,30 @@ def populate_db(args):
                 if not len(line.strip()):
                     continue
 
-                chrA, posA, chrB, posB, event_type, INFO, FORMAT = readVCF.readVCFLine(line)
+                variant = read_vcf.readVCFLine(line)
                 if args.passonly:
                     FILTER = line.split("\t")[6]
-                    if not (FILTER in ["PASS", "."]):
+                    if FILTER not in ["PASS", "."]:
                         continue
+
+                chrA = variant.chrA
+                posA = variant.posA
+                chrB = variant.chrB
+                posB = variant.posB
+                event_type = variant.event_type
+                INFO = variant.info
+                FORMAT = variant.fmt
 
                 ci_A_lower = 0
                 ci_A_upper = 0
                 ci_B_lower = 0
                 ci_B_upper = 0
                 if "CIPOS" in INFO:
-                    ci = INFO["CIPOS"].replace('(','').replace(')','').split(",")
-                    if len(ci) > 1:
-                        ci_A_lower = abs(int(ci[0]))
-                        ci_A_upper = abs(int(ci[1]))
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[1]))
-                    else:
-                        ci_A_lower = abs(int(ci[0]))
-                        ci_A_upper = abs(int(ci[0]))
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[0]))
+                    ci_A_lower, ci_A_upper = vcf_utils.parse_ci(INFO["CIPOS"])
+                    ci_B_lower, ci_B_upper = ci_A_lower, ci_A_upper
 
                 if "CIEND" in INFO:
-                    ci = INFO["CIEND"].replace('(','').replace(')','').split(",")
-                    if len(ci) > 1:
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[1]))
-                    else:
-                        ci_B_lower = abs(int(ci[0]))
-                        ci_B_upper = abs(int(ci[0]))
+                    ci_B_lower, ci_B_upper = vcf_utils.parse_ci(INFO["CIEND"])
 
                 if "GT" not in FORMAT or not len(sample_names):
                     var.append((event_type, chrA, chrB, posA, ci_A_lower,
@@ -114,4 +105,6 @@ def main(args):
     args.db = args.prefix
     if not args.files and args.folder:
         args.files = glob.glob(os.path.join(args.folder, "*.vcf")) + glob.glob(os.path.join(args.folder, "*.vcf.gz"))
+        if not args.files:
+            logger.warning("no VCF files found in folder: %s", args.folder)
     populate_db(args)

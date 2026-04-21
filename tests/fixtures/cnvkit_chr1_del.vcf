@@ -1,0 +1,17 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=FOLD_CHANGE,Number=1,Type=Float,Description="Fold change">
+##INFO=<ID=FOLD_CHANGE_LOG,Number=1,Type=Float,Description="Log2 fold change">
+##INFO=<ID=PROBES,Number=1,Type=Integer,Description="Number of probes in CNVkit segment">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS for imprecise variants">
+##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END for imprecise variants">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality (probes count for CNVkit)">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE1
+1	1598414	cnvkit_del_0	N	<DEL>	.	PASS	IMPRECISE;SVTYPE=DEL;END=1765831;SVLEN=-167417;FOLD_CHANGE=0.6247;FOLD_CHANGE_LOG=-0.6781;PROBES=42;CIPOS=(0,166417);CIEND=(160417,194588)	GT:GQ	0/1:42
+1	9595643	cnvkit_del_1	N	<DEL>	.	PASS	IMPRECISE;SVTYPE=DEL;END=9597706;SVLEN=-2063;FOLD_CHANGE=0.7123;FOLD_CHANGE_LOG=-0.4881;PROBES=8;CIPOS=(0,100);CIEND=(50,150)	GT:GQ	0/1:8
+1	25158688	cnvkit_del_2	N	<DEL>	.	PASS	IMPRECISE;SVTYPE=DEL;END=25161509;SVLEN=-2821;FOLD_CHANGE=0.5812;FOLD_CHANGE_LOG=-0.7829;PROBES=15;CIPOS=(0,500);CIEND=(400,600)	GT:GQ	0/1:15

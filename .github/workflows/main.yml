@@ -23,8 +23,47 @@ jobs:
       - name: Install package and run unit tests
         run: |
           pip install .
-          pip install pytest-cov
+          pip install -r requirements-dev.txt
           pytest --cov=svdb --cov-report xml
+
+      - name: Performance timing table (fixture VCFs)
+        run: |
+          python - <<'EOF'
+          import subprocess, sys, time, pathlib, tempfile
+
+          SVDB = [sys.executable, "-m", "svdb"]
+          F = "tests/fixtures"
+          MANTA  = f"{F}/manta_chr1_del.vcf"
+          TIDDIT = f"{F}/tiddit_chr1_del.vcf"
+          TRUTH  = f"{F}/truth_chr1_del.vcf"
+
+          def timed(args, n=3):
+              times = []
+              for _ in range(n):
+                  t0 = time.perf_counter()
+                  subprocess.run(SVDB + args, capture_output=True)
+                  times.append(time.perf_counter() - t0)
+              return sum(times) / n
+
+          with tempfile.TemporaryDirectory() as tmp:
+              db_prefix = pathlib.Path(tmp) / "svdb"
+              results = [
+                  ("merge 2 VCFs",    timed(["--merge", "--vcf", MANTA, TIDDIT])),
+                  ("merge 3 VCFs",    timed(["--merge", "--vcf", MANTA, TIDDIT, TRUTH])),
+                  ("query vcf-db",    timed(["--query", "--db", TRUTH, "--query_vcf", MANTA])),
+                  ("build",           timed(["--build", "--files", MANTA, TIDDIT, "--prefix", str(db_prefix)])),
+                  ("export default",  timed(["--export", "--db", str(db_prefix) + ".db", "--prefix", str(pathlib.Path(tmp) / "out")])),
+              ]
+
+          print()
+          print("=" * 44)
+          print(f"  {'Command':<22}  {'Avg (3 runs)':>12}")
+          print("=" * 44)
+          for label, t in results:
+              print(f"  {label:<22}  {t:>10.3f}s")
+          print("=" * 44)
+          print()
+          EOF
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1

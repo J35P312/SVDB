@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+# E501 (line-too-long): 112 violations exist in string literals (VCF header content,
+# argparse help strings) that cannot be auto-fixed. Tracked for a dedicated wrap pass.
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+addopts = "--ruff --mypy"
+testpaths = ["svdb", "tests"]

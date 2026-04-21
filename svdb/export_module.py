@@ -1,10 +1,37 @@
-from __future__ import absolute_import
-
+import logging
 import sys
 
 import numpy as np
 
-from . import DBSCAN, database, overlap_module
+from . import dbscan, database, overlap_module
+
+logger = logging.getLogger(__name__)
+
+
+def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_end, posB, ci_B_start, ci_B_end):
+    """Build the representing-variant dict used as cluster[0] in vcf_line."""
+    return {
+        "type": variant_type,
+        "chrA": chrA,
+        "chrB": chrB,
+        "posA": posA,
+        "ci_A_start": ci_A_start,
+        "ci_A_end": ci_A_end,
+        "posB": posB,
+        "ci_B_start": ci_B_start,
+        "ci_B_end": ci_B_end,
+    }
+
+
+def build_genotype_columns(sample_IDs, hit_sample_ids):
+    """Return per-sample GT strings in sample_IDs order.
+
+    Samples present in hit_sample_ids get './1'; all others get '0/0'.
+    """
+    zygosity = {sample: "0/0" for sample in sample_IDs}
+    for sid in hit_sample_ids:
+        zygosity[sid] = "./1"
+    return [zygosity[sample] for sample in sample_IDs]
 
 
 def fetch_index_variant(db, index):
@@ -98,15 +125,8 @@ def vcf_line(cluster, id_tag, sample_IDs):
     vcf_line.append(".")
     vcf_line.append("PASS")
     vcf_line.append(info_field)
-    zygosity_list = {}
-    for sample in sample_IDs:
-        zygosity_list[sample] = "0/0"
-
-    for variant in cluster[1]:
-        zygosity_list[cluster[1][variant]["sample_id"]] = "./1"
-    format_cols = []
-    for sample in sample_IDs:
-        format_cols.append(zygosity_list[sample])
+    hit_sample_ids = [cluster[1][v]["sample_id"] for v in cluster[1]]
+    format_cols = build_genotype_columns(sample_IDs, hit_sample_ids)
     vcf_line.append("GT")
     vcf_line.append("\t".join(format_cols))
     return "\t".join(vcf_line)
@@ -124,13 +144,10 @@ def expand_chain(chain, coordinates, chrA, chrB, distance, overlap):
         candidates = rows[:, 0]
         for candidate in candidates:
             var = chain[candidate]
-            similar = False
-            match = False
             if chrA != chrB:
-                similar = True
                 match = True
             else:
-                similar, match = overlap_module.isSameVariation(
+                _, match = overlap_module.isSameVariation(
                     variant["posA"], variant["posB"], var["posA"], var["posB"], overlap, distance)
             if match:
                 chain_data[i].append(candidate)
@@ -161,8 +178,7 @@ def fetch_variants(variant, chrA, chrB, db):
     chr_db = {}
     chr_db[variant] = {}
 
-    hits = db.query('SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{}\'AND chrA == \'{}\' AND chrB == \'{}\''.format(
-        variant, chrA, chrB))
+    hits = db.query(f'SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{variant}\'AND chrA == \'{chrA}\' AND chrB == \'{chrB}\'')
     if not hits:
         return False
 
@@ -189,46 +205,35 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
         clustered_variants[0]["type"] = variant
         clustered_variants[0]["chrA"] = chrA
         clustered_variants[0]["chrB"] = chrB
-        f.write(vcf_line(clustered_variants, "cluster_{}".format(i), sample_IDs) + "\n")
+        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs) + "\n")
     return i + len(clusters)
 
 
-def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
-    f = open(args.prefix + ".vcf", 'a')
+def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     chr_db = fetch_variants(variant, chrA, chrB, db)
     if not chr_db:
-        f.close()
         return i
 
     #DBSCAN clustering according to the user set parameters
     if args.DBSCAN:
-        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
+        labels = dbscan.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
     elif "INS" in variant:
         #insertions are clustered based on the ins_distance, which is typically smaller than the BND_distance
-        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.ins_distance, 2)        
+        labels = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)
     else:
         #clustering of all other variants
-        dbscan = DBSCAN.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
+        labels = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
 
-    unique_labels = set(dbscan)
+    unique_labels = set(labels)
     # print the unique variants
-    unique_xy = chr_db[variant]["coordinates"][dbscan == -1]
-    unique_index = chr_db[variant]["index"][dbscan == -1]
+    unique_xy = chr_db[variant]["coordinates"][labels == -1]
+    unique_index = chr_db[variant]["index"][labels == -1]
     for xy, indexes in zip(unique_xy, unique_index):
         variant_dictionary = fetch_cluster_variant(db, [indexes])
-        representing_var = {}
-        representing_var["type"] = variant
-        representing_var["chrA"] = chrA
-        representing_var["chrB"] = chrB
-        representing_var["posA"] = xy[0]
-        representing_var["ci_A_start"] = xy[0]
-        representing_var["ci_A_end"] = xy[0]
-        representing_var["posB"] = xy[1]
-        representing_var["ci_B_start"] = xy[1]
-        representing_var["ci_B_end"] = xy[1]
-
+        representing_var = make_representing_variant(
+            variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1])
         cluster = [representing_var, variant_dictionary]
-        f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
+        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs) + "\n")
         i += 1
     del unique_xy
     del unique_index
@@ -237,7 +242,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
     for unique_label in unique_labels:
         if unique_label == -1:
             continue
-        class_member_mask = (dbscan == unique_label)
+        class_member_mask = (labels == unique_label)
         xy = chr_db[variant]["coordinates"][class_member_mask]
         indexes = chr_db[variant]["index"][class_member_mask]
 
@@ -246,49 +251,34 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i):
 
             variant_dictionary = fetch_cluster_variant(db, indexes)
 
-            representing_var = {}
-            representing_var["type"] = variant
-            representing_var["chrA"] = chrA
-            representing_var["chrB"] = chrB
-            representing_var["posA"] = int(avg_point[0])
-            representing_var["ci_A_start"] = np.amin(xy[:, 0])
-            representing_var["ci_A_end"] = np.amax(xy[:, 0])
-            representing_var["posB"] = int(avg_point[1])
-            representing_var["ci_B_start"] = np.amin(xy[:, 1])
-            representing_var["ci_B_end"] = np.amax(xy[:, 1])
-
+            representing_var = make_representing_variant(
+                variant, chrA, chrB,
+                int(avg_point[0]), np.amin(xy[:, 0]), np.amax(xy[:, 0]),
+                int(avg_point[1]), np.amin(xy[:, 1]), np.amax(xy[:, 1]))
             cluster = [representing_var, variant_dictionary]
-            f.write(vcf_line(cluster, "cluster_{}".format(i), sample_IDs) + "\n")
+            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs) + "\n")
             i += 1
 
         else:
             i = overlap_cluster(db, indexes, variant, chrA,
                                 chrB, sample_IDs, args, f, i)
 
-    f.close()
     return i
 
 
 def export(args, sample_IDs):
     db = database.DB(args.db, memory=args.memory)
 
-    chrA_list = []
-    for chrA in db.query('SELECT DISTINCT chrA FROM SVDB'):
-        chrA_list.append(chrA[0])
-
-    chrB_list = []
-    for chrB in db.query('SELECT DISTINCT chrB FROM SVDB'):
-        chrB_list.append(chrB[0])
-
-    var_list = []
-    for variant in db.query('SELECT DISTINCT var FROM SVDB'):
-        var_list.append(variant[0])
+    chrA_list = db.query_column('SELECT DISTINCT chrA FROM SVDB')
+    chrB_list = db.query_column('SELECT DISTINCT chrB FROM SVDB')
+    var_list = db.query_column('SELECT DISTINCT var FROM SVDB')
 
     i = 0
-    for chrA in chrA_list:
-        for chrB in chrB_list:
-            for variant in var_list:
-                i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i)
+    with open(args.prefix + ".vcf", 'a') as f:
+        for chrA in chrA_list:
+            for chrB in chrB_list:
+                for variant in var_list:
+                    i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
 
 
 def main(args):
@@ -298,8 +288,7 @@ def main(args):
 
     db = database.DB(args.db)
 
-    for sample in db.query('SELECT DISTINCT sample FROM SVDB'):
-        sample_IDs.append(sample[0])
+    sample_IDs = db.query_column('SELECT DISTINCT sample FROM SVDB')
 
     with open(args.prefix + ".vcf", 'w') as f:
         f.write(db_header(args) + "\n")

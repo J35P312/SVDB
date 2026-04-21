@@ -1,0 +1,115 @@
+##fileformat=VCFv4.2
+##source=DRAGEN_CNV_SV
+##reference=file:///staging/projects/p22/reference/hg19/4.4.4/hs37d5-pangenome-reference-illumina-maskPMS2CLwgs
+##DRAGENCommandLine=<ID=dragen,Date="Sun Mar 29 18:53:52 CEST 2026",CommandLineOptions="-f -r /staging/projects/p22/reference/hg19/4.4.4/hs37d5-pangenome-reference-illumina-maskPMS2CLwgs -1 wgs610_NA24385K4_cb3e54ca-6236-4860-9b77-d1da9b1bf11f_S39_L005_R1_001.fastq_8954e901-9eee-428d-884d-cb8893b05da5_32469d43-325d-4191-8553-d06ccd2601b1.ora -2 wgs610_NA24385K4_cb3e54ca-6236-4860-9b77-d1da9b1bf11f_S39_L005_R2_001.fastq_9ff064fe-a84b-40a6-b668-aafaadd9f21e_619d8c3c-3b02-483b-8db0-62317d364714.ora --ora-reference /staging/projects/p22/reference/hg19/oradata_homo_sapiens --RGID Diag-wgs610-NA24385K4 --RGDT 2026-03-29 --RGSM Diag-wgs610-NA24385K4 --RGPL ILLUMINA --output-directory /boston/diag/production/data/analyses-work/Diag-wgs610-NA24385K4-DR/result/2026-03-29_18-45-39/work/8e/cf8c933bb78ce2c78adf72ce8fe788 --output-file-prefix Diag-wgs610-NA24385K4-DR --output-format CRAM --cnv-counts-method start --cnv-enable-self-normalization true --cnv-enable-tracks true --cnv-filter-bin-support-ratio 0.2 --cnv-filter-copy-ratio 0.2 --cnv-filter-length 5000 --cnv-filter-qual 10 --cnv-merge-distance 0 --cnv-merge-threshold 0.2 --cnv-min-qual 3 --cnv-max-qual 200 --cnv-segmentation-mode slm --cnv-wgs-interval-width 1000 --dbsnp /boston/diag/production/reference/public/refdata/data/genomic/knownSites/dbsnp/dbsnp_138.b37.vcf.gz --enable-cnv true --enable-cram-indexing true --enable-duplicate-marking true --enable-map-align-output true --enable-sv true --enable-variant-caller true --gc-metrics-enable=true --repeat-genotype-enable=true --repeat-genotype-use-catalog=default_plus_smn --sample-sex auto --vc-emit-ref-confidence GVCF --vc-enable-joint-detection=true --verbose">
+##DRAGENVersion=<ID=dragen,Version="SW: 4.4.4, HW: 07.031.779">
+##contig=<ID=1,length=249250621>
+##contig=<ID=2,length=243199373>
+##contig=<ID=3,length=198022430>
+##contig=<ID=4,length=191154276>
+##contig=<ID=5,length=180915260>
+##contig=<ID=6,length=171115067>
+##contig=<ID=7,length=159138663>
+##contig=<ID=8,length=146364022>
+##contig=<ID=9,length=141213431>
+##contig=<ID=10,length=135534747>
+##contig=<ID=11,length=135006516>
+##contig=<ID=12,length=133851895>
+##contig=<ID=13,length=115169878>
+##contig=<ID=14,length=107349540>
+##contig=<ID=15,length=102531392>
+##contig=<ID=16,length=90354753>
+##contig=<ID=17,length=81195210>
+##contig=<ID=18,length=78077248>
+##contig=<ID=19,length=59128983>
+##contig=<ID=20,length=63025520>
+##contig=<ID=21,length=48129895>
+##contig=<ID=22,length=51304566>
+##contig=<ID=X,length=155270560>
+##contig=<ID=Y,length=59373566>
+##contig=<ID=MT,length=16569>
+##INFO=<ID=ACP,Number=1,Type=Float,Description="AC percentage">
+##INFO=<ID=BND_DEPTH,Number=1,Type=Integer,Description="Read depth at local translocation breakend">
+##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END">
+##INFO=<ID=CIGAR,Number=A,Type=String,Description="CIGAR alignment for each alternate indel allele">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS">
+##INFO=<ID=CONTIG,Number=1,Type=String,Description="Assembled contig sequence">
+##INFO=<ID=CTP,Number=1,Type=Float,Description="CT percentage">
+##INFO=<ID=DUPHOMLEN,Number=.,Type=Integer,Description="Length of base pair identical homology at event breakpoints excluding duplicated reference sequence">
+##INFO=<ID=DUPHOMSEQ,Number=.,Type=String,Description="Sequence of base pair identical homology at event breakpoints excluding duplicated reference sequence">
+##INFO=<ID=DUPSVINSLEN,Number=.,Type=Integer,Description="Length of inserted sequence after duplicated reference sequence">
+##INFO=<ID=DUPSVINSSEQ,Number=.,Type=String,Description="Inserted sequence after duplicated reference sequence">
+##INFO=<ID=DUPSVLEN,Number=.,Type=Integer,Description="Length of duplicated reference sequence">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=END_LEFT_BND_OF,Number=1,Type=String,Description="ID of CNV whose left end is matched to the end of SV">
+##INFO=<ID=END_RIGHT_BND_OF,Number=1,Type=String,Description="ID of CNV whose right end is matched to the end of SV">
+##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">
+##INFO=<ID=GCP,Number=1,Type=Float,Description="GC percentage">
+##INFO=<ID=HOMLEN,Number=.,Type=Integer,Description="Length of base pair identical homology at event breakpoints">
+##INFO=<ID=HOMSEQ,Number=.,Type=String,Description="Sequence of base pair identical homology at event breakpoints">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
+##INFO=<ID=JUNCTION_QUAL,Number=1,Type=Integer,Description="If the SV junction is part of an EVENT (ie. a multi-adjacency variant), this field provides the QUAL value for the adjacency in question only">
+##INFO=<ID=LEFT_BND,Number=1,Type=String,Description="ID of SV that matches the left end of CNV record">
+##INFO=<ID=LEFT_BND_OF,Number=1,Type=String,Description="ID of CNV whose left end is matched to SV">
+##INFO=<ID=LEFT_SVINSSEQ,Number=.,Type=String,Description="Known left side of insertion for an insertion of unknown length">
+##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">
+##INFO=<ID=MATE_BND_DEPTH,Number=1,Type=Integer,Description="Read depth at remote translocation mate breakend">
+##INFO=<ID=MatchSv,Number=1,Type=String,Description="ID of original SV that was merged with CNV record">
+##INFO=<ID=OrigCnvEnd,Number=1,Type=Integer,Description="Coordinate of original CNV end">
+##INFO=<ID=OrigCnvPos,Number=1,Type=Integer,Description="Coordinate of original CNV pos">
+##INFO=<ID=REFLEN,Number=1,Type=Integer,Description="Number of REF positions included in this record">
+##INFO=<ID=RIGHT_BND,Number=1,Type=String,Description="ID of SV that matches the right end of CNV record">
+##INFO=<ID=RIGHT_BND_OF,Number=1,Type=String,Description="ID of CNV whose right end is matched to SV">
+##INFO=<ID=RIGHT_SVINSSEQ,Number=.,Type=String,Description="Known right side of insertion for an insertion of unknown length">
+##INFO=<ID=SVCLAIM,Number=A,Type=String,Description="Claim made by the structural variant call. Valid values are D, J, DJ for abundance, adjacency and both respectively">
+##INFO=<ID=SVINSLEN,Number=.,Type=Integer,Description="Length of insertion">
+##INFO=<ID=SVINSSEQ,Number=.,Type=String,Description="Sequence of insertion">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##FORMAT=<ID=BC,Number=1,Type=Integer,Description="Number of bins in the region">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Estimated copy number">
+##FORMAT=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher's exact test to detect strand bias">
+##FORMAT=<ID=FT,Number=1,Type=String,Description="Sample filter, 'PASS' indicates that all filters have passed for this sample">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=LR,Number=1,Type=Float,Description="Log10 likelihood ratio of ALT to REF">
+##FORMAT=<ID=PE,Number=2,Type=Integer,Description="Number of improperly paired end reads at start and stop breakpoints">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=PR,Number=R,Type=Integer,Description="Spanning paired-read support for the ref and alt alleles in the order listed">
+##FORMAT=<ID=SB,Number=4,Type=Integer,Description="Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias">
+##FORMAT=<ID=SM,Number=1,Type=Float,Description="Linear copy ratio of the segment mean">
+##FORMAT=<ID=SR,Number=R,Type=Integer,Description="Split reads for the ref and alt alleles in the order listed, for reads where P(allele|read)>0.999">
+##FORMAT=<ID=VF,Number=R,Type=Integer,Description="Number of DNA fragments support of the breakend mates for the ref and alt alleles in the order listed">
+##FILTER=<ID=HomRef,Description="Homozygous reference call (filter applied at sample level)">
+##FILTER=<ID=MaxDepth,Description="Depth is greater than 3x the median chromosome depth near one or both variant breakends (not applied to records with KnownSVScoring flag)">
+##FILTER=<ID=MaxMQ0Frac,Description="For a small variant (<1000 bases), the fraction of reads in all samples with MAPQ0 around either breakend exceeds 0.4 (not applied to records with KnownSVScoring flag)">
+##FILTER=<ID=MinGQ,Description="GQ score is less than 5 (filter applied at sample level; not applied to records with KnownSVScoring flag)">
+##FILTER=<ID=MinQUAL,Description="QUAL score is less than 76 (not applied to records with KnownSVScoring flag)">
+##FILTER=<ID=NoPairSupport,Description="For variants significantly larger than the paired read fragment size, no paired reads support the alternate allele in any sample (not applied to records with KnownSVScoring flag)">
+##FILTER=<ID=Ploidy,Description="For DEL & DUP variants, the genotypes of overlapping variants (with similar size) are inconsistent with diploid expectation (not applied to records with KnownSVScoring flag)">
+##FILTER=<ID=SampleFT,Description="No sample passes all the sample-level filters">
+##FILTER=<ID=StrandBias,Description="For a small deletion (<1000 bases), more than a half of samples have strand bias">
+##FILTER=<ID=cnvBinSupportRatio,Description="CNV with low supporting number of bins with respect to event length">
+##FILTER=<ID=cnvCopyRatio,Description="CNV with copy ratio within +/- 0.2 of 1.0">
+##FILTER=<ID=cnvLength,Description="CNV with length below 5000">
+##FILTER=<ID=cnvLikelihoodRatio,Description="CNV with a log likelihood ratio < 5.0. The filter is applied to CNV with a bin count > 2">
+##FILTER=<ID=cnvQual,Description="CNV with quality below 10">
+##FILTER=<ID=dinucQual,Description="CNV outside confident dinucleotide ranges (gc_lower, gc_upper, ct_lower, ct_upper, ac_lower, ac_upper)=(0.25, 0.65, 0.3, 0.7, 0.3, 0.7)">
+##FILTER=<ID=highCN,Description="CNV with a high CN > 6">
+##ALT=<ID=CNV,Description="Copy number variant region">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Region of elevated copy number relative to the reference, or a tandem duplication breakpoint">
+##ALT=<ID=DUP:TANDEM,Description="Tandem Duplication">
+##ALT=<ID=INS,Description="Insertion">
+##ALT=<ID=INV,Description="Inversion">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Diag-wgs610-NA24385K4
+X	5055343	DRAGEN:LOSS:X:5055344-5057499	N	<DEL>	150	PASS	SVLEN=-2156;SVTYPE=CNV;END=5057499;REFLEN=2156;GCP=0.404;CTP=0.495;ACP=0.476;OrigCnvPos=5055614;OrigCnvEnd=5056643;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:243226:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:9.9922e-10:0:1:25,17:5.5
+X	5159472	DRAGEN:LOSS:X:5159473-5164205	N	<DEL>	150	PASS	SVLEN=-4733;SVTYPE=CNV;END=5164205;REFLEN=4733;GCP=0.356;CTP=0.574;ACP=0.491;OrigCnvPos=5159873;OrigCnvEnd=5164009;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:243231:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:9.9922e-10:0:4:13,14:22.0
+X	32987322	DRAGEN:LOSS:X:32987323-32989079	N	<DEL>	150	PASS	SVLEN=-1757;SVTYPE=CNV;END=32989079;REFLEN=1757;GCP=0.376;CTP=0.496;ACP=0.525;OrigCnvPos=32986802;OrigCnvEnd=32989382;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:244310:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:0.0895014:0:2:8,12:7.5
+X	58514919	DRAGEN:LOSS:X:58514920-58524370	N	<DEL>	73	PASS	SVLEN=-9451;SVTYPE=CNV;END=58524370;REFLEN=9451;GCP=0.363;CTP=0.487;ACP=0.463;SVCLAIM=D	GT:SM:CN:BC:PE:LR	1:9.9922e-10:0:5:0,0:27.5
+X	78946448	DRAGEN:LOSS:X:78946449-78948836	N	<DEL>	150	PASS	SVLEN=-2388;SVTYPE=CNV;END=78948836;REFLEN=2388;GCP=0.377;CTP=0.557;ACP=0.429;OrigCnvPos=78946159;OrigCnvEnd=78948212;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:245771:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:0.0276207:0:1:24,41:5.3
+X	83446973	DRAGEN:LOSS:X:83446974-83452327	N	<DEL>	73	PASS	SVLEN=-5354;SVTYPE=CNV;END=83452327;REFLEN=5354;GCP=0.346;CTP=0.570;ACP=0.449;LEFT_BND=DRAGEN:DEL:245911:0:1:0:0:0;OrigCnvPos=83447002;SVCLAIM=DJ	GT:SM:CN:BC:PE:LR	1:9.9922e-10:0:5:5,8:27.5
+X	114542525	DRAGEN:LOSS:X:114542526-114544513	N	<DEL>	150	PASS	SVLEN=-1988;SVTYPE=CNV;END=114544513;REFLEN=1988;GCP=0.341;CTP=0.506;ACP=0.494;OrigCnvPos=114542057;OrigCnvEnd=114544291;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:246978:1:2:0:0:0	GT:SM:CN:BC:PE:LR	1:1.0507e-05:0:2:12,15:9.6
+X	118873967	DRAGEN:LOSS:X:118873968-118876560	N	<DEL>	150	PASS	SVLEN=-2593;SVTYPE=CNV;END=118876560;REFLEN=2593;GCP=0.461;CTP=0.494;ACP=0.515;OrigCnvPos=118874534;OrigCnvEnd=118876335;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:247172:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:9.9922e-10:0:1:13,13:5.5
+X	128500437	DRAGEN:LOSS:X:128500438-128502439	N	<DEL>	150	PASS	SVLEN=-2002;SVTYPE=CNV;END=128502439;REFLEN=2002;GCP=0.412;CTP=0.472;ACP=0.525;OrigCnvPos=128499869;OrigCnvEnd=128502099;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:247546:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:1.38053e-05:0:2:18,14:8.0
+X	144422074	DRAGEN:LOSS:X:144422075-144424505	N	<DEL>	150	PASS	SVLEN=-2431;SVTYPE=CNV;END=144424505;REFLEN=2431;GCP=0.372;CTP=0.400;ACP=0.576;OrigCnvPos=144422105;OrigCnvEnd=144424277;SVCLAIM=DJ;MatchSv=DRAGEN:DEL:248062:0:1:0:0:0	GT:SM:CN:BC:PE:LR	1:9.9922e-10:0:2:23,26:11.0

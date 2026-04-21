@@ -1,0 +1,47 @@
+# SVDB profiling configuration
+# ─────────────────────────────────────────────────────────────────
+# Copy this file to scripts/profile_config.toml, fill in your paths,
+# and run:
+#
+#   python scripts/profile_svdb.py
+#   python scripts/profile_svdb.py --config /path/to/my_config.toml
+#   python scripts/profile_svdb.py --top 20 --sort tottime
+#
+# scripts/profile_config.toml is gitignored (it contains local paths).
+# ─────────────────────────────────────────────────────────────────
+
+[vcfs]
+# Named VCF files to profile.
+# Keys become caller labels in the profile output — use meaningful names.
+# Paths may be absolute or relative to the directory where you run the script.
+
+manta  = "/path/to/manta.vcf"
+tiddit = "/path/to/tiddit.vcf"
+truth  = "/path/to/truth_or_population_db.vcf"
+
+# Add as many callers as you like:
+# dragen_sv    = "/path/to/dragen.sv.vcf"
+# dragen_cnv   = "/path/to/dragen.cnv.vcf"
+# dragen_cnvsv = "/path/to/dragen.cnv_sv.vcf"
+
+
+[options]
+# ── truth ──────────────────────────────────────────────────────
+# Key from [vcfs] to use as the reference database for query commands.
+# This VCF is queried against (--db / --sqdb), never included in the build.
+truth = "truth"
+
+# ── merge_keys ─────────────────────────────────────────────────
+# Which callers to include in the multi-VCF merge command.
+# Defaults to every key that is not the truth VCF.
+# merge_keys = ["manta", "tiddit", "dragen_sv"]
+
+# ── build_keys ─────────────────────────────────────────────────
+# Which callers to include when building the SQLite database.
+# Defaults to every key that is not the truth VCF.
+# build_keys = ["manta", "tiddit", "dragen_sv"]
+
+# ── no_var_merge ───────────────────────────────────────────────
+# Set to true when merging files with mixed SV types (e.g. CNV + DEL)
+# so that type differences do not block merging.
+no_var_merge = false
