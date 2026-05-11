@@ -1,0 +1,7 @@
+symbolic_alt: two Sniffles2 symbolic-ALT INS records at chr2:3181113/3181120 (GRCh38)
+
+Both callers emit <INS> with no inserted sequence. SVLEN=71/70 (ratio=0.986), dist=7bp.
+Sequence gate must be skipped; merge decision falls back to position+SVLEN only.
+
+Source: HG002.ont.sup.wf_sv.vcf.gz (chr2 3181113); caller_b is a synthetic second-caller
+record at +7bp offset with SVLEN=70 to simulate a near-identical call with symbolic ALT.
