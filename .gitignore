@@ -38,3 +38,4 @@ scripts/profile_config.toml
 *.vcf.gz
 *.db
 !tests/fixtures/*.vcf
+!tests/fixtures/**/*.vcf
