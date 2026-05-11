@@ -2,15 +2,10 @@ import logging
 import sys
 
 from . import merge_vcf_module_cython, read_vcf, vcf_utils
+from .ins_similarity import resolve_ins_seq_threshold
 from .models import MergeVariant
 
 logger = logging.getLogger(__name__)
-
-_DATA_PROFILE_THRESHOLDS = {
-    "sample": 0.85,
-    "cohort": 0.75,
-}
-_DEFAULT_INS_SEQ_SIMILARITY = 0.75
 
 
 def build_header(vcf_list, vcf_dictionary, args, command_line):
@@ -147,33 +142,9 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
     return samples, sample_order, contigs_list
 
 
-def _resolve_ins_seq_threshold(args) -> float:
-    """Return the effective insertion sequence similarity threshold.
-
-    --data_profile takes precedence over an explicit --ins_seq_similarity value.
-    If both are supplied, emits a warning and uses the profile threshold.
-    """
-    profile = getattr(args, "data_profile", None)
-    explicit = getattr(args, "ins_seq_similarity", None)
-
-    if profile is not None and explicit is not None:
-        resolved = _DATA_PROFILE_THRESHOLDS[profile]
-        logger.warning(
-            "Both --data_profile %s and --ins_seq_similarity %.2f were specified. "
-            "--data_profile takes precedence; using threshold %.2f.",
-            profile, explicit, resolved,
-        )
-        return resolved
-    if profile is not None:
-        return _DATA_PROFILE_THRESHOLDS[profile]
-    if explicit is not None:
-        return explicit
-    return _DEFAULT_INS_SEQ_SIMILARITY
-
-
 def main(args):
     # Resolve insertion sequence similarity threshold once before the merge loop.
-    args.ins_seq_similarity = _resolve_ins_seq_threshold(args)
+    args.ins_seq_similarity = resolve_ins_seq_threshold(args)
 
     variants = {}
     # add all the variants into a dictionary

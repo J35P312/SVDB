@@ -1,22 +1,39 @@
 """Sequence-based gate for insertion merging (issue #82).
 
-Provides three public functions used by the merge pipeline:
+Public API used by merge, query, and export pipelines:
 
   extract_ins_sequence(ref, alt) -> str
       Normalise a VCF REF/ALT pair to a bare insertion sequence.
-      Returns "" for symbolic ALTs (e.g. <INS>) — the caller signal to skip
-      the sequence check.
+      Returns "" for symbolic ALTs (e.g. <INS>) — signal to skip sequence check.
 
   levenshtein_similarity(seq_a, seq_b) -> float
       Normalised Levenshtein similarity in [0, 1] via rapidfuzz.
 
   sequence_gate(seq_a, seq_b, threshold) -> bool
-      True = allow the merge to proceed; False = reject.
-      Returns True immediately when either sequence is empty (symbolic ALT
-      or otherwise absent), deferring the merge decision to position+SVLEN.
+      True = allow merge; False = reject.  Returns True when either sequence is
+      empty (symbolic ALT or absent), deferring to position+SVLEN.
+
+  parse_svlen(info_str) -> Optional[int]
+      Extract |SVLEN| from a VCF INFO string.
+
+  resolve_ins_seq_threshold(args) -> float
+      Resolve effective sequence similarity threshold from args, applying
+      --data_profile presets and emitting a warning on conflict.
 """
 
+import logging
+import re
+from typing import Optional
+
 from rapidfuzz.distance import Levenshtein
+
+logger = logging.getLogger(__name__)
+
+_DATA_PROFILE_THRESHOLDS = {
+    "sample": 0.85,
+    "cohort": 0.75,
+}
+_DEFAULT_INS_SEQ_SIMILARITY = 0.75
 
 
 def extract_ins_sequence(ref: str, alt: str) -> str:
@@ -56,3 +73,35 @@ def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
     if not seq_a or not seq_b:
         return True
     return levenshtein_similarity(seq_a, seq_b) >= threshold
+
+
+def parse_svlen(info_str: str) -> Optional[int]:
+    """Extract |SVLEN| from a VCF INFO string. Returns None if absent or unparseable."""
+    m = re.search(r'(?:^|;)SVLEN=(-?\d+)', info_str)
+    if m:
+        return abs(int(m.group(1)))
+    return None
+
+
+def resolve_ins_seq_threshold(args) -> float:
+    """Return the effective insertion sequence similarity threshold.
+
+    --data_profile takes precedence over an explicit --ins_seq_similarity.
+    If both are supplied, emits a warning and uses the profile threshold.
+    """
+    profile = getattr(args, "data_profile", None)
+    explicit = getattr(args, "ins_seq_similarity", None)
+
+    if profile is not None and explicit is not None:
+        resolved = _DATA_PROFILE_THRESHOLDS[profile]
+        logger.warning(
+            "Both --data_profile %s and --ins_seq_similarity %.2f were specified. "
+            "--data_profile takes precedence; using threshold %.2f.",
+            profile, explicit, resolved,
+        )
+        return resolved
+    if profile is not None:
+        return _DATA_PROFILE_THRESHOLDS[profile]
+    if explicit is not None:
+        return explicit
+    return _DEFAULT_INS_SEQ_SIMILARITY
