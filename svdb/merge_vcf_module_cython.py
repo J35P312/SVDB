@@ -1,4 +1,5 @@
 from . import overlap_module
+from .ins_similarity import extract_ins_sequence, sequence_gate
 
 
 def sanitize_id(s: str) -> str:
@@ -221,10 +222,15 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
 def merge(variants, samples, sample_order, priority_order, args):
     overlap_param = args.overlap
     bnd_distance = args.bnd_distance
-    ins_distance=args.ins_distance
+    ins_distance = args.ins_distance
     no_intra = args.no_intra
     no_var = args.no_var
     pass_only = args.pass_only
+    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
+    ins_seq_similarity = getattr(args, "ins_seq_similarity", 0.75)
+    no_ins_seq = getattr(args, "no_ins_seq", False)
+    # Sequence gate applies only within this hard cap, regardless of ins_distance.
+    _INS_SEQ_HARD_CAP = 25
 
     # search for similar variants
     to_be_printed = {}
@@ -320,6 +326,28 @@ def merge(variants, samples, sample_order, priority_order, args):
                 else:
                     overlap, match = overlap_module.variant_overlap(
                         chrA, chrB_i, posA_i, posB_i, var_j.posA, var_j.posB, overlap_param, bnd_distance)
+
+                if match and insertion_i:
+                    # SVLEN ratio gate
+                    svlen_a_raw = retrieve_key(var_i.raw_line, "SVLEN")
+                    svlen_b_raw = retrieve_key(var_j.raw_line, "SVLEN")
+                    try:
+                        svlen_a = abs(int(svlen_a_raw))
+                        svlen_b = abs(int(svlen_b_raw))
+                        if not overlap_module.insertion_svlen_match(svlen_a, svlen_b, ins_svlen_ratio):
+                            match = False
+                    except (TypeError, ValueError):
+                        pass  # absent or unparseable SVLEN — skip ratio gate
+
+                    # Sequence similarity gate (within hard cap only)
+                    if match and not no_ins_seq:
+                        pos_dist = abs(posA_i - var_j.posA)
+                        if pos_dist <= _INS_SEQ_HARD_CAP:
+                            fields_b = var_j.raw_line.strip().split("\t")
+                            seq_a = extract_ins_sequence(vcf_line_A[3], vcf_line_A[4])
+                            seq_b = extract_ins_sequence(fields_b[3], fields_b[4])
+                            if not sequence_gate(seq_a, seq_b, ins_seq_similarity):
+                                match = False
 
                 if match:
                     # Split only on confirmed match (pass_only case already split above)

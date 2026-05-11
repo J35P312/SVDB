@@ -200,8 +200,16 @@ def main():
             '--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
         parser.add_argument('--bnd_distance', type=int, default=2000,
                             help="the maximum distance between two similar precise breakpoints(default = 2000)")
-        parser.add_argument('--ins_distance', type=int, default=50,
-                            help="the maximum distance to merge two insertions(default = 50)")
+        parser.add_argument('--ins_distance', type=int, default=25,
+                            help="the maximum distance to merge two insertions (default = 25)")
+        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
+                            help="minimum SVLEN ratio (min/max) required to merge two insertions (default = 0.90)")
+        parser.add_argument('--ins_seq_similarity', type=float, default=None,
+                            help="minimum Levenshtein sequence similarity to merge two insertions with known sequence (default = 0.75); overridden by --data_profile")
+        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
+                            help="set sequence similarity threshold preset: sample=0.85 (same individual, any tech), cohort=0.75 (cross-individual or cross-technology)")
+        parser.add_argument(
+            '--no_ins_seq', help="disable insertion sequence similarity check; merge on position+SVLEN only", required=False, action="store_true")
         parser.add_argument('--overlap', type=float, default=0.95,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument(

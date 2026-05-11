@@ -25,5 +25,5 @@ setup(name='svdb',
       author_email="jesper.eisfeldt@scilifelab.se",
       ext_modules=ext_modules,
       packages=['svdb'],
-      install_requires=['numpy'],
+      install_requires=['numpy', 'rapidfuzz'],
       entry_points={'console_scripts': ['svdb = svdb.__main__:main']},)

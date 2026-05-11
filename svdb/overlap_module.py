@@ -50,3 +50,14 @@ def variant_overlap(
         return isSameVariation(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, ratio, distance)
     else:
         return precise_overlap(chrApos_query, chrBpos_query, chrApos_db, chrBpos_db, distance)
+
+
+def insertion_svlen_match(svlen_a: int, svlen_b: int, ratio: float) -> bool:
+    """True if the SVLEN ratio between two insertions meets the required threshold.
+
+    Ratio is computed as min(svlen_a, svlen_b) / max(svlen_a, svlen_b), so
+    argument order does not matter.  A ratio of 1.0 requires identical lengths.
+    """
+    if svlen_a <= 0 or svlen_b <= 0:
+        return True
+    return min(svlen_a, svlen_b) / max(svlen_a, svlen_b) >= ratio
