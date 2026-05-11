@@ -128,4 +128,4 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
         # DEL/DUP/INV etc.: prefer INFO SVLEN, fall back to coordinate span (covers END-only callers)
         svlen = svlen_from_info if svlen_from_info is not None else (posB - posA if posB > posA else None)
 
-    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt, ins_seq=ins_seq, svlen=svlen)
+    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt, ins_seq=ins_seq, svlen=svlen, vcf_filter=variation[6])

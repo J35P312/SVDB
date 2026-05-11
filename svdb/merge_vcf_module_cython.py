@@ -12,16 +12,6 @@ def format_tag(var_id: str, value: str) -> str:
     return f"{sanitize_id(var_id)}|{value}"
 
 
-def retrieve_key(line, key):
-    key += '='
-    if key not in line:
-        return False
-    if f";{key}" in line:
-        return line.strip().split(f";{key}")[-1].split(";")[0].split("\t")[0]
-    if f"\t{key}" in line:
-        return line.strip().split(f"\t{key}")[-1].split(";")[0].split("\t")[0]
-    return False
-
 #Check if no merging should occur
 def skip_variant(chrA,chrB,type_A,type_B,vcf_line_A,vcf_line_B,pass_only,current_variant,analysed_variants,no_var):
     #The variant is already clustered/analysed
@@ -288,7 +278,7 @@ def merge(variants, samples, sample_order, priority_order, args):
 
             # pass_only: variant A must pass filter to merge others into it.
             # This condition is constant across all j — evaluate once outside the loop.
-            a_can_merge = (not pass_only) or vcf_line_A[6] in ('PASS', '.')
+            a_can_merge = (not pass_only) or var_i.vcf_filter in ('PASS', '.')
 
             for j in range(i + 1, len(variants[chrA])) if a_can_merge else []:
                 # --- Cheap early-exit checks (no string split needed) ---
@@ -310,19 +300,16 @@ def merge(variants, samples, sample_order, priority_order, args):
                 if type_i != var_j.event_type and not no_var:
                     continue
 
-                # pass_only: need to inspect the filter field — split early only when required
-                if pass_only:
-                    vcf_line_B = var_j.raw_line.strip().split("\t")
-                    if vcf_line_B[6] not in ('PASS', '.'):
-                        continue
+                if pass_only and var_j.vcf_filter not in ('PASS', '.'):
+                    continue
 
                 # if no_intra is chosen, variants may only be merged if they belong to different input files
                 if no_intra and source_i == var_j.source:
                     continue
 
                 if insertion_i:
-                    overlap, match = overlap_module.variant_overlap(
-                        chrA, chrB_i, posA_i, posB_i, var_j.posA, var_j.posB, -1, ins_distance)
+                    overlap, match = overlap_module.precise_overlap(
+                        posA_i, posB_i, var_j.posA, var_j.posB, ins_distance)
                 else:
                     overlap, match = overlap_module.variant_overlap(
                         chrA, chrB_i, posA_i, posB_i, var_j.posA, var_j.posB, overlap_param, bnd_distance)
@@ -343,9 +330,7 @@ def merge(variants, samples, sample_order, priority_order, args):
                                 match = False
 
                 if match:
-                    # Split only on confirmed match (pass_only case already split above)
-                    if not pass_only:
-                        vcf_line_B = var_j.raw_line.strip().split("\t")
+                    vcf_line_B = var_j.raw_line.strip().split("\t")
 
                     # add similar variants to the merge list and remove them
                     if args.priority:

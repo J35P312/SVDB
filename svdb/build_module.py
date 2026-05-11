@@ -54,10 +54,8 @@ def populate_db(args):
                     continue
 
                 variant = read_vcf.readVCFLine(line)
-                if args.passonly:
-                    FILTER = line.split("\t")[6]
-                    if FILTER not in ["PASS", "."]:
-                        continue
+                if args.passonly and variant.vcf_filter not in ("PASS", "."):
+                    continue
 
                 chrA = variant.chrA
                 posA = variant.posA
