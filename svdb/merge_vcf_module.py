@@ -193,10 +193,9 @@ def main(args):
                             continue
                         if v.chrA not in variants:
                             variants[v.chrA] = []
-                        if args.priority:
-                            variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf_dictionary[vcf], i, line.strip()))
-                        else:
-                            variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf, i, line.strip()))
+
+                        source = vcf_dictionary[vcf] if args.priority else vcf
+                        variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, source, i, line.strip(), v.ins_seq, v.svlen))
                         i += 1
 
     samples, sample_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)

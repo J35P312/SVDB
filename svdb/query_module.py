@@ -53,7 +53,7 @@ def _read_query_vcf(args, writer):
             if variant is None:
                 logger.debug("skipping unparseable line: %s", line.rstrip())
                 continue
-            queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line])
+            queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line, variant.ins_seq, variant.svlen])
 
     return queries
 
@@ -116,11 +116,8 @@ def _load_vcf_db(args):
 
             # Store SVLEN and sequence for insertion entries (VCF format only, not BEDPE)
             if not args.bedpedb and "INS" in event_type:
-                svlen_raw = INFO.get("SVLEN")
-                svlen = abs(int(svlen_raw)) if svlen_raw is not None else None
-                vcf_fields = line.strip().split("\t")
-                seq = ins_similarity.extract_ins_sequence(
-                    vcf_fields[3], vcf_fields[4]) if len(vcf_fields) >= 5 else ""
+                svlen = v.svlen
+                seq = v.ins_seq
             else:
                 svlen = None
                 seq = ""
@@ -231,16 +228,9 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     occ = []
     similarity = []
 
-    # Pre-extract query SVLEN and sequence once for insertion queries
     is_ins = "INS" in variation_type
-    query_svlen = None
-    query_seq = ""
-    if is_ins:
-        raw_fields = query_variant[6].strip().split("\t")
-        if len(raw_fields) >= 8:
-            query_svlen = ins_similarity.parse_svlen(raw_fields[7])
-        if len(raw_fields) >= 5:
-            query_seq = ins_similarity.extract_ins_sequence(raw_fields[3], raw_fields[4])
+    query_seq = query_variant[7] if is_ins else ""
+    query_svlen = query_variant[8] if is_ins else None
 
     ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
     ins_seq_threshold = getattr(args, "ins_seq_similarity", 0.75)
