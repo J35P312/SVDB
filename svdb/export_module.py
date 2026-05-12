@@ -334,25 +334,24 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 
 def export(args, sample_IDs):
     args.ins_seq_similarity = ins_similarity.resolve_ins_seq_threshold(args)
-    db = database.DB(args.db, memory=args.memory)
+    with database.DB(args.db, memory=args.memory) as db:
+        chrA_list = db.query_column('SELECT DISTINCT chrA FROM SVDB')
+        chrB_list = db.query_column('SELECT DISTINCT chrB FROM SVDB')
+        var_list = db.query_column('SELECT DISTINCT var FROM SVDB')
 
-    chrA_list = db.query_column('SELECT DISTINCT chrA FROM SVDB')
-    chrB_list = db.query_column('SELECT DISTINCT chrB FROM SVDB')
-    var_list = db.query_column('SELECT DISTINCT var FROM SVDB')
+        if any("INS" in v for v in var_list) and not db.has_ins_table():
+            logger.warning(
+                "database does not contain insertion sequence/length data — "
+                "exporting insertions without sequence in ALT column. "
+                "To enable full insertion export, run: svdb --build --upgrade --files <original_vcfs>"
+            )
 
-    if any("INS" in v for v in var_list) and not db.has_ins_table():
-        logger.warning(
-            "database does not contain insertion sequence/length data — "
-            "exporting insertions without sequence in ALT column. "
-            "To enable full insertion export, run: svdb --build --upgrade --files <original_vcfs>"
-        )
-
-    i = 0
-    with open(args.prefix + ".vcf", 'a') as f:
-        for chrA in chrA_list:
-            for chrB in chrB_list:
-                for variant in var_list:
-                    i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
+        i = 0
+        with open(args.prefix + ".vcf", 'a') as f:
+            for chrA in chrA_list:
+                for chrB in chrB_list:
+                    for variant in var_list:
+                        i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
 
 
 def main(args):
@@ -360,9 +359,8 @@ def main(args):
     if not args.prefix:
         args.prefix = args.db.replace(".db", "")
 
-    db = database.DB(args.db)
-
-    sample_IDs = db.query_column('SELECT DISTINCT sample FROM SVDB')
+    with database.DB(args.db) as db:
+        sample_IDs = db.query_column('SELECT DISTINCT sample FROM SVDB')
 
     with open(args.prefix + ".vcf", 'w') as f:
         f.write(db_header(args) + "\n")

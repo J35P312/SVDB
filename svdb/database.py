@@ -83,6 +83,15 @@ class DB:
         )
         self.conn.commit()
 
+    def close(self) -> None:
+        self.conn.close()
+
+    def __enter__(self) -> "DB":
+        return self
+
+    def __exit__(self, *_) -> None:
+        self.close()
+
     @property
     def tables(self) -> List[str]:
         return self.query_column("SELECT name FROM sqlite_master WHERE type='table'")

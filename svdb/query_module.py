@@ -205,23 +205,23 @@ def main(args, output_file=None):
         return None
 
     elif args.sqdb:
-        db = database.DB(db=args.sqdb, memory=args.memory)
-        db_size = len(db)
-        if not db_size:
-            logger.error("no samples found in the database")
-            sys.exit(1)
+        with database.DB(db=args.sqdb, memory=args.memory) as db:
+            db_size = len(db)
+            if not db_size:
+                logger.error("no samples found in the database")
+                sys.exit(1)
 
-        has_ins_queries = any("INS" in q[4] for q in queries)
-        has_ins_table = db.has_ins_table()
-        if has_ins_queries and not has_ins_table:
-            logger.warning(
-                "database does not contain insertion sequence/length data — "
-                "matching on position only. To enable full insertion matching, "
-                "run: svdb --build --upgrade --files <original_vcfs>"
-            )
+            has_ins_queries = any("INS" in q[4] for q in queries)
+            has_ins_table = db.has_ins_table()
+            if has_ins_queries and not has_ins_table:
+                logger.warning(
+                    "database does not contain insertion sequence/length data — "
+                    "matching on position only. To enable full insertion matching, "
+                    "run: svdb --build --upgrade --files <original_vcfs>"
+                )
 
-        for query in queries:
-            query[5] = SQDB(query, args, db, has_ins_table)
+            for query in queries:
+                query[5] = SQDB(query, args, db, has_ins_table)
 
         _write_sqdb_results(queries, args, writer, db_size)
 

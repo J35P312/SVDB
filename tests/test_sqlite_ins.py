@@ -41,9 +41,9 @@ def make_ins_vcf(path: Path, variants: list) -> None:
 
 def make_old_db(prefix: Path, svdb_rows: list) -> None:
     """Create a database with only the SVDB table (no INS table) — simulates pre-upgrade DB."""
-    db = DB(str(prefix))
-    db.create(CREATE_TABLE_SQL)
-    db.insert_many(svdb_rows)
+    with DB(str(prefix)) as db:
+        db.create(CREATE_TABLE_SQL)
+        db.insert_many(svdb_rows)
 
 
 def build(prefix: Path, *vcfs: Path) -> None:
@@ -71,23 +71,24 @@ class TestBuildINSTable:
         vcf = tmp_path / "sample.vcf"
         make_ins_vcf(vcf, [("1", 1000, "ins1", "ACGTACGT")])
         build(tmp_path / "svdb", vcf)
-        assert DB(str(tmp_path / "svdb")).has_ins_table()
+        with DB(str(tmp_path / "svdb")) as db:
+            assert db.has_ins_table()
 
     def test_build_populates_ins_seq_and_len(self, tmp_path):
         vcf = tmp_path / "sample.vcf"
         make_ins_vcf(vcf, [("1", 1000, "ins1", "ACGTACGT")])
         build(tmp_path / "svdb", vcf)
-        db = DB(str(tmp_path / "svdb"))
-        rows = db.query("SELECT ins_seq, ins_len FROM INS")
+        with DB(str(tmp_path / "svdb")) as db:
+            rows = db.query("SELECT ins_seq, ins_len FROM INS")
         assert len(rows) == 1
         assert rows[0][0] == "ACGTACGT"
         assert rows[0][1] == 8
 
     def test_build_del_variants_not_in_ins_table(self, tmp_path):
         build(tmp_path / "svdb", DEL_VCF)
-        db = DB(str(tmp_path / "svdb"))
-        assert db.has_ins_table()
-        assert db.query("SELECT COUNT(*) FROM INS")[0][0] == 0
+        with DB(str(tmp_path / "svdb")) as db:
+            assert db.has_ins_table()
+            assert db.query("SELECT COUNT(*) FROM INS")[0][0] == 0
 
     def test_build_multiple_ins_variants_all_stored(self, tmp_path):
         vcf = tmp_path / "sample.vcf"
@@ -97,8 +98,8 @@ class TestBuildINSTable:
             ("1", 3000, "ins3", "CCCC"),
         ])
         build(tmp_path / "svdb", vcf)
-        db = DB(str(tmp_path / "svdb"))
-        assert db.query("SELECT COUNT(*) FROM INS")[0][0] == 3
+        with DB(str(tmp_path / "svdb")) as db:
+            assert db.query("SELECT COUNT(*) FROM INS")[0][0] == 3
 
 
 # ---------------------------------------------------------------------------
@@ -110,12 +111,14 @@ class TestUpgrade:
     def test_upgrade_creates_ins_table_on_old_db(self, tmp_path):
         prefix = tmp_path / "svdb"
         make_old_db(prefix, [("INS", "1", "1", 1000, 0, 0, 1000, 0, 0, "sample_A", 0)])
-        assert not DB(str(prefix)).has_ins_table()
+        with DB(str(prefix)) as db:
+            assert not db.has_ins_table()
 
         r = run("--build", "--upgrade", "--prefix", str(prefix))
         assert r.returncode == 0
         assert "INS table created" in r.stderr
-        assert DB(str(prefix)).has_ins_table()
+        with DB(str(prefix)) as db:
+            assert db.has_ins_table()
 
     def test_upgrade_idempotent_when_already_current(self, tmp_path):
         vcf = tmp_path / "sample.vcf"
@@ -137,8 +140,8 @@ class TestUpgrade:
         r = run("--build", "--upgrade", "--files", str(vcf), "--prefix", str(tmp_path / "svdb"))
         assert r.returncode == 0
 
-        db = DB(str(tmp_path / "svdb"))
-        rows = db.query("SELECT ins_seq, ins_len FROM INS")
+        with DB(str(tmp_path / "svdb")) as db:
+            rows = db.query("SELECT ins_seq, ins_len FROM INS")
         assert len(rows) == 1
         assert rows[0][0] == "ACGTACGT"
         assert rows[0][1] == 8
