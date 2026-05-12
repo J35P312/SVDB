@@ -1,4 +1,5 @@
 from . import overlap_module
+from .ins_similarity import sequence_gate
 
 
 def sanitize_id(s: str) -> str:
@@ -10,16 +11,6 @@ def format_tag(var_id: str, value: str) -> str:
     """Format a per-variant tag entry as 'sanitized_id|value'."""
     return f"{sanitize_id(var_id)}|{value}"
 
-
-def retrieve_key(line, key):
-    key += '='
-    if key not in line:
-        return False
-    if f";{key}" in line:
-        return line.strip().split(f";{key}")[-1].split(";")[0].split("\t")[0]
-    if f"\t{key}" in line:
-        return line.strip().split(f"\t{key}")[-1].split(";")[0].split("\t")[0]
-    return False
 
 #Check if no merging should occur
 def skip_variant(chrA,chrB,type_A,type_B,vcf_line_A,vcf_line_B,pass_only,current_variant,analysed_variants,no_var):
@@ -221,10 +212,15 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
 def merge(variants, samples, sample_order, priority_order, args):
     overlap_param = args.overlap
     bnd_distance = args.bnd_distance
-    ins_distance=args.ins_distance
+    ins_distance = args.ins_distance
     no_intra = args.no_intra
     no_var = args.no_var
     pass_only = args.pass_only
+    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
+    ins_seq_similarity = getattr(args, "ins_seq_similarity", 0.75)
+    no_ins_seq = getattr(args, "no_ins_seq", False)
+    # Sequence gate applies only within this hard cap, regardless of ins_distance.
+    _INS_SEQ_HARD_CAP = 25
 
     # search for similar variants
     to_be_printed = {}
@@ -282,7 +278,7 @@ def merge(variants, samples, sample_order, priority_order, args):
 
             # pass_only: variant A must pass filter to merge others into it.
             # This condition is constant across all j — evaluate once outside the loop.
-            a_can_merge = (not pass_only) or vcf_line_A[6] in ('PASS', '.')
+            a_can_merge = (not pass_only) or var_i.vcf_filter in ('PASS', '.')
 
             for j in range(i + 1, len(variants[chrA])) if a_can_merge else []:
                 # --- Cheap early-exit checks (no string split needed) ---
@@ -304,27 +300,37 @@ def merge(variants, samples, sample_order, priority_order, args):
                 if type_i != var_j.event_type and not no_var:
                     continue
 
-                # pass_only: need to inspect the filter field — split early only when required
-                if pass_only:
-                    vcf_line_B = var_j.raw_line.strip().split("\t")
-                    if vcf_line_B[6] not in ('PASS', '.'):
-                        continue
+                if pass_only and var_j.vcf_filter not in ('PASS', '.'):
+                    continue
 
                 # if no_intra is chosen, variants may only be merged if they belong to different input files
                 if no_intra and source_i == var_j.source:
                     continue
 
                 if insertion_i:
-                    overlap, match = overlap_module.variant_overlap(
-                        chrA, chrB_i, posA_i, posB_i, var_j.posA, var_j.posB, -1, ins_distance)
+                    overlap, match = overlap_module.precise_overlap(
+                        posA_i, posB_i, var_j.posA, var_j.posB, ins_distance)
                 else:
                     overlap, match = overlap_module.variant_overlap(
                         chrA, chrB_i, posA_i, posB_i, var_j.posA, var_j.posB, overlap_param, bnd_distance)
 
+                if match and insertion_i:
+                    # SVLEN ratio gate (uses pre-extracted values; skipped if either is absent)
+                    svlen_a = var_i.svlen
+                    svlen_b = var_j.svlen
+                    if svlen_a is not None and svlen_b is not None:
+                        if not overlap_module.insertion_svlen_match(svlen_a, svlen_b, ins_svlen_ratio):
+                            match = False
+
+                    # Sequence similarity gate (within hard cap only; uses pre-extracted sequence)
+                    if match and not no_ins_seq:
+                        pos_dist = abs(posA_i - var_j.posA)
+                        if pos_dist <= _INS_SEQ_HARD_CAP:
+                            if not sequence_gate(var_i.ins_seq, var_j.ins_seq, ins_seq_similarity):
+                                match = False
+
                 if match:
-                    # Split only on confirmed match (pass_only case already split above)
-                    if not pass_only:
-                        vcf_line_B = var_j.raw_line.strip().split("\t")
+                    vcf_line_B = var_j.raw_line.strip().split("\t")
 
                     # add similar variants to the merge list and remove them
                     if args.priority:

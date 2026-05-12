@@ -1,0 +1,10 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Inserted sequence length">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of variant">
+##ALT=<ID=INS,Description="Insertion">
+##contig=<ID=chr8,length=145138636>
+##contig=<ID=chr16,length=90338345>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002
+chr16	52249198	CALLER_B_INS1	N	NTATTTAATAACTTATTTATAGCAATGTTTACTACGGGAACATGTTATGTATACTGCGACTACAGTTATCATAACATGCGACATGTTATTTTACATGTACTACGGAGTAAGTTTTATG	.	PASS	SVTYPE=INS;SVLEN=117;END=52249198	GT	./1

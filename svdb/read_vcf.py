@@ -1,6 +1,7 @@
 import re
 from typing import Dict, List, Optional
 
+from .ins_similarity import extract_ins_sequence
 from .models import VCFVariant
 from .vcf_utils import normalize_chrom, parse_info_field
 
@@ -16,6 +17,8 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
     posB = 0
 
     description = parse_info_field(variation[7])
+    svlen_raw = description.get("SVLEN")
+    svlen_from_info: Optional[int] = abs(int(svlen_raw)) if svlen_raw is not None else None
 
     fmt: Dict[str, List[str]] = {}
     format_keys: Dict[int, str] = {}
@@ -52,8 +55,8 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
         if "END" in description:
             posB = int(description["END"])
-        elif "SVLEN" in description:
-            posB = posA + abs(int(description["SVLEN"]))
+        elif svlen_from_info is not None:
+            posB = posA + svlen_from_info
 
         # sometimes the fermikit intra chromosomal events are inverted i.e the end pos is a lower position than the start pos
         if posB < posA:
@@ -112,4 +115,17 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
         event_type = "BND"
 
-    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt)
+    ins_seq = ""
+    if "INS" in event_type:
+        ins_seq = extract_ins_sequence(variation[3], variation[4])
+
+    if event_type == "BND":
+        svlen = None
+    elif "INS" in event_type:
+        # posA == posB for insertions, so coordinate span is always 0 — use INFO or sequence length
+        svlen = svlen_from_info if svlen_from_info is not None else (len(ins_seq) if ins_seq else None)
+    else:
+        # DEL/DUP/INV etc.: prefer INFO SVLEN, fall back to coordinate span (covers END-only callers)
+        svlen = svlen_from_info if svlen_from_info is not None else (posB - posA if posB > posA else None)
+
+    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt, ins_seq=ins_seq, svlen=svlen, vcf_filter=variation[6])

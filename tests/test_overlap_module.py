@@ -1,6 +1,6 @@
 import unittest
 
-from svdb.overlap_module import isSameVariation, precise_overlap, variant_overlap
+from svdb.overlap_module import isSameVariation, precise_overlap, variant_overlap, insertion_svlen_match
 
 
 class TestOverlapModule(unittest.TestCase):
@@ -87,4 +87,37 @@ class TestOverlapModule(unittest.TestCase):
         """Interchromosomal breakpoints beyond bnd_distance do not match."""
         _, match = variant_overlap("1", "2", 1000, 5000, 2000, 5000, 0.5, 500)
         assert match is False
+
+
+class TestInsertionSvlenMatch(unittest.TestCase):
+
+    def test_identical_svlen_matches(self):
+        assert insertion_svlen_match(100, 100, 0.90) is True
+
+    def test_ratio_exactly_at_threshold(self):
+        # 90/100 = 0.90 — exactly at the default threshold
+        assert insertion_svlen_match(90, 100, 0.90) is True
+
+    def test_ratio_just_below_threshold(self):
+        # 89/100 = 0.89 < 0.90
+        assert insertion_svlen_match(89, 100, 0.90) is False
+
+    def test_ratio_is_symmetric(self):
+        # 100/89 = 0.89 — order of arguments must not matter
+        assert insertion_svlen_match(100, 89, 0.90) is False
+
+    def test_loose_threshold_accepts_low_ratio(self):
+        assert insertion_svlen_match(50, 100, 0.40) is True
+
+    def test_fixture_low_svlen_ratio_rejected(self):
+        # low_svlen_ratio fixture: SVLEN=100/220 → ratio=100/220≈0.455 < 0.90
+        assert insertion_svlen_match(100, 220, 0.90) is False
+
+    def test_fixture_grch37_pos25_svlen_passes(self):
+        # grch37_pos25_sim0.789: SVLEN=51/52 → ratio≈0.981 ≥ 0.90
+        assert insertion_svlen_match(51, 52, 0.90) is True
+
+    def test_fixture_neg_c_svlen_passes(self):
+        # grch37_neg_c_sim0.837: SVLEN=180/190 → ratio≈0.947 ≥ 0.90
+        assert insertion_svlen_match(180, 190, 0.90) is True
 

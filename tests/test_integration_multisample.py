@@ -232,11 +232,13 @@ class TestInterchromosomalBND:
         assert r.returncode == 0
         assert len(data_lines(r.stdout)) > 0
 
-    def test_merge_interchr_bnd_self_collapses(self):
+    def test_merge_interchr_bnd_self_collapses(self, tmp_path):
         """Two copies of the same interchromosomal BND set should collapse."""
+        copy = tmp_path / "bnd_copy.vcf"
+        copy.write_bytes(HG002_BND_INTER.read_bytes())
         single = len(data_lines(run("--merge", "--vcf", str(HG002_BND_INTER)).stdout))
         double = len(data_lines(
-            run("--merge", "--vcf", str(HG002_BND_INTER), str(HG002_BND_INTER)).stdout
+            run("--merge", "--vcf", str(HG002_BND_INTER), str(copy)).stdout
         ))
         assert double <= single
 
@@ -267,9 +269,11 @@ class TestInterchromosomalBND:
 # ---------------------------------------------------------------------------
 
 class TestSVTypeMismatch:
-    def test_cnv_merges_with_cnv(self):
+    def test_cnv_merges_with_cnv(self, tmp_path):
         """CNV variants should merge with other CNV variants."""
-        r = run("--merge", "--vcf", str(HG002_CHRX_CNV), str(HG002_CHRX_CNV))
+        copy = tmp_path / "cnv_copy.vcf"
+        copy.write_bytes(HG002_CHRX_CNV.read_bytes())
+        r = run("--merge", "--vcf", str(HG002_CHRX_CNV), str(copy))
         assert r.returncode == 0
         # Merging with itself should collapse
         single = len(data_lines(run("--merge", "--vcf", str(HG002_CHRX_CNV)).stdout))
@@ -305,11 +309,13 @@ class TestPassOnly:
         r = run("--merge", "--vcf", str(HG002_CHR1_FILT), "--pass_only")
         assert r.returncode == 0
 
-    def test_passonly_reduces_merging_between_non_pass_variants(self):
+    def test_passonly_reduces_merging_between_non_pass_variants(self, tmp_path):
         """With --pass_only, non-PASS variants should not be merged into PASS ones.
         Output variant count may differ from the unrestricted run."""
-        without = run("--merge", "--vcf", str(HG002_CHR1_FILT), str(HG002_CHR1_FILT))
-        with_po = run("--merge", "--vcf", str(HG002_CHR1_FILT), str(HG002_CHR1_FILT), "--pass_only")
+        copy = tmp_path / "copy.vcf"
+        copy.write_bytes(HG002_CHR1_FILT.read_bytes())
+        without = run("--merge", "--vcf", str(HG002_CHR1_FILT), str(copy))
+        with_po = run("--merge", "--vcf", str(HG002_CHR1_FILT), str(copy), "--pass_only")
         assert without.returncode == 0
         assert with_po.returncode == 0
         # At minimum, both return some output
@@ -330,3 +336,30 @@ class TestPassOnly:
                      "--query_vcf", str(HG002_CHR1_FILT), "--max_frq", "1.0")
         # pass_only db has fewer indexed variants → fewer annotated hits
         assert len(annotated(r_pass.stdout)) <= len(annotated(r_full.stdout))
+
+
+# ---------------------------------------------------------------------------
+# duplicate input detection
+# ---------------------------------------------------------------------------
+
+class TestDuplicateInput:
+    def test_duplicate_vcf_exits_with_error(self):
+        """Passing the same VCF path twice must exit non-zero with a clear message."""
+        r = run("--merge", "--vcf", str(HG002_CHR1_FILT), str(HG002_CHR1_FILT))
+        assert r.returncode != 0
+        assert "same VCF supplied more than once" in r.stderr
+
+    def test_duplicate_vcf_with_priority_exits_with_error(self):
+        """Duplicate path via --priority must also be caught."""
+        r = run(
+            "--merge",
+            "--vcf", f"{HG002_CHR1_FILT}:caller1", f"{HG002_CHR1_FILT}:caller2",
+            "--priority", "caller1,caller2",
+        )
+        assert r.returncode != 0
+        assert "same VCF supplied more than once" in r.stderr
+
+    def test_distinct_vcfs_are_accepted(self):
+        """Two different VCF paths must not trigger the duplicate check."""
+        r = run("--merge", "--vcf", str(HG002_CHR1_FILT), str(HG002_CHR1))
+        assert r.returncode == 0

@@ -90,9 +90,11 @@ class TestMergeBenchmark:
             f"merge (3 VCFs) took {elapsed:.2f}s — exceeds budget of {BUDGET['merge']}s"
         )
 
-    def test_merge_bnd_within_budget(self):
+    def test_merge_bnd_within_budget(self, tmp_path):
         """BND variants trigger the precise_overlap path — check it doesn't regress."""
-        elapsed = timed_run("--merge", "--vcf", str(MANTA_BND), str(MANTA_BND))
+        copy = tmp_path / "manta_bnd_copy.vcf"
+        copy.write_bytes(MANTA_BND.read_bytes())
+        elapsed = timed_run("--merge", "--vcf", str(MANTA_BND), str(copy))
         assert elapsed < BUDGET["merge"], (
             f"BND merge took {elapsed:.2f}s — exceeds budget of {BUDGET['merge']}s"
         )

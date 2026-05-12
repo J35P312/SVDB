@@ -3,9 +3,12 @@ import sys
 
 import numpy as np
 
-from . import database, overlap_module, read_vcf, vcf_utils
+from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
 
 logger = logging.getLogger(__name__)
+
+# Sequence gate applies only within this positional hard cap, regardless of ins_distance.
+_INS_SEQ_HARD_CAP = 25
 
 
 def _read_query_vcf(args, writer):
@@ -50,7 +53,7 @@ def _read_query_vcf(args, writer):
             if variant is None:
                 logger.debug("skipping unparseable line: %s", line.rstrip())
                 continue
-            queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line])
+            queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line, variant.ins_seq, variant.svlen])
 
     return queries
 
@@ -106,9 +109,20 @@ def _load_vcf_db(args):
             if chrB not in DBvariants[chrA]:
                 DBvariants[chrA][chrB] = {}
             if event_type not in DBvariants[chrA][chrB]:
-                DBvariants[chrA][chrB][event_type] = {"samples": [], "coordinates": []}
+                DBvariants[chrA][chrB][event_type] = {
+                    "samples": [], "coordinates": [], "svlens": [], "sequences": []}
 
             DBvariants[chrA][chrB][event_type]["coordinates"].append(np.array([int(posA), int(posB)]))
+
+            # Store SVLEN and sequence for insertion entries (VCF format only, not BEDPE)
+            if not args.bedpedb and "INS" in event_type:
+                svlen = v.svlen
+                seq = v.ins_seq
+            else:
+                svlen = None
+                seq = ""
+            DBvariants[chrA][chrB][event_type]["svlens"].append(svlen)
+            DBvariants[chrA][chrB][event_type]["sequences"].append(seq)
             if "GT" in FORMAT and not use_OCC_tag:
                 DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
                 db_size = len(FORMAT["GT"])
@@ -127,8 +141,10 @@ def _load_vcf_db(args):
                         "(expected %s / %s); use --in_occ/--in_frq to set the correct tag names",
                         chrA, posA, OCC_tag, FRQ_tag,
                     )
-                    # remove the coordinate entry added above for this variant
+                    # remove entries added above for this variant to keep all lists in sync
                     DBvariants[chrA][chrB][event_type]["coordinates"].pop()
+                    DBvariants[chrA][chrB][event_type]["svlens"].pop()
+                    DBvariants[chrA][chrB][event_type]["sequences"].pop()
                     continue
 
     for chrA in DBvariants:
@@ -168,6 +184,9 @@ def _write_sqdb_results(queries, args, writer, db_size):
 
 
 def main(args, output_file=None):
+    # Resolve insertion sequence similarity threshold before any matching.
+    args.ins_seq_similarity = ins_similarity.resolve_ins_seq_threshold(args)
+
     if args.prefix:
         f = open(output_file, "w")
         writer = f.write
@@ -208,6 +227,14 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     frequency = []
     occ = []
     similarity = []
+
+    is_ins = "INS" in variation_type
+    query_seq = query_variant[7] if is_ins else ""
+    query_svlen = query_variant[8] if is_ins else None
+
+    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
+    ins_seq_threshold = getattr(args, "ins_seq_similarity", 0.75)
+    no_ins_seq = getattr(args, "no_ins_seq", False)
     if chrA not in DBvariants:
         if use_OCC_tag:
             return([0, 0])
@@ -239,13 +266,28 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             if not (chrA == chrB):
                 hit_tmp, match = overlap_module.precise_overlap(
                     chrApos, chrBpos, event[0], event[1], args.bnd_distance)
-            elif "INS" in variation_type:
+            elif is_ins:
                 # insertions are treated as single points; max distance determined by ins_distance
                 hit_tmp, match = overlap_module.precise_overlap(
                     chrApos, chrBpos, event[0], event[1], args.ins_distance)
             else:
                 hit_tmp, match = overlap_module.isSameVariation(
                     chrApos, chrBpos, event[0], event[1], args.overlap, args.bnd_distance)
+
+            # SVLEN ratio gate (VCF db mode only — sequences/svlens stored at load time)
+            if match and is_ins and chrA == chrB:
+                db_svlen = DBvariants[chrA][chrB][var]["svlens"][candidate]
+                if db_svlen is not None and query_svlen is not None:
+                    if not overlap_module.insertion_svlen_match(query_svlen, db_svlen, ins_svlen_ratio):
+                        match = False
+
+            # Sequence similarity gate (within hard cap; skip if no_ins_seq or no sequences)
+            if match and is_ins and chrA == chrB and not no_ins_seq:
+                pos_dist = abs(chrApos - int(event[0]))
+                if pos_dist <= _INS_SEQ_HARD_CAP:
+                    db_seq = DBvariants[chrA][chrB][var]["sequences"][candidate]
+                    if not ins_similarity.sequence_gate(query_seq, db_seq, ins_seq_threshold):
+                        match = False
 
             if match:
                 similarity.append(hit_tmp)
@@ -275,11 +317,13 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
 
 
 def SQDB(query_variant, args, db):
-    distance = args.bnd_distance
+    is_ins = "INS" in query_variant[4]
+    # Use ins_distance for insertions — bnd_distance is too loose for single-point INS events
+    distance = getattr(args, "ins_distance", 50) if is_ins else args.bnd_distance
     overlap = args.overlap
     variant = {"type": query_variant[4],
-               "chrA": query_variant[0], "posA": query_variant[1], "ci_A_start": 0, "ci_A_end": 0,
-               "chrB": query_variant[2], "posB": query_variant[3], "ci_B_start": 0, "ci_B_end": 0}
+               "chrA": query_variant[0], "posA": query_variant[1],
+               "chrB": query_variant[2], "posB": query_variant[3]}
 
     selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
 
@@ -292,11 +336,15 @@ def SQDB(query_variant, args, db):
     match = set([])
     for hit in hits:
         if variant["chrA"] == variant["chrB"]:
-            var = {"posA": int(hit[0]), "posB": int(hit[1]), "index": hit[2]}
-            similar, _ = overlap_module.isSameVariation(variant["posA"], variant["posB"],
-                                                        var["posA"], var["posB"], overlap, distance)
+            hit_posA, hit_posB, hit_idx = int(hit[0]), int(hit[1]), hit[2]
+            if is_ins:
+                similar, _ = overlap_module.precise_overlap(
+                    variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
+            else:
+                similar, _ = overlap_module.isSameVariation(
+                    variant["posA"], variant["posB"], hit_posA, hit_posB, overlap, distance)
             if similar:
-                match.add(var["index"])
+                match.add(hit_idx)
         else:
             match.add(hit[0])
 

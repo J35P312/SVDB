@@ -1,6 +1,6 @@
 """Shared data structures for SVDB."""
 from dataclasses import dataclass, field
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 
 
 @dataclass(frozen=True)
@@ -18,6 +18,9 @@ class VCFVariant:
     event_type: str
     info: Dict[str, str] = field(hash=False)
     fmt: Dict[str, List[str]] = field(hash=False)
+    ins_seq: str = field(default="", compare=False, hash=False)
+    svlen: Optional[int] = field(default=None, compare=False, hash=False)
+    vcf_filter: str = field(default="", compare=False, hash=False)
 
     def is_interchromosomal(self) -> bool:
         """True when the variant spans two different chromosomes (e.g. BND translocation)."""
@@ -42,9 +45,12 @@ class MergeVariant(NamedTuple):
     event_type: str
     posA: int
     posB: int
-    source: str      # vcf file path or priority tag
-    sort_index: int  # global sort index (renamed from index to avoid shadowing tuple.index)
-    raw_line: str    # original VCF line, unparsed
+    source: str           # vcf file path or priority tag
+    sort_index: int       # global sort index (renamed from index to avoid shadowing tuple.index)
+    raw_line: str         # original VCF line, unparsed
+    ins_seq: str = ""            # bare insertion sequence (empty for non-INS or symbolic ALT)
+    svlen: Optional[int] = None  # |SVLEN|: from INFO, or derived from len(ins_seq) when absent
+    vcf_filter: str = ""         # VCF FILTER column value
 
     def is_insertion(self) -> bool:
         """True for insertion-type variants — mirrors VCFVariant.is_insertion()."""

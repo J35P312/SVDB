@@ -2,6 +2,7 @@ import logging
 import sys
 
 from . import merge_vcf_module_cython, read_vcf, vcf_utils
+from .ins_similarity import resolve_ins_seq_threshold
 from .models import MergeVariant
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,9 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
 
 
 def main(args):
+    # Resolve insertion sequence similarity threshold once before the merge loop.
+    args.ins_seq_similarity = resolve_ins_seq_threshold(args)
+
     variants = {}
     # add all the variants into a dictionary
     i = 0
@@ -151,6 +155,14 @@ def main(args):
         logger.error("invalid input: supply vcf files, or add a number after each vcf name to assign the order manually")
         return -1
     else:
+        seen = set()
+        for vcf in vcf_list:
+            path = vcf.split(":")[0] if args.priority else vcf
+            if path in seen:
+                logger.error("same VCF supplied more than once: %s", path)
+                return -1
+            seen.add(path)
+
         vcf_dictionary = {}
         priority_order = []
         if args.priority:
@@ -189,10 +201,9 @@ def main(args):
                             continue
                         if v.chrA not in variants:
                             variants[v.chrA] = []
-                        if args.priority:
-                            variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf_dictionary[vcf], i, line.strip()))
-                        else:
-                            variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, vcf, i, line.strip()))
+
+                        source = vcf_dictionary[vcf] if args.priority else vcf
+                        variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, source, i, line.strip(), v.ins_seq, v.svlen, v.vcf_filter))
                         i += 1
 
     samples, sample_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)
