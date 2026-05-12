@@ -121,9 +121,26 @@ The query module is used to query one or more structural variant databases. Typi
         --out_occ OUT_OCC       the allele count tag, as annotated by SVDB variant(default=OCC). This parameter is required if multiple databases are queried.
         --out_frq OUT_FRQ       the tag used to describe the frequency of the variant(default=FRQ). This parameter is required if multiple databases are queried.
         --prefix PREFIX         the prefix of the output file, default = print to stdout. Required if multiple databases are queried.
-        --bnd_distance BND_DISTANCE  the maximum distance between two similar breakpoints(default = 10000)
-        --overlap OVERLAP       the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
-        --memory                load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
+        --bnd_distance BND_DISTANCE  the maximum distance between two similar breakpoints (default = 10000)
+        --overlap OVERLAP       the overlap required to merge two events (0 means anything that
+                                touches will be merged, 1 means that two events must be identical
+                                to be merged), default = 0.6
+        --ins_distance INS_DISTANCE
+                                the maximum distance to match two insertions (default = 50)
+        --ins_svlen_ratio INS_SVLEN_RATIO
+                                minimum SVLEN ratio (min/max) required to match two insertions
+                                with known length (default = 0.90; VCF db only)
+        --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity (0–1) required to match
+                                two insertions with known sequence (default = 0.75); overridden
+                                by --data_profile; VCF db only
+        --data_profile {sample,cohort}
+                                set a sequence similarity preset: sample=0.85, cohort=0.75;
+                                overrides --ins_seq_similarity; VCF db only
+        --no_ins_seq            disable insertion sequence similarity check; match insertions on
+                                position and SVLEN only; VCF db only
+        --memory                load the database into memory: increases the memory requirements,
+                                but lowers the time consumption (may only be used with sqdb)
         --no_var                count overlapping variants of different type as hits in the db
         --debug                 enable debug logging to stderr
 
@@ -146,23 +163,42 @@ The merge module merges variants within one or more vcf files. This could be use
 
     optional arguments:
         -h, --help                      show this help message and exit
-        
+
         --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
-                                        (default = 10000)
-                        
-        --overlap OVERLAP               the overlap required to merge two events(0 means
+                                        (default = 2000)
+
+        --overlap OVERLAP               the overlap required to merge two events (0 means
                                         anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.6
+                                        events must be identical to be merged), default = 0.95
+
+        --ins_distance INS_DISTANCE     the maximum distance to merge two insertions (default = 25)
+
+        --ins_svlen_ratio INS_SVLEN_RATIO
+                                        minimum SVLEN ratio (min/max) required to merge two
+                                        insertions with known length (default = 0.90)
+
+        --ins_seq_similarity THRESHOLD  minimum Levenshtein sequence similarity (0–1) required to
+                                        merge two insertions with known sequence (default = 0.75);
+                                        overridden by --data_profile
+
+        --data_profile {sample,cohort}  set a sequence similarity preset: sample=0.85 (same
+                                        individual / same technology), cohort=0.75 (cross-
+                                        individual or cross-technology); overrides
+                                        --ins_seq_similarity
+
+        --no_ins_seq                    disable insertion sequence similarity check; merge
+                                        insertions on position and SVLEN only
 
         --priority                      prioritise the input vcf files
-                                                                      
+
         --no_intra                      no merging of variants within the same vcf
-        
+
         --no_var                        variants of different type will be merged
-        
+
         --pass_only                     merge only variants labeled PASS
 
-        --same_order                    assume that the samples are ordered the same way (skip reordering and merging of the sample columns).
+        --same_order                    assume that the samples are ordered the same way (skip
+                                        reordering and merging of the sample columns)
 
         --debug                         enable debug logging to stderr
 
