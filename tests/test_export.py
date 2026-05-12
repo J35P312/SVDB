@@ -1,6 +1,6 @@
 import unittest
 
-from svdb.export_module import db_header, make_representing_variant, build_genotype_columns
+from svdb.export_module import db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
 
 #mock argeparse arguments
 class args:
@@ -51,3 +51,32 @@ class TestBuildGenotypeColumns(unittest.TestCase):
     def test_order_follows_sample_ids(self):
         cols = build_genotype_columns(["b", "a"], ["a"])
         assert cols == ["0/0", "./1"]
+
+
+class TestVcfLineStripChr(unittest.TestCase):
+
+    def _cluster(self, chrA, chrB, vtype="DEL"):
+        rep = make_representing_variant(vtype, chrA, chrB, 100, 100, 100, 200, 200, 200)
+        variants = {0: {"posA": 100, "posB": 200, "sample_id": "s1"}}
+        return [rep, variants]
+
+    def test_chr_prefix_preserved_by_default(self):
+        line = make_vcf_line(self._cluster("chr1", "chr1"), "id1", ["s1"])
+        assert line.startswith("chr1\t")
+
+    def test_strip_chr_removes_prefix(self):
+        line = make_vcf_line(self._cluster("chr1", "chr1"), "id1", ["s1"], strip_chr=True)
+        assert line.startswith("1\t")
+
+    def test_strip_chr_bnd_chrB(self):
+        rep = make_representing_variant("BND", "chr1", "chr2", 100, 100, 100, 500, 500, 500)
+        cluster = [rep, {0: {"posA": 100, "posB": 500, "sample_id": "s1"}}]
+        line = make_vcf_line(cluster, "id1", ["s1"], strip_chr=True)
+        fields = line.split("\t")
+        assert fields[0] == "1"
+        assert "chr2" not in fields[4]
+        assert "2:" in fields[4]
+
+    def test_no_chr_prefix_unaffected(self):
+        line = make_vcf_line(self._cluster("1", "1"), "id1", ["s1"], strip_chr=True)
+        assert line.startswith("1\t")

@@ -129,6 +129,9 @@ When the database was built with insertion sequence data (i.e. the INS table is 
         --memory                    load the database into memory: increases the memory requirements,
                                     but lowers the time consumption
 
+        --strip_chr                 strip the 'chr' prefix from chromosome names in the output VCF
+                                    (e.g. 'chr1' → '1')
+
         --debug                     enable debug logging to stderr
 
 ## Query

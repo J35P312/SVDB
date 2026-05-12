@@ -5,6 +5,7 @@ from collections import Counter
 import numpy as np
 
 from . import dbscan, database, ins_similarity, overlap_module
+from .vcf_utils import normalize_chrom
 
 logger = logging.getLogger(__name__)
 
@@ -115,10 +116,11 @@ def db_header(args):
     return headerString
 
 
-def vcf_line(cluster, id_tag, sample_IDs):
+def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False):
+    _chrom = normalize_chrom if strip_chr else (lambda x: x)
     info_field = "SVTYPE={};".format(cluster[0]["type"])
     vcf_line = []
-    vcf_line.append(cluster[0]["chrA"])
+    vcf_line.append(_chrom(cluster[0]["chrA"]))
     vcf_line.append(str(cluster[0]["posA"]))
     vcf_line.append(id_tag)
     vcf_line.append("N")
@@ -132,7 +134,7 @@ def vcf_line(cluster, id_tag, sample_IDs):
             vcf_line.append("<" + cluster[0]["type"] + ">")
             info_field += "END={};SVLEN={};".format(cluster[0]["posB"], abs(cluster[0]["posA"] - cluster[0]["posB"]))
     else:
-        vcf_line.append("N[{}:{}[".format(cluster[0]["chrB"], cluster[0]["posB"]))
+        vcf_line.append("N[{}:{}[".format(_chrom(cluster[0]["chrB"]), cluster[0]["posB"]))
 
     sample_set = set([])
     CIPOS = []
@@ -262,13 +264,14 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
         similarity_matrix = expand_chain(
            variant_dictionary, coordinates, chrA, chrB, args.bnd_distance, args.overlap)
 
+    strip_chr = getattr(args, "strip_chr", False)
     clusters = cluster_variants(variant_dictionary, similarity_matrix)
     for clustered_variants in clusters:
         clustered_variants[0]["type"] = variant
         clustered_variants[0]["chrA"] = chrA
         clustered_variants[0]["chrB"] = chrB
         clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
-        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs) + "\n")
+        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
     return i + len(clusters)
 
 
@@ -287,6 +290,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
         #clustering of all other variants
         labels = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
 
+    strip_chr = getattr(args, "strip_chr", False)
     unique_labels = set(labels)
     # print the unique variants
     unique_xy = chr_db[variant]["coordinates"][labels == -1]
@@ -297,7 +301,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
         representing_var = make_representing_variant(
             variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1], ins_seq)
         cluster = [representing_var, variant_dictionary]
-        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs) + "\n")
+        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
         i += 1
     del unique_xy
     del unique_index
@@ -322,7 +326,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
                 int(avg_point[1]), np.amin(xy[:, 1]), np.amax(xy[:, 1]),
                 ins_seq)
             cluster = [representing_var, variant_dictionary]
-            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs) + "\n")
+            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
             i += 1
 
         else:
