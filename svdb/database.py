@@ -37,6 +37,7 @@ class DB:
             db_dump = "".join(line for line in self.conn.iterdump())
             memory_db.executescript(db_dump)
             self.conn.close()
+            self.conn = memory_db
             self.cursor = memory_db.cursor()
         else:
             self.cursor = self.conn.cursor()

@@ -146,7 +146,7 @@ def main():
             '--folder', type=str, help="create a db using all the vcf files in the folders")
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = SVDB")
-        parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, has no effect if already up to date",
+        parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, exits with INFO if already up to date",
                             required=False, action="store_true")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
@@ -190,7 +190,7 @@ def main():
         parser.add_argument('--epsilon', type=float, default=500,
                             help="used together with --DBSCAN; sets the epsilon paramter(default = 500)", required=False)
         parser.add_argument('--min_pts', type=int, default=2,
-                            help="used together with 1--DBSCAN; sets the min_pts parameter(default = 2)", required=False)
+                            help="used together with --DBSCAN; sets the min_pts parameter(default = 2)", required=False)
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = same as input")
         parser.add_argument(
