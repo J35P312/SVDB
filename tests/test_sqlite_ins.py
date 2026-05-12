@@ -211,6 +211,80 @@ class TestQuerySQLiteINS:
         assert len(lines) == 1
         assert "OCC=1" in lines[0]
 
+    def test_query_svlen_ratio_blocks_dissimilar_length(self, tmp_path):
+        """SVLEN ratio gate: DB SVLEN=80, query SVLEN=100 → ratio=0.80 < default 0.90."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "A" * 80)])
+        make_ins_vcf(query_vcf, [("1", 1000, "q_ins", "A" * 100)])
+        build(tmp_path / "svdb", db_vcf)
+        r = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                "--query_vcf", str(query_vcf))
+        assert r.returncode == 0
+        lines = data_lines(r.stdout)
+        assert len(lines) == 1
+        assert "OCC=" not in lines[0]
+
+    def test_query_svlen_ratio_permissive_allows_match(self, tmp_path):
+        """Lowering --ins_svlen_ratio lets the same pair through."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "A" * 80)])
+        make_ins_vcf(query_vcf, [("1", 1000, "q_ins", "A" * 100)])
+        build(tmp_path / "svdb", db_vcf)
+        r = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                "--query_vcf", str(query_vcf), "--ins_svlen_ratio", "0.75")
+        assert r.returncode == 0
+        lines = data_lines(r.stdout)
+        assert len(lines) == 1
+        assert "OCC=1" in lines[0]
+
+    def test_query_ins_distance_blocks_far_insertion(self, tmp_path):
+        """Insertion 30 bp away is outside the default ins_distance=25 window."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "ACGTACGT")])
+        make_ins_vcf(query_vcf, [("1", 1030, "q_ins", "ACGTACGT")])
+        build(tmp_path / "svdb", db_vcf)
+        r = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                "--query_vcf", str(query_vcf))
+        assert r.returncode == 0
+        lines = data_lines(r.stdout)
+        assert len(lines) == 1
+        assert "OCC=" not in lines[0]
+
+    def test_query_ins_distance_custom_allows_far_insertion(self, tmp_path):
+        """--ins_distance 50 brings a 30 bp gap within range."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "ACGTACGT")])
+        make_ins_vcf(query_vcf, [("1", 1030, "q_ins", "ACGTACGT")])
+        build(tmp_path / "svdb", db_vcf)
+        r = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                "--query_vcf", str(query_vcf), "--ins_distance", "50")
+        assert r.returncode == 0
+        lines = data_lines(r.stdout)
+        assert len(lines) == 1
+        assert "OCC=1" in lines[0]
+
+    def test_query_data_profile_sample_blocks_moderate_similarity(self, tmp_path):
+        """--data_profile sample sets threshold=0.85; sequence with sim≈0.80 should not match."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        # 50 A's in DB; 40 A's + 10 C's in query → Levenshtein sim = 1 - 10/50 = 0.80
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "A" * 50)])
+        make_ins_vcf(query_vcf, [("1", 1000, "q_ins", "A" * 40 + "C" * 10)])
+        build(tmp_path / "svdb", db_vcf)
+        # Default threshold 0.75: sim 0.80 passes → should match
+        r_default = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                        "--query_vcf", str(query_vcf))
+        assert "OCC=1" in data_lines(r_default.stdout)[0]
+        # sample profile threshold 0.85: sim 0.80 fails → should not match
+        r_profile = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                        "--query_vcf", str(query_vcf), "--data_profile", "sample")
+        assert r_profile.returncode == 0
+        assert "OCC=" not in data_lines(r_profile.stdout)[0]
+
 
 # ---------------------------------------------------------------------------
 # Export: ALT column + warning
@@ -276,3 +350,81 @@ class TestExportINS:
         lines = data_lines((tmp_path / "out.vcf").read_text())
         # All four cluster together (--no_ins_seq); most common seq is ACGTACGT
         assert any("NACGTACGT" in line for line in lines)
+
+    def test_export_ins_svlen_ratio_separates_different_lengths(self, tmp_path):
+        """Default ratio=0.90 keeps very different lengths in separate clusters."""
+        vcf = tmp_path / "sample.vcf"
+        # ratio = 20/100 = 0.20, well below default 0.90
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "A" * 20),
+            ("1", 1001, "ins2", "A" * 100),
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"), "--no_ins_seq")
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) == 2
+
+    def test_export_ins_svlen_ratio_permissive_merges_different_lengths(self, tmp_path):
+        """Lowering --ins_svlen_ratio lets differently-sized insertions cluster."""
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "A" * 20),
+            ("1", 1001, "ins2", "A" * 100),
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"),
+                "--no_ins_seq", "--ins_svlen_ratio", "0.10")
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) == 1
+
+    def test_export_ins_distance_separates_far_insertions(self, tmp_path):
+        """Two insertions 30 bp apart stay separate with the default ins_distance=25."""
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "ACGTACGT"),
+            ("1", 1030, "ins2", "ACGTACGT"),
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"))
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) == 2
+
+    def test_export_ins_distance_custom_merges_far_insertions(self, tmp_path):
+        """--ins_distance 50 brings two insertions 30 bp apart into the same cluster."""
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "ACGTACGT"),
+            ("1", 1030, "ins2", "ACGTACGT"),
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"), "--ins_distance", "50")
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) == 1
+
+    def test_export_data_profile_sample_separates_moderate_similarity(self, tmp_path):
+        """--data_profile sample (threshold=0.85) keeps sim≈0.80 insertions separate."""
+        vcf = tmp_path / "sample.vcf"
+        # 50 A's vs 40 A's + 10 C's → Levenshtein sim = 1 - 10/50 = 0.80
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "A" * 50),
+            ("1", 1001, "ins2", "A" * 40 + "C" * 10),
+        ])
+        build(tmp_path / "svdb", vcf)
+        # Default threshold 0.75: sim 0.80 passes → one cluster
+        run("--export", "--db", str(tmp_path / "svdb.db"),
+            "--prefix", str(tmp_path / "out_default"))
+        assert len(data_lines((tmp_path / "out_default.vcf").read_text())) == 1
+        # sample profile threshold 0.85: sim 0.80 fails → two clusters
+        r_profile = run("--export", "--db", str(tmp_path / "svdb.db"),
+                        "--prefix", str(tmp_path / "out_profile"),
+                        "--data_profile", "sample")
+        assert r_profile.returncode == 0
+        assert len(data_lines((tmp_path / "out_profile.vcf").read_text())) == 2
