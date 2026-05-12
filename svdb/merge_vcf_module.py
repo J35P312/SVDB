@@ -155,6 +155,14 @@ def main(args):
         logger.error("invalid input: supply vcf files, or add a number after each vcf name to assign the order manually")
         return -1
     else:
+        seen = set()
+        for vcf in vcf_list:
+            path = vcf.split(":")[0] if args.priority else vcf
+            if path in seen:
+                logger.error("same VCF supplied more than once: %s", path)
+                return -1
+            seen.add(path)
+
         vcf_dictionary = {}
         priority_order = []
         if args.priority:

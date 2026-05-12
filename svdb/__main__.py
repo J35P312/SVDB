@@ -240,7 +240,9 @@ def main():
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
-        merge_vcf_module.main(args)
+        result = merge_vcf_module.main(args)
+        if result is not None and result < 0:
+            sys.exit(1)
 
     else:
         parser.print_help()
