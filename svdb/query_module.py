@@ -339,8 +339,6 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
         join = "LEFT JOIN INS i ON s.idx = i.idx"
         table = "SVDB s"
-        chr_filter = "s.var"
-        pos_filter = "s.chrA, s.chrB, s.posA, s.posB"
         A = (
             f"SELECT {selection} FROM {table} {join} "
             f"WHERE s.var == '{variant['type']}' AND s.chrA == '{variant['chrA']}' "
@@ -371,7 +369,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
             hit_posA, hit_posB, hit_sample = int(hit[0]), int(hit[1]), hit[2]
             if use_ins_table:
                 hit_idx, hit_seq, hit_len = hit[3], hit[4], hit[5]
-                similar, _ = overlap_module.precise_overlap(
+                _, similar = overlap_module.precise_overlap(
                     variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
                 if similar and hit_len is not None and query_svlen is not None:
                     if not overlap_module.insertion_svlen_match(query_svlen, hit_len, ins_svlen_ratio):
@@ -383,7 +381,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
                 if similar:
                     match.add(hit_idx)
             elif is_ins:
-                similar, _ = overlap_module.precise_overlap(
+                _, similar = overlap_module.precise_overlap(
                     variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
                 if similar:
                     match.add(hit_sample)

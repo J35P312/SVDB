@@ -267,8 +267,7 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
         clustered_variants[0]["type"] = variant
         clustered_variants[0]["chrA"] = chrA
         clustered_variants[0]["chrB"] = chrB
-        if "ins_seq" not in clustered_variants[0]:
-            clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
+        clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
         f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs) + "\n")
     return i + len(clusters)
 
