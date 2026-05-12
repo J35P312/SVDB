@@ -58,8 +58,8 @@ This module is used to construct structural variant databases from vcf files. Th
         svdb --build --folder SV_analysis_folder/
     Upgrade an existing database schema to the current SVDB version:
         svdb --build --upgrade --prefix existing_db
-    Upgrade schema and add new samples in one step:
-        svdb --build --upgrade --files new_sample.vcf --prefix existing_db
+    Upgrade schema and backfill insertion data from the original VCFs:
+        svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db
 
     optional arguments:
         -h, --help                      show this help message and exit
@@ -164,23 +164,23 @@ The query module is used to query one or more structural variant databases. Typi
         --ins_svlen_ratio INS_SVLEN_RATIO
                                 minimum SVLEN ratio (min/max) required to match two insertions
                                 with known length (default = 0.90)
-                                Note: only applied when using --db; has no effect with --sqdb
-                                or --bedpedb
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
         --ins_seq_similarity THRESHOLD
                                 minimum Levenshtein sequence similarity (0–1) required to match
                                 two insertions with known sequence (default = 0.75); overridden
                                 by --data_profile
-                                Note: only applied when using --db; has no effect with --sqdb
-                                or --bedpedb
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
         --data_profile {sample,cohort}
                                 set a sequence similarity preset: sample=0.85, cohort=0.75;
                                 overrides --ins_seq_similarity
-                                Note: only applied when using --db; has no effect with --sqdb
-                                or --bedpedb
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
         --no_ins_seq            disable insertion sequence similarity check; match insertions on
                                 position and SVLEN only
-                                Note: only applied when using --db; has no effect with --sqdb
-                                or --bedpedb
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
         --memory                load the database into memory: increases the memory requirements,
                                 but lowers the time consumption (may only be used with sqdb)
         --no_var                count overlapping variants of different type as hits in the db

@@ -102,13 +102,13 @@ def main():
         parser.add_argument('--ins_distance', type=int, default=25,
                             help="the maximum distance to match two insertions(default = 25)")
         parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90; VCF db only)")
+                            help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90); applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum Levenshtein sequence similarity to match two insertions (default = 0.75); overridden by --data_profile; VCF db only")
+                            help="minimum Levenshtein sequence similarity to match two insertions (default = 0.75); overridden by --data_profile; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity threshold preset: sample=0.85, cohort=0.75 (VCF db only)")
+                            help="set sequence similarity threshold preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only (VCF db only)", required=False, action="store_true")
+            '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb", required=False, action="store_true")
         parser.add_argument('--overlap', type=float, default=0.6,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--memory',
