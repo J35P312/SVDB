@@ -93,23 +93,43 @@ When the database was built with insertion sequence data (i.e. the INS table is 
         svdb --export --db database.db
 
     optional arguments:
-        --no_merge            skip the merging of variants, print all variants in the db to a vcf file
+        --no_merge                  skip the merging of variants, print all variants in the db to a vcf file
 
-         --bnd_distance BND_DISTANCE  the maximum distance between two similar precise breakpoints(default = 2500)
- 
-         --overlap OVERLAP     the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8
+        --bnd_distance BND_DISTANCE the maximum distance between two similar precise breakpoints (default = 2500)
 
-         --DBSCAN              use dbscan to cluster the variants, overides the overlap based clustering algorithm
+        --ins_distance INS_DISTANCE the maximum distance to cluster two insertions (default = 25)
 
-         --epsilon EPSILON     used together with --DBSCAN; sets the epsilon parameter(default = 500bp)
+        --ins_svlen_ratio RATIO      minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90);
+                                    requires INS table
 
-         --min_pts MIN_PTS     the min_pts parameter(default = 2
+        --ins_seq_similarity THRESHOLD
+                                    minimum Levenshtein sequence similarity (0–1) for insertion clustering
+                                    (default = 0.75); overridden by --data_profile; requires INS table
 
-         --prefix PREFIX       the prefix of the output file, default = same as input
+        --data_profile {sample,cohort}
+                                    set a sequence similarity preset: sample=0.85, cohort=0.75;
+                                    overrides --ins_seq_similarity; requires INS table
 
-          --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
+        --no_ins_seq                disable insertion sequence similarity check for clustering;
+                                    cluster on position and SVLEN only; requires INS table
 
-          --debug               enable debug logging to stderr
+        --overlap OVERLAP           the overlap required to merge two events (0 means anything that
+                                    touches will be merged, 1 means that two events must be identical
+                                    to be merged), default = 0.8
+
+        --DBSCAN                    use dbscan to cluster the variants, overrides the overlap based
+                                    clustering algorithm
+
+        --epsilon EPSILON           used together with --DBSCAN; sets the epsilon parameter (default = 500bp)
+
+        --min_pts MIN_PTS           the min_pts parameter (default = 2)
+
+        --prefix PREFIX             the prefix of the output file, default = same as input
+
+        --memory                    load the database into memory: increases the memory requirements,
+                                    but lowers the time consumption
+
+        --debug                     enable debug logging to stderr
 
 ## Query
 The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
