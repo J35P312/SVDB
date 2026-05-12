@@ -146,6 +146,8 @@ def main():
             '--folder', type=str, help="create a db using all the vcf files in the folders")
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = SVDB")
+        parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, has no effect if already up to date",
+                            required=False, action="store_true")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()
@@ -154,7 +156,9 @@ def main():
             logger.error("only one DB build input source may be selected (--files or --folder)")
             sys.exit(1)
 
-        if args.folder or args.files:
+        if args.upgrade:
+            build_module.main(args)
+        elif args.folder or args.files:
             build_module.main(args)
         else:
             logger.error("use --files or --folder to provide input for the database creation algorithm")

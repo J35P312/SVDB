@@ -49,25 +49,37 @@ SVDB consists of modules that are used to build, query, export, and analyse stru
 
 ## Build
 This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
-    
+
     print a help message
-        svdb  --build --help  
-    Construct a database, from a set of vcf files:
+        svdb  --build --help
+    Construct a database from a set of vcf files:
         svdb --build --files sample1.vcf sample2.vcf sample3.vcf
-    construct a database from vcf files stored in a folder
+    Construct a database from vcf files stored in a folder:
         svdb --build --folder SV_analysis_folder/
-        
+    Upgrade an existing database schema to the current SVDB version:
+        svdb --build --upgrade --prefix existing_db
+    Upgrade schema and add new samples in one step:
+        svdb --build --upgrade --files new_sample.vcf --prefix existing_db
+
     optional arguments:
         -h, --help                      show this help message and exit
 
-        --files [FILES [FILES ...]]      create a db using the specified vcf files(cannot be
-                                         used with --folder)
-                        
-        --folder FOLDER                  create a db using all the vcf files in the folders
-        
-        --prefix PREFIX                  the prefix of the output file, default = SVDB
+        --files [FILES [FILES ...]]      create a db using the specified vcf files (cannot be
+                                        used with --folder)
 
-        --debug                          enable debug logging to stderr
+        --folder FOLDER                 create a db using all the vcf files in the folders
+
+        --prefix PREFIX                 the prefix of the output file, default = SVDB
+
+        --upgrade                       create the INS sequence/length table in an existing
+                                        database (safe to run on any database; exits with INFO
+                                        if already up to date). Optionally combine with --files
+                                        or --folder to backfill insertion data from the original
+                                        VCFs without rebuilding the full database.
+
+        --passonly                      only include variants with PASS or . in the FILTER field
+
+        --debug                         enable debug logging to stderr
 
 
 ## Export

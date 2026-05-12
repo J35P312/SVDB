@@ -18,6 +18,12 @@ SCHEMA_COLUMNS = (
 CREATE_TABLE_SQL = "CREATE TABLE SVDB ({})".format(", ".join(SCHEMA_COLUMNS))
 INSERT_PLACEHOLDERS = "({})".format(", ".join("?" for _ in SCHEMA_COLUMNS))
 
+CREATE_INS_TABLE_SQL = (
+    "CREATE TABLE IF NOT EXISTS INS "
+    "(idx INT PRIMARY KEY, ins_seq TEXT, ins_len INT)"
+)
+INSERT_INS_PLACEHOLDERS = "(?, ?, ?)"
+
 
 class DB:
     def __init__(self, db: str, memory: bool = False) -> None:
@@ -61,6 +67,20 @@ class DB:
     def create_index(self, name: str, columns: str) -> None:
         query = f"CREATE INDEX {name} ON SVDB {columns}"
         self.cursor.execute(query)
+        self.conn.commit()
+
+    def has_ins_table(self) -> bool:
+        return "INS" in self.tables
+
+    def create_ins_table(self) -> None:
+        self.conn.execute(CREATE_INS_TABLE_SQL)
+        self.conn.commit()
+
+    def insert_ins_many(self, data: List[Tuple[Any, ...]]) -> None:
+        """Insert rows into the INS table; silently skip duplicate idx values."""
+        self.cursor.executemany(
+            f'INSERT OR IGNORE INTO INS VALUES {INSERT_INS_PLACEHOLDERS}', data
+        )
         self.conn.commit()
 
     @property

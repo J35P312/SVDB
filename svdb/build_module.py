@@ -25,6 +25,8 @@ def populate_db(args):
         if sample_IDs:
             idx = 1 + int(db.query("SELECT MAX(idx) FROM SVDB")[0][0])
 
+    db.create_ins_table()
+
     # populate the tables
     for vcf in args.files:
         sample_name = Path(vcf).stem.replace(".", "_")
@@ -39,6 +41,7 @@ def populate_db(args):
             continue
 
         var = []
+        ins = []
         sample_names = []
 
         with vcf_utils.open_vcf(vcf) as lines:
@@ -76,9 +79,13 @@ def populate_db(args):
                 if "CIEND" in INFO:
                     ci_B_lower, ci_B_upper = vcf_utils.parse_ci(INFO["CIEND"])
 
+                is_ins = "INS" in event_type
+
                 if "GT" not in FORMAT or not len(sample_names):
                     var.append((event_type, chrA, chrB, posA, ci_A_lower,
                                 ci_A_upper, posB, ci_B_lower, ci_B_upper, sample_name, idx))
+                    if is_ins:
+                        ins.append((idx, variant.ins_seq or None, variant.svlen))
                     idx += 1
                 else:
                     sample_index = 0
@@ -86,12 +93,15 @@ def populate_db(args):
                         if genotype not in ["0/0", "./."]:
                             var.append((event_type, chrA, chrB, posA, ci_A_lower, ci_A_upper,
                                         posB, ci_B_lower, ci_B_upper, sample_names[sample_index], idx))
+                            if is_ins:
+                                ins.append((idx, variant.ins_seq or None, variant.svlen))
                             idx += 1
                         sample_index += 1
 
-        # insert EVERYTHING into the database, the user may then query it in different ways(at least until the DB gets to large to function properly)
         if var:
             db.insert_many(var)
+        if ins:
+            db.insert_ins_many(ins)
 
     db.create_index(name='SV', columns='(var, chrA, chrB, posA, posA, posB, posB)')
     db.create_index(name='IDX', columns='(idx)')
@@ -99,8 +109,64 @@ def populate_db(args):
     return sample_IDs
 
 
+def upgrade_db(args):
+    """Create the INS table and backfill from provided VCFs if given."""
+    db = database.DB(args.db)
+    if "SVDB" not in db.tables:
+        logger.error("no SVDB table found in %s — build a database first", args.db)
+        return
+
+    if db.has_ins_table():
+        logger.info("database schema is up to date")
+        return
+
+    db.create_ins_table()
+    logger.info("INS table created")
+
+    if not args.files and not args.folder:
+        return
+
+    # Backfill INS table from the provided VCFs by matching idx via SVDB lookup
+    ins = []
+    for vcf in args.files:
+        sample_name = Path(vcf).stem.replace(".", "_")
+        if not os.path.exists(vcf):
+            logger.warning("unable to open %s — skipping", vcf)
+            continue
+
+        with vcf_utils.open_vcf(vcf) as lines:
+            for line in lines:
+                if line.startswith("#"):
+                    continue
+                if not line.strip():
+                    continue
+
+                variant = read_vcf.readVCFLine(line)
+                if "INS" not in variant.event_type:
+                    continue
+
+                rows = db.query(
+                    f"SELECT idx FROM SVDB WHERE sample == '{sample_name}' "
+                    f"AND var == '{variant.event_type}' "
+                    f"AND chrA == '{variant.chrA}' AND posA == {variant.posA}"
+                )
+                for (idx,) in rows:
+                    ins.append((idx, variant.ins_seq or None, variant.svlen))
+
+    if ins:
+        db.insert_ins_many(ins)
+        logger.info("backfilled %d INS entries", len(ins))
+
+
 def main(args):
     args.db = args.prefix
+
+    if getattr(args, "upgrade", False):
+        if not args.files and args.folder:
+            args.files = glob.glob(os.path.join(args.folder, "*.vcf")) + glob.glob(os.path.join(args.folder, "*.vcf.gz"))
+        upgrade_db(args)
+        return
+
     if not args.files and args.folder:
         args.files = glob.glob(os.path.join(args.folder, "*.vcf")) + glob.glob(os.path.join(args.folder, "*.vcf.gz"))
         if not args.files:
