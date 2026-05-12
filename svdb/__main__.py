@@ -99,8 +99,8 @@ def main():
                             help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="the maximum distance between two similar breakpoints(default = 10000)")
-        parser.add_argument('--ins_distance', type=int, default=50,
-                            help="the maximum distance to match two insertions(default = 50)")
+        parser.add_argument('--ins_distance', type=int, default=25,
+                            help="the maximum distance to match two insertions(default = 25)")
         parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
                             help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90; VCF db only)")
         parser.add_argument('--ins_seq_similarity', type=float, default=None,
@@ -169,8 +169,8 @@ def main():
             '--no_merge', help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int, default=2500,
                             help="the maximum distance between two similar precise breakpoints(default = 2500)")
-        parser.add_argument('--ins_distance', type=int, default=50,
-                            help="the maximum distance to cluster two insertions (default = 50)")
+        parser.add_argument('--ins_distance', type=int, default=25,
+                            help="the maximum distance to cluster two insertions (default = 25)")
         parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
                             help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; accepted but not applied — SQLite does not store SVLEN)")
         parser.add_argument('--ins_seq_similarity', type=float, default=None,

@@ -126,19 +126,27 @@ The query module is used to query one or more structural variant databases. Typi
                                 touches will be merged, 1 means that two events must be identical
                                 to be merged), default = 0.6
         --ins_distance INS_DISTANCE
-                                the maximum distance to match two insertions (default = 50)
+                                the maximum distance to match two insertions (default = 25)
         --ins_svlen_ratio INS_SVLEN_RATIO
                                 minimum SVLEN ratio (min/max) required to match two insertions
-                                with known length (default = 0.90; VCF db only)
+                                with known length (default = 0.90)
+                                Note: only applied when using --db; has no effect with --sqdb
+                                or --bedpedb
         --ins_seq_similarity THRESHOLD
                                 minimum Levenshtein sequence similarity (0–1) required to match
                                 two insertions with known sequence (default = 0.75); overridden
-                                by --data_profile; VCF db only
+                                by --data_profile
+                                Note: only applied when using --db; has no effect with --sqdb
+                                or --bedpedb
         --data_profile {sample,cohort}
                                 set a sequence similarity preset: sample=0.85, cohort=0.75;
-                                overrides --ins_seq_similarity; VCF db only
+                                overrides --ins_seq_similarity
+                                Note: only applied when using --db; has no effect with --sqdb
+                                or --bedpedb
         --no_ins_seq            disable insertion sequence similarity check; match insertions on
-                                position and SVLEN only; VCF db only
+                                position and SVLEN only
+                                Note: only applied when using --db; has no effect with --sqdb
+                                or --bedpedb
         --memory                load the database into memory: increases the memory requirements,
                                 but lowers the time consumption (may only be used with sqdb)
         --no_var                count overlapping variants of different type as hits in the db
