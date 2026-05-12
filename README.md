@@ -84,6 +84,8 @@ This module is used to construct structural variant databases from vcf files. Th
 
 ## Export
 This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorithms, overlap or DBSCAN.
+
+When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
  
     print a help message
         svdb  --export --help  

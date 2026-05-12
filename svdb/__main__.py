@@ -176,13 +176,13 @@ def main():
         parser.add_argument('--ins_distance', type=int, default=25,
                             help="the maximum distance to cluster two insertions (default = 25)")
         parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; accepted but not applied — SQLite does not store SVLEN)")
+                            help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; requires INS table)")
         parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum sequence similarity for insertion clustering (accepted but not applied — SQLite does not store sequences)")
+                            help="minimum sequence similarity for insertion clustering (default = 0.75); overridden by --data_profile; requires INS table")
         parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="sequence similarity threshold preset (accepted but not applied for export)")
+                            help="set sequence similarity preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; requires INS table")
         parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence gate (accepted but not applied for export)", required=False, action="store_true")
+            '--no_ins_seq', help="disable insertion sequence similarity check for clustering; requires INS table", required=False, action="store_true")
         parser.add_argument('--overlap', type=float, default=0.8,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(

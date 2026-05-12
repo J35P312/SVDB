@@ -212,7 +212,8 @@ def main(args, output_file=None):
             sys.exit(1)
 
         has_ins_queries = any("INS" in q[4] for q in queries)
-        if has_ins_queries and not db.has_ins_table():
+        has_ins_table = db.has_ins_table()
+        if has_ins_queries and not has_ins_table:
             logger.warning(
                 "database does not contain insertion sequence/length data — "
                 "matching on position only. To enable full insertion matching, "
@@ -220,7 +221,7 @@ def main(args, output_file=None):
             )
 
         for query in queries:
-            query[5] = SQDB(query, args, db)
+            query[5] = SQDB(query, args, db, has_ins_table)
 
         _write_sqdb_results(queries, args, writer, db_size)
 
@@ -324,7 +325,7 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     return hits
 
 
-def SQDB(query_variant, args, db):
+def SQDB(query_variant, args, db, has_ins_table=False):
     is_ins = "INS" in query_variant[4]
     distance = getattr(args, "ins_distance", 25) if is_ins else args.bnd_distance
     overlap = args.overlap
@@ -332,7 +333,7 @@ def SQDB(query_variant, args, db):
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
 
-    use_ins_table = is_ins and db.has_ins_table() and not getattr(args, "no_ins_seq", False)
+    use_ins_table = is_ins and has_ins_table and not getattr(args, "no_ins_seq", False)
 
     if use_ins_table:
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
