@@ -205,14 +205,23 @@ def main(args, output_file=None):
         return None
 
     elif args.sqdb:
-        db = database.DB(db=args.sqdb, memory=args.memory)
-        db_size = len(db)
-        if not db_size:
-            logger.error("no samples found in the database")
-            sys.exit(1)
+        with database.DB(db=args.sqdb, memory=args.memory) as db:
+            db_size = len(db)
+            if not db_size:
+                logger.error("no samples found in the database")
+                sys.exit(1)
 
-        for query in queries:
-            query[5] = SQDB(query, args, db)
+            has_ins_queries = any("INS" in q[4] for q in queries)
+            has_ins_table = db.has_ins_table()
+            if has_ins_queries and not has_ins_table:
+                logger.warning(
+                    "database does not contain insertion sequence/length data — "
+                    "matching on position only. To enable full insertion matching, "
+                    "run: svdb --build --upgrade --files <original_vcfs>"
+                )
+
+            for query in queries:
+                query[5] = SQDB(query, args, db, has_ins_table)
 
         _write_sqdb_results(queries, args, writer, db_size)
 
@@ -316,35 +325,71 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     return hits
 
 
-def SQDB(query_variant, args, db):
+def SQDB(query_variant, args, db, has_ins_table=False):
     is_ins = "INS" in query_variant[4]
-    # Use ins_distance for insertions — bnd_distance is too loose for single-point INS events
-    distance = getattr(args, "ins_distance", 50) if is_ins else args.bnd_distance
+    distance = getattr(args, "ins_distance", 25) if is_ins else args.bnd_distance
     overlap = args.overlap
     variant = {"type": query_variant[4],
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
 
-    selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
+    use_ins_table = is_ins and has_ins_table and not getattr(args, "no_ins_seq", False)
 
-    A = 'SELECT {} FROM SVDB WHERE var == \'{}\' AND chrA == \'{}\' AND chrB == \'{}\' AND posA <= {} AND posA >= {} AND posB <= {} AND posB >= {}'.format(
-        selection, variant["type"], variant["chrA"], variant["chrB"],
-        variant["posA"] + distance, variant["posA"] - distance,
-        variant["posB"] + distance, variant["posB"] - distance)
+    if use_ins_table:
+        selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
+        join = "LEFT JOIN INS i ON s.idx = i.idx"
+        table = "SVDB s"
+        A = (
+            f"SELECT {selection} FROM {table} {join} "
+            f"WHERE s.var == '{variant['type']}' AND s.chrA == '{variant['chrA']}' "
+            f"AND s.chrB == '{variant['chrB']}' "
+            f"AND s.posA <= {variant['posA'] + distance} AND s.posA >= {variant['posA'] - distance} "
+            f"AND s.posB <= {variant['posB'] + distance} AND s.posB >= {variant['posB'] - distance}"
+        )
+    else:
+        selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
+        A = (
+            f"SELECT {selection} FROM SVDB "
+            f"WHERE var == '{variant['type']}' AND chrA == '{variant['chrA']}' "
+            f"AND chrB == '{variant['chrB']}' "
+            f"AND posA <= {variant['posA'] + distance} AND posA >= {variant['posA'] - distance} "
+            f"AND posB <= {variant['posB'] + distance} AND posB >= {variant['posB'] - distance}"
+        )
+
     hits = db.query(A)
 
-    match = set([])
+    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
+    ins_seq_threshold = getattr(args, "ins_seq_similarity", 0.75)
+    query_seq = query_variant[7] if is_ins else ""
+    query_svlen = query_variant[8] if is_ins else None
+
+    match = set()
     for hit in hits:
         if variant["chrA"] == variant["chrB"]:
-            hit_posA, hit_posB, hit_idx = int(hit[0]), int(hit[1]), hit[2]
-            if is_ins:
-                similar, _ = overlap_module.precise_overlap(
+            hit_posA, hit_posB, hit_sample = int(hit[0]), int(hit[1]), hit[2]
+            if use_ins_table:
+                hit_idx, hit_seq, hit_len = hit[3], hit[4], hit[5]
+                _, similar = overlap_module.precise_overlap(
                     variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
+                if similar and hit_len is not None and query_svlen is not None:
+                    if not overlap_module.insertion_svlen_match(query_svlen, hit_len, ins_svlen_ratio):
+                        similar = False
+                pos_dist = abs(variant["posA"] - hit_posA)
+                if similar and pos_dist <= _INS_SEQ_HARD_CAP:
+                    if not ins_similarity.sequence_gate(query_seq, hit_seq or "", ins_seq_threshold):
+                        similar = False
+                if similar:
+                    match.add(hit_idx)
+            elif is_ins:
+                _, similar = overlap_module.precise_overlap(
+                    variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
+                if similar:
+                    match.add(hit_sample)
             else:
                 similar, _ = overlap_module.isSameVariation(
                     variant["posA"], variant["posB"], hit_posA, hit_posB, overlap, distance)
-            if similar:
-                match.add(hit_idx)
+                if similar:
+                    match.add(hit_sample)
         else:
             match.add(hit[0])
 

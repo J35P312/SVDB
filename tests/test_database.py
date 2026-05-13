@@ -7,13 +7,13 @@ from svdb.database import DB, CREATE_TABLE_SQL
 def db(tmp_path):
     """In-memory-equivalent DB backed by a temp file, pre-populated with two rows."""
     path = str(tmp_path / "test")
-    d = DB(path)
-    d.create(CREATE_TABLE_SQL)
-    d.insert_many([
-        ("DEL", "1", "1", 100, 0, 0, 200, 0, 0, "sample_A", 0),
-        ("INS", "2", "2", 500, 0, 0, 500, 0, 0, "sample_B", 1),
-    ])
-    return d
+    with DB(path) as d:
+        d.create(CREATE_TABLE_SQL)
+        d.insert_many([
+            ("DEL", "1", "1", 100, 0, 0, 200, 0, 0, "sample_A", 0),
+            ("INS", "2", "2", 500, 0, 0, 500, 0, 0, "sample_B", 1),
+        ])
+        yield d
 
 
 class TestDBQueryColumn:

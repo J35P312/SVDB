@@ -126,12 +126,35 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
 
     if not args.same_order:
         sorted_samples = sorted(samples)  # constant across all input_files — compute once
+
+        # Pass 1: build FORMAT entries union from ALL callers so lower-priority tags are not dropped
+        for input_file in priority_order:
+            if input_file not in files:
+                continue
+            vcf_line = files[input_file].strip().split("\t")
+            if len(vcf_line) <= 8:
+                continue
+            entries = vcf_line[8].split(":")
+            # find a reference sample value to estimate comma-count (multi-value width)
+            ref_sample_entries = []
+            for sample in sorted_samples:
+                if input_file in sample_order.get(sample, {}):
+                    pos = sample_order[sample][input_file]
+                    if 9 + pos < len(vcf_line):
+                        ref_sample_entries = vcf_line[9 + pos].split(":")
+                        break
+            for i, entry in enumerate(entries):
+                if entry not in format_entries:
+                    n = ref_sample_entries[i].count(",") if i < len(ref_sample_entries) else 0
+                    format_entries.append(entry)
+                    format_entry_length.append(n)
+
+        # Pass 2: collect per-sample values from highest-priority caller
         for input_file in priority_order:
             if input_file not in files:
                 continue
             for sample in sorted_samples:
                 if sample not in format_columns and input_file in sample_order[sample]:
-
                     vcf_line = files[input_file].strip().split("\t")
                     sample_position = sample_order[sample][input_file]
                     if 9 + sample_position >= len(vcf_line):
@@ -139,42 +162,27 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
                     format_columns[sample] = {}
                     entries = vcf_line[8].split(":")
                     sample_entries = vcf_line[9 + sample_position].split(":")
-
                     for i, entry in enumerate(entries):
                         format_columns[sample][entry] = sample_entries[i] if i < len(sample_entries) else "."
-                        if entry not in format_entries:
-                            n = sample_entries[i].count(",")
-                            format_entries.append(entry)
-                            format_entry_length.append(n)
 
         if len(line) > 8:
-            format_string = []
             line[8] = ":".join(format_entries)
             del line[9:]
             for sample in samples:
                 format_string = []
-                for entry in format_entries:
-                    j = 0
+                for j, entry in enumerate(format_entries):
                     if sample in format_columns:
                         if entry in format_columns[sample]:
                             format_string.append(format_columns[sample][entry])
                         elif entry == "GT":
                             format_string.append("./.")
                         else:
-                            sub_entry = []
-                            for i in range(format_entry_length[j] + 1):
-                                sub_entry.append(".")
-                            format_string.append(",".join(sub_entry))
+                            format_string.append(",".join("." for _ in range(format_entry_length[j] + 1)))
                     else:
                         if entry == "GT":
                             format_string.append("./.")
                         else:
-                            sub_entry = []
-                            for i in range(format_entry_length[j] + 1):
-                                sub_entry.append(".")
-                            format_string.append(",".join(sub_entry))
-                    j += 1
-
+                            format_string.append(",".join("." for _ in range(format_entry_length[j] + 1)))
                 line.append(":".join(format_string))
 
     # generate a union of the info fields

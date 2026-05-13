@@ -99,16 +99,16 @@ def main():
                             help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="the maximum distance between two similar breakpoints(default = 10000)")
-        parser.add_argument('--ins_distance', type=int, default=50,
-                            help="the maximum distance to match two insertions(default = 50)")
+        parser.add_argument('--ins_distance', type=int, default=25,
+                            help="the maximum distance to match two insertions(default = 25)")
         parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90; VCF db only)")
+                            help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90); applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum Levenshtein sequence similarity to match two insertions (default = 0.75); overridden by --data_profile; VCF db only")
+                            help="minimum Levenshtein sequence similarity to match two insertions (default = 0.75); overridden by --data_profile; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity threshold preset: sample=0.85, cohort=0.75 (VCF db only)")
+                            help="set sequence similarity threshold preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only (VCF db only)", required=False, action="store_true")
+            '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb", required=False, action="store_true")
         parser.add_argument('--overlap', type=float, default=0.6,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--memory',
@@ -146,6 +146,8 @@ def main():
             '--folder', type=str, help="create a db using all the vcf files in the folders")
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = SVDB")
+        parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, exits with INFO if already up to date",
+                            required=False, action="store_true")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()
@@ -154,7 +156,9 @@ def main():
             logger.error("only one DB build input source may be selected (--files or --folder)")
             sys.exit(1)
 
-        if args.folder or args.files:
+        if args.upgrade:
+            build_module.main(args)
+        elif args.folder or args.files:
             build_module.main(args)
         else:
             logger.error("use --files or --folder to provide input for the database creation algorithm")
@@ -169,16 +173,16 @@ def main():
             '--no_merge', help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int, default=2500,
                             help="the maximum distance between two similar precise breakpoints(default = 2500)")
-        parser.add_argument('--ins_distance', type=int, default=50,
-                            help="the maximum distance to cluster two insertions (default = 50)")
+        parser.add_argument('--ins_distance', type=int, default=25,
+                            help="the maximum distance to cluster two insertions (default = 25)")
         parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; accepted but not applied — SQLite does not store SVLEN)")
+                            help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; requires INS table)")
         parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum sequence similarity for insertion clustering (accepted but not applied — SQLite does not store sequences)")
+                            help="minimum sequence similarity for insertion clustering (default = 0.75); overridden by --data_profile; requires INS table")
         parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="sequence similarity threshold preset (accepted but not applied for export)")
+                            help="set sequence similarity preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; requires INS table")
         parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence gate (accepted but not applied for export)", required=False, action="store_true")
+            '--no_ins_seq', help="disable insertion sequence similarity check for clustering; requires INS table", required=False, action="store_true")
         parser.add_argument('--overlap', type=float, default=0.8,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(
@@ -186,11 +190,13 @@ def main():
         parser.add_argument('--epsilon', type=float, default=500,
                             help="used together with --DBSCAN; sets the epsilon paramter(default = 500)", required=False)
         parser.add_argument('--min_pts', type=int, default=2,
-                            help="used together with 1--DBSCAN; sets the min_pts parameter(default = 2)", required=False)
+                            help="used together with --DBSCAN; sets the min_pts parameter(default = 2)", required=False)
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = same as input")
         parser.add_argument(
             '--memory', help="load the database into memory: increases the memory requirements, but lowers the time consumption", required=False, action="store_true")
+        parser.add_argument('--strip_chr', help="strip the 'chr' prefix from chromosome names in the output VCF",
+                            required=False, action="store_true")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()

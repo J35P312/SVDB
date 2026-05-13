@@ -49,29 +49,43 @@ SVDB consists of modules that are used to build, query, export, and analyse stru
 
 ## Build
 This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
-    
+
     print a help message
-        svdb  --build --help  
-    Construct a database, from a set of vcf files:
+        svdb  --build --help
+    Construct a database from a set of vcf files:
         svdb --build --files sample1.vcf sample2.vcf sample3.vcf
-    construct a database from vcf files stored in a folder
+    Construct a database from vcf files stored in a folder:
         svdb --build --folder SV_analysis_folder/
-        
+    Upgrade an existing database schema to the current SVDB version:
+        svdb --build --upgrade --prefix existing_db
+    Upgrade schema and backfill insertion data from the original VCFs:
+        svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db
+
     optional arguments:
         -h, --help                      show this help message and exit
 
-        --files [FILES [FILES ...]]      create a db using the specified vcf files(cannot be
-                                         used with --folder)
-                        
-        --folder FOLDER                  create a db using all the vcf files in the folders
-        
-        --prefix PREFIX                  the prefix of the output file, default = SVDB
+        --files [FILES [FILES ...]]      create a db using the specified vcf files (cannot be
+                                        used with --folder)
 
-        --debug                          enable debug logging to stderr
+        --folder FOLDER                 create a db using all the vcf files in the folders
+
+        --prefix PREFIX                 the prefix of the output file, default = SVDB
+
+        --upgrade                       create the INS sequence/length table in an existing
+                                        database (safe to run on any database; exits with INFO
+                                        if already up to date). Optionally combine with --files
+                                        or --folder to backfill insertion data from the original
+                                        VCFs without rebuilding the full database.
+
+        --passonly                      only include variants with PASS or . in the FILTER field
+
+        --debug                         enable debug logging to stderr
 
 
 ## Export
 This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorithms, overlap or DBSCAN.
+
+When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
  
     print a help message
         svdb  --export --help  
@@ -79,23 +93,46 @@ This module is used to export the variants of the SVDB sqlite database. The vari
         svdb --export --db database.db
 
     optional arguments:
-        --no_merge            skip the merging of variants, print all variants in the db to a vcf file
+        --no_merge                  skip the merging of variants, print all variants in the db to a vcf file
 
-         --bnd_distance BND_DISTANCE  the maximum distance between two similar precise breakpoints(default = 2500)
- 
-         --overlap OVERLAP     the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8
+        --bnd_distance BND_DISTANCE the maximum distance between two similar precise breakpoints (default = 2500)
 
-         --DBSCAN              use dbscan to cluster the variants, overides the overlap based clustering algorithm
+        --ins_distance INS_DISTANCE the maximum distance to cluster two insertions (default = 25)
 
-         --epsilon EPSILON     used together with --DBSCAN; sets the epsilon parameter(default = 500bp)
+        --ins_svlen_ratio RATIO      minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90);
+                                    requires INS table
 
-         --min_pts MIN_PTS     the min_pts parameter(default = 2
+        --ins_seq_similarity THRESHOLD
+                                    minimum Levenshtein sequence similarity (0–1) for insertion clustering
+                                    (default = 0.75); overridden by --data_profile; requires INS table
 
-         --prefix PREFIX       the prefix of the output file, default = same as input
+        --data_profile {sample,cohort}
+                                    set a sequence similarity preset: sample=0.85, cohort=0.75;
+                                    overrides --ins_seq_similarity; requires INS table
 
-          --memory              load the database into memory: increases the memory requirements, but lowers the time consumption
+        --no_ins_seq                disable insertion sequence similarity check for clustering;
+                                    cluster on position and SVLEN only; requires INS table
 
-          --debug               enable debug logging to stderr
+        --overlap OVERLAP           the overlap required to merge two events (0 means anything that
+                                    touches will be merged, 1 means that two events must be identical
+                                    to be merged), default = 0.8
+
+        --DBSCAN                    use dbscan to cluster the variants, overrides the overlap based
+                                    clustering algorithm
+
+        --epsilon EPSILON           used together with --DBSCAN; sets the epsilon parameter (default = 500bp)
+
+        --min_pts MIN_PTS           the min_pts parameter (default = 2)
+
+        --prefix PREFIX             the prefix of the output file, default = same as input
+
+        --memory                    load the database into memory: increases the memory requirements,
+                                    but lowers the time consumption
+
+        --strip_chr                 strip the 'chr' prefix from chromosome names in the output VCF
+                                    (e.g. 'chr1' → '1')
+
+        --debug                     enable debug logging to stderr
 
 ## Query
 The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
@@ -121,9 +158,34 @@ The query module is used to query one or more structural variant databases. Typi
         --out_occ OUT_OCC       the allele count tag, as annotated by SVDB variant(default=OCC). This parameter is required if multiple databases are queried.
         --out_frq OUT_FRQ       the tag used to describe the frequency of the variant(default=FRQ). This parameter is required if multiple databases are queried.
         --prefix PREFIX         the prefix of the output file, default = print to stdout. Required if multiple databases are queried.
-        --bnd_distance BND_DISTANCE  the maximum distance between two similar breakpoints(default = 10000)
-        --overlap OVERLAP       the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6
-        --memory                load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)
+        --bnd_distance BND_DISTANCE  the maximum distance between two similar breakpoints (default = 10000)
+        --overlap OVERLAP       the overlap required to merge two events (0 means anything that
+                                touches will be merged, 1 means that two events must be identical
+                                to be merged), default = 0.6
+        --ins_distance INS_DISTANCE
+                                the maximum distance to match two insertions (default = 25)
+        --ins_svlen_ratio INS_SVLEN_RATIO
+                                minimum SVLEN ratio (min/max) required to match two insertions
+                                with known length (default = 0.90)
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
+        --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity (0–1) required to match
+                                two insertions with known sequence (default = 0.75); overridden
+                                by --data_profile
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
+        --data_profile {sample,cohort}
+                                set a sequence similarity preset: sample=0.85, cohort=0.75;
+                                overrides --ins_seq_similarity
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
+        --no_ins_seq            disable insertion sequence similarity check; match insertions on
+                                position and SVLEN only
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
+        --memory                load the database into memory: increases the memory requirements,
+                                but lowers the time consumption (may only be used with sqdb)
         --no_var                count overlapping variants of different type as hits in the db
         --debug                 enable debug logging to stderr
 
@@ -146,23 +208,42 @@ The merge module merges variants within one or more vcf files. This could be use
 
     optional arguments:
         -h, --help                      show this help message and exit
-        
+
         --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
-                                        (default = 10000)
-                        
-        --overlap OVERLAP               the overlap required to merge two events(0 means
+                                        (default = 2000)
+
+        --overlap OVERLAP               the overlap required to merge two events (0 means
                                         anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.6
+                                        events must be identical to be merged), default = 0.95
+
+        --ins_distance INS_DISTANCE     the maximum distance to merge two insertions (default = 25)
+
+        --ins_svlen_ratio INS_SVLEN_RATIO
+                                        minimum SVLEN ratio (min/max) required to merge two
+                                        insertions with known length (default = 0.90)
+
+        --ins_seq_similarity THRESHOLD  minimum Levenshtein sequence similarity (0–1) required to
+                                        merge two insertions with known sequence (default = 0.75);
+                                        overridden by --data_profile
+
+        --data_profile {sample,cohort}  set a sequence similarity preset: sample=0.85 (same
+                                        individual / same technology), cohort=0.75 (cross-
+                                        individual or cross-technology); overrides
+                                        --ins_seq_similarity
+
+        --no_ins_seq                    disable insertion sequence similarity check; merge
+                                        insertions on position and SVLEN only
 
         --priority                      prioritise the input vcf files
-                                                                      
+
         --no_intra                      no merging of variants within the same vcf
-        
+
         --no_var                        variants of different type will be merged
-        
+
         --pass_only                     merge only variants labeled PASS
 
-        --same_order                    assume that the samples are ordered the same way (skip reordering and merging of the sample columns).
+        --same_order                    assume that the samples are ordered the same way (skip
+                                        reordering and merging of the sample columns)
 
         --debug                         enable debug logging to stderr
 
