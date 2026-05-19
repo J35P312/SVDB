@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from .ins_similarity import extract_ins_sequence
 from .models import VCFVariant
-from .vcf_utils import normalize_chrom, parse_info_field
+from .vcf_utils import parse_info_field
 
 
 def readVCFLine(line: str) -> Optional[VCFVariant]:
@@ -12,7 +12,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
     variation = line.strip().split("\t")
     event_type = ""
-    chrA = normalize_chrom(variation[0])
+    chrA = variation[0]
     posA = int(variation[1])
     posB = 0
 
@@ -99,7 +99,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
         bnd_parts = re.split("[],[]", B)
         chr_and_pos = bnd_parts[1]
-        chrB = normalize_chrom(":".join(chr_and_pos.split(":")[:-1]))
+        chrB = ":".join(chr_and_pos.split(":")[:-1])
         posB = int(chr_and_pos.split(":")[-1])
         if chrA > chrB:
             chrT = chrA

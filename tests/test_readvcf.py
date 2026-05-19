@@ -122,3 +122,20 @@ class TestReadVCFLine(unittest.TestCase):
         assert v.posA == 1000
         assert v.posB == 5000
 
+    # --- chr prefix preservation (strip_chr is export-time only) ---
+
+    def test_chr_prefix_preserved_del(self):
+        """chr prefix in CHROM is stored as-is; stripping only happens at export with --strip_chr."""
+        line = 'chr1\t1000\t.\tN\t<DEL>\t.\tPASS\tEND=5000;SVTYPE=DEL\tGT\t0/1'
+        v = readVCFLine(line)
+        assert v.chrA == "chr1"
+        assert v.chrB == "chr1"
+
+    def test_chr_prefix_preserved_bnd(self):
+        """chr prefix in both chrA and chrB of a BND record is preserved."""
+        line = 'chr1\t1000\t.\tN\t]chr2:5000]N\t.\tPASS\tSVTYPE=BND\tGT\t0/1'
+        v = readVCFLine(line)
+        assert v.chrA == "chr1"
+        assert v.chrB == "chr2"
+        assert v.posB == 5000
+
