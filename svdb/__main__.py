@@ -1,4 +1,5 @@
 import argparse
+import importlib.metadata
 import logging
 import os
 import sys
@@ -60,7 +61,7 @@ def make_query_calls (args, queries, keyword):
         query_module.main(args)
 
 def main():
-    version = "2.9.0"
+    version = importlib.metadata.version("svdb")
     parser = argparse.ArgumentParser(
         f"""SVDB-{version}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""", add_help=False)
     parser.add_argument('--build', help="create a db",
