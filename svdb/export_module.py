@@ -10,6 +10,15 @@ from .vcf_utils import normalize_chrom
 
 logger = logging.getLogger(__name__)
 
+try:
+    from scipy.spatial import cKDTree as _cKDTree
+    _SCIPY_AVAILABLE = True
+except ImportError:
+    _SCIPY_AVAILABLE = False
+
+# Switch to cKDTree above this cluster size; numpy SIMD wins below it.
+_KDTREE_MIN_SIZE = 200
+
 
 def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_end, posB, ci_B_start, ci_B_end, ins_seq=None, ins_len=None):
     """Build the representing-variant dict used as cluster[0] in vcf_line."""
@@ -160,14 +169,23 @@ def expand_chain(chain, coordinates, chrA, chrB, distance, overlap,
                  ins_svlen_ratio=None, ins_seq_threshold=None, no_ins_seq=False):
     is_ins = chrA == chrB and overlap == -1
     chain_data = {}
+
+    # Build spatial index once for large clusters; numpy scan is faster for small ones.
+    use_tree = _SCIPY_AVAILABLE and len(chain) >= _KDTREE_MIN_SIZE
+    tree = _cKDTree(coordinates[:, 1:3].astype(float)) if use_tree else None
+
     for i, idx in enumerate(chain):
         chain_data[i] = []
         variant = chain[idx]
 
-        rows = coordinates[(distance >= abs(coordinates[:, 1] - variant["posA"]))
-                           & (distance >= abs(coordinates[:, 2] - variant["posB"]))]
-
-        candidates = rows[:, 0]
+        if use_tree:
+            hit_rows = tree.query_ball_point(
+                [variant["posA"], variant["posB"]], distance, p=np.inf)
+            candidates = coordinates[hit_rows, 0]
+        else:
+            rows = coordinates[(distance >= abs(coordinates[:, 1] - variant["posA"]))
+                               & (distance >= abs(coordinates[:, 2] - variant["posB"]))]
+            candidates = rows[:, 0]
         for candidate in candidates:
             var = chain[candidate]
             if chrA != chrB:

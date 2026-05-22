@@ -4,3 +4,4 @@ pytest-mypy
 pytest-ruff
 ruff
 mypy
+scipy-stubs
