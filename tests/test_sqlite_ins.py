@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from svdb.database import DB, CREATE_TABLE_SQL
+from svdb.ins_similarity import decompress_ins_seq
 
 FIXTURES = Path(__file__).parent / "fixtures"
 DEL_VCF = FIXTURES / "manta_chr1_del.vcf"
@@ -81,7 +82,7 @@ class TestBuildINSTable:
         with DB(str(tmp_path / "svdb")) as db:
             rows = db.query("SELECT ins_seq, ins_len FROM INS")
         assert len(rows) == 1
-        assert rows[0][0] == "ACGTACGT"
+        assert decompress_ins_seq(rows[0][0]) == "ACGTACGT"
         assert rows[0][1] == 8
 
     def test_build_del_variants_not_in_ins_table(self, tmp_path):
@@ -106,7 +107,7 @@ class TestBuildINSTable:
             rows = db.query("SELECT ins_seq, ins_len FROM INS ORDER BY ins_len")
         short_seq, short_len = rows[0]
         long_seq, long_len = rows[1]
-        assert short_seq == "ACGT" * 10
+        assert decompress_ins_seq(short_seq) == "ACGT" * 10
         assert short_len == 40
         assert long_seq is None       # capped → no sequence stored
         assert long_len == 800        # SVLEN still preserved for ratio matching
@@ -164,7 +165,7 @@ class TestUpgrade:
         with DB(str(tmp_path / "svdb")) as db:
             rows = db.query("SELECT ins_seq, ins_len FROM INS")
         assert len(rows) == 1
-        assert rows[0][0] == "ACGTACGT"
+        assert decompress_ins_seq(rows[0][0]) == "ACGTACGT"
         assert rows[0][1] == 8
 
     def test_upgrade_on_missing_db_exits_gracefully(self, tmp_path):

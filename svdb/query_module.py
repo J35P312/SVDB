@@ -4,6 +4,7 @@ import sys
 import numpy as np
 
 from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
+from .ins_similarity import decompress_ins_seq
 
 logger = logging.getLogger(__name__)
 
@@ -368,7 +369,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         if variant["chrA"] == variant["chrB"]:
             hit_posA, hit_posB, hit_sample = int(hit[0]), int(hit[1]), hit[2]
             if use_ins_table:
-                hit_idx, hit_seq, hit_len = hit[3], hit[4], hit[5]
+                hit_idx, hit_seq, hit_len = hit[3], decompress_ins_seq(hit[4]), hit[5]
                 _, similar = overlap_module.precise_overlap(
                     variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
                 if similar and hit_len is not None and query_svlen is not None:

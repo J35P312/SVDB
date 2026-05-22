@@ -5,6 +5,7 @@ from collections import Counter
 import numpy as np
 
 from . import dbscan, database, ins_similarity, overlap_module
+from .ins_similarity import decompress_ins_seq
 from .vcf_utils import normalize_chrom
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ def fetch_all_variants(variant, chrA, chrB, db):
             "posA": int(hit[0]),
             "posB": int(hit[1]),
             "sample_id": hit[2],
-            "ins_seq": hit[4] if has_ins else None,
+            "ins_seq": decompress_ins_seq(hit[4]) if has_ins else None,
             "ins_len": hit[5] if has_ins else None,
         }
         x.append(int(hit[0]))

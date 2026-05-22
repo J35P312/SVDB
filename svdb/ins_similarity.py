@@ -23,7 +23,8 @@ Public API used by merge, query, and export pipelines:
 
 import logging
 import re
-from typing import Optional
+import zlib
+from typing import Optional, Union
 
 from rapidfuzz.distance import Levenshtein
 
@@ -34,6 +35,19 @@ _DATA_PROFILE_THRESHOLDS = {
     "cohort": 0.75,
 }
 _DEFAULT_INS_SEQ_SIMILARITY = 0.75
+
+
+def decompress_ins_seq(raw: Union[bytes, str, None]) -> Optional[str]:
+    """Recover a stored ins_seq value to a plain string.
+
+    New databases store ins_seq as a zlib-compressed BLOB (bytes); legacy
+    databases store it as TEXT (str).  Returns None when raw is None.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, bytes):
+        return zlib.decompress(raw).decode()
+    return raw
 
 
 def extract_ins_sequence(ref: str, alt: str) -> str:

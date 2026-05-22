@@ -1,6 +1,7 @@
 import glob
 import logging
 import os
+import zlib
 from pathlib import Path
 
 from . import database, read_vcf, vcf_utils
@@ -8,11 +9,18 @@ from . import database, read_vcf, vcf_utils
 logger = logging.getLogger(__name__)
 
 
-def _cap_ins_seq(seq, max_len):
-    """Return seq if within max_len, else None so SVLEN-ratio matching still applies."""
-    if seq and max_len is not None and len(seq) > max_len:
+def _store_ins_seq(seq, max_len):
+    """Cap (if max_len set) then compress ins_seq for storage as a BLOB.
+
+    Returns None when seq is absent or capped, so SVLEN-ratio matching still
+    applies.  Callers that read the value back must call
+    ins_similarity.decompress_ins_seq() to recover the string.
+    """
+    if not seq:
         return None
-    return seq
+    if max_len is not None and len(seq) > max_len:
+        return None
+    return zlib.compress(seq.encode(), 6)
 
 
 def populate_db(args):
@@ -93,7 +101,7 @@ def populate_db(args):
                         var.append((event_type, chrA, chrB, posA, ci_A_lower,
                                     ci_A_upper, posB, ci_B_lower, ci_B_upper, sample_name, idx))
                         if is_ins:
-                            ins.append((idx, _cap_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
+                            ins.append((idx, _store_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
                         idx += 1
                     else:
                         sample_index = 0
@@ -102,7 +110,7 @@ def populate_db(args):
                                 var.append((event_type, chrA, chrB, posA, ci_A_lower, ci_A_upper,
                                             posB, ci_B_lower, ci_B_upper, sample_names[sample_index], idx))
                                 if is_ins:
-                                    ins.append((idx, _cap_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
+                                    ins.append((idx, _store_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
                                 idx += 1
                             sample_index += 1
 
@@ -160,7 +168,7 @@ def upgrade_db(args):
                         f"AND chrA == '{variant.chrA}' AND posA == {variant.posA}"
                     )
                     for (idx,) in rows:
-                        ins.append((idx, _cap_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
+                        ins.append((idx, _store_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
 
         if ins:
             db.insert_ins_many(ins)
