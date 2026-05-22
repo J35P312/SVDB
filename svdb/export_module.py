@@ -38,61 +38,45 @@ def build_genotype_columns(sample_IDs, hit_sample_ids):
     return [zygosity[sample] for sample in sample_IDs]
 
 
-def fetch_index_variant(db, index):
+def fetch_all_variants(variant, chrA, chrB, db):
+    """Load all variant data for one (var, chrA, chrB) group in a single query.
+
+    Returns (variant_dict, pos_coords, pos_indices):
+      variant_dict   – {idx: {posA, posB, sample_id, ins_seq, ins_len}}
+      pos_coords     – np.array shape (n, 2) columns [posA, posB]
+      pos_indices    – np.array shape (n,) of idx values, parallel to pos_coords
+    Returns ({}, empty, empty) when the group has no rows.
+    """
     has_ins = db.has_ins_table()
     if has_ins:
-        A = (
-            'SELECT s.posA, s.ci_A_lower, s.ci_A_upper, s.posB, s.ci_B_lower, s.ci_B_upper, '
-            's.sample, i.ins_seq, i.ins_len '
-            'FROM SVDB s LEFT JOIN INS i ON s.idx = i.idx '
-            'WHERE s.idx IN ({})'.format(", ".join([str(idx) for idx in index]))
-        )
-    else:
-        A = 'SELECT posA, ci_A_lower, ci_A_upper, posB, ci_B_lower, ci_B_upper, sample FROM SVDB WHERE idx IN ({}) '.format(
-            ", ".join([str(idx) for idx in index]))
-    hits = db.query(A)
-    variant = {}
-    coordinates = []
-    for i, hit in enumerate(hits):
-        variant[i] = {
-            "posA": int(hit[0]),
-            "ci_A_start": int(hit[1]),
-            "ci_A_end": int(hit[2]),
-            "posB": int(hit[3]),
-            "ci_B_start": int(hit[4]),
-            "ci_B_end": int(hit[5]),
-            "sample_id": hit[6],
-            "ins_seq": hit[7] if has_ins else None,
-            "ins_len": hit[8] if has_ins else None,
-        }
-        coordinates.append([i, int(hit[0]), int(hit[3])])
-    return variant, np.array(coordinates)
-
-
-def fetch_cluster_variant(db, index):
-    has_ins = db.has_ins_table()
-    if has_ins:
-        query = (
+        hits = db.query(
             'SELECT s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len '
             'FROM SVDB s LEFT JOIN INS i ON s.idx = i.idx '
-            'WHERE s.idx IN ({})'.format(", ".join([str(idx) for idx in index]))
+            f'WHERE s.var == \'{variant}\' AND s.chrA == \'{chrA}\' AND s.chrB == \'{chrB}\''
         )
     else:
-        query = 'SELECT posA, posB, sample, idx FROM SVDB WHERE idx IN ({}) '.format(
-                ", ".join([str(idx) for idx in index]))
-    hits = db.query(query)
+        hits = db.query(
+            f'SELECT posA, posB, sample, idx FROM SVDB '
+            f'WHERE var == \'{variant}\' AND chrA == \'{chrA}\' AND chrB == \'{chrB}\''
+        )
+    if not hits:
+        return {}, np.empty((0, 2), dtype=int), np.array([], dtype=int)
 
     variant_dict = {}
+    x, y, indices = [], [], []
     for hit in hits:
-        i = int(hit[3])
-        variant_dict[i] = {
+        idx = int(hit[3])
+        variant_dict[idx] = {
             "posA": int(hit[0]),
             "posB": int(hit[1]),
             "sample_id": hit[2],
             "ins_seq": hit[4] if has_ins else None,
             "ins_len": hit[5] if has_ins else None,
         }
-    return variant_dict
+        x.append(int(hit[0]))
+        y.append(int(hit[1]))
+        indices.append(idx)
+    return variant_dict, np.column_stack((x, y)), np.array(indices)
 
 
 def db_header(args):
@@ -232,23 +216,6 @@ def cluster_variants(variant_dictionary, similarity_matrix):
     return clusters
 
 
-def fetch_variants(variant, chrA, chrB, db):
-    chr_db = {}
-    chr_db[variant] = {}
-
-    hits = db.query(f'SELECT posA,posB,sample,idx,var FROM SVDB WHERE var == \'{variant}\'AND chrA == \'{chrA}\' AND chrB == \'{chrB}\'')
-    if not hits:
-        return False
-
-    x = [v[0] for v in hits]
-    y = [v[1] for v in hits]
-
-    chr_db[variant]["coordinates"] = np.column_stack((x, y))
-    chr_db[variant]["var_info"] = np.array([v[2] for v in hits])
-    chr_db[variant]["index"] = np.array([v[3] for v in hits])
-    return chr_db
-
-
 def _pick_ins_seq(variant_dict):
     """Return the most common non-null ins_seq across the cluster, or None."""
     seqs = [v.get("ins_seq") for v in variant_dict.values() if v.get("ins_seq")]
@@ -265,8 +232,7 @@ def _pick_ins_len(variant_dict):
     return Counter(lens).most_common(1)[0][0]
 
 
-def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
-    variant_dictionary, coordinates = fetch_index_variant(db, indexes)
+def overlap_cluster(variant_dictionary, coordinates, variant, chrA, chrB, sample_IDs, args, f, i):
     if "INS" in variant:
         similarity_matrix = expand_chain(
             variant_dictionary, coordinates, chrA, chrB, args.ins_distance, -1,
@@ -291,64 +257,58 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
 
 
 def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
-    chr_db = fetch_variants(variant, chrA, chrB, db)
-    if not chr_db:
+    all_data, pos_coords, pos_indices = fetch_all_variants(variant, chrA, chrB, db)
+    if not all_data:
         return i
 
-    #DBSCAN clustering according to the user set parameters
     if args.DBSCAN:
-        labels = dbscan.main(chr_db[variant]["coordinates"], args.epsilon, args.min_pts)
+        labels = dbscan.main(pos_coords, args.epsilon, args.min_pts)
     elif "INS" in variant:
-        #insertions are clustered based on the ins_distance, which is typically smaller than the BND_distance
-        labels = dbscan.main(chr_db[variant]["coordinates"], args.ins_distance, 2)
+        labels = dbscan.main(pos_coords, args.ins_distance, 2)
     else:
-        #clustering of all other variants
-        labels = dbscan.main(chr_db[variant]["coordinates"], args.bnd_distance, 2)
+        labels = dbscan.main(pos_coords, args.bnd_distance, 2)
 
     strip_chr = getattr(args, "strip_chr", False)
     unique_labels = set(labels)
-    # print the unique variants
-    unique_xy = chr_db[variant]["coordinates"][labels == -1]
-    unique_index = chr_db[variant]["index"][labels == -1]
-    for xy, indexes in zip(unique_xy, unique_index):
-        variant_dictionary = fetch_cluster_variant(db, [indexes])
-        ins_seq = _pick_ins_seq(variant_dictionary)
-        ins_len = _pick_ins_len(variant_dictionary)
+
+    # singletons
+    singleton_mask = labels == -1
+    for pos, idx in zip(pos_coords[singleton_mask], pos_indices[singleton_mask]):
+        v = all_data[idx]
+        variant_dictionary = {0: v}
         representing_var = make_representing_variant(
-            variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1], ins_seq, ins_len)
+            variant, chrA, chrB, pos[0], pos[0], pos[0], pos[1], pos[1], pos[1],
+            v.get("ins_seq"), v.get("ins_len"))
         cluster = [representing_var, variant_dictionary]
         f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
         i += 1
-    del unique_xy
-    del unique_index
 
-    # print the clusters
+    # clusters
     for unique_label in unique_labels:
         if unique_label == -1:
             continue
-        class_member_mask = (labels == unique_label)
-        xy = chr_db[variant]["coordinates"][class_member_mask]
-        indexes = chr_db[variant]["index"][class_member_mask]
+        mask = labels == unique_label
+        cluster_pos = pos_coords[mask]
+        cluster_idxs = pos_indices[mask]
+
+        sub_dict = {j: all_data[idx] for j, idx in enumerate(cluster_idxs)}
+        sub_coords = np.array([[j, all_data[idx]["posA"], all_data[idx]["posB"]]
+                                for j, idx in enumerate(cluster_idxs)])
 
         if args.DBSCAN:
-            avg_point = np.array([np.mean(xy[:, 0]), np.mean(xy[:, 1])])
-
-            variant_dictionary = fetch_cluster_variant(db, indexes)
-            ins_seq = _pick_ins_seq(variant_dictionary)
-            ins_len = _pick_ins_len(variant_dictionary)
-
+            avg_point = np.array([np.mean(cluster_pos[:, 0]), np.mean(cluster_pos[:, 1])])
+            ins_seq = _pick_ins_seq(sub_dict)
+            ins_len = _pick_ins_len(sub_dict)
             representing_var = make_representing_variant(
                 variant, chrA, chrB,
-                int(avg_point[0]), np.amin(xy[:, 0]), np.amax(xy[:, 0]),
-                int(avg_point[1]), np.amin(xy[:, 1]), np.amax(xy[:, 1]),
+                int(avg_point[0]), np.amin(cluster_pos[:, 0]), np.amax(cluster_pos[:, 0]),
+                int(avg_point[1]), np.amin(cluster_pos[:, 1]), np.amax(cluster_pos[:, 1]),
                 ins_seq, ins_len)
-            cluster = [representing_var, variant_dictionary]
+            cluster = [representing_var, sub_dict]
             f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
             i += 1
-
         else:
-            i = overlap_cluster(db, indexes, variant, chrA,
-                                chrB, sample_IDs, args, f, i)
+            i = overlap_cluster(sub_dict, sub_coords, variant, chrA, chrB, sample_IDs, args, f, i)
 
     return i
 
@@ -356,11 +316,9 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 def export(args, sample_IDs):
     args.ins_seq_similarity = ins_similarity.resolve_ins_seq_threshold(args)
     with database.DB(args.db, memory=args.memory) as db:
-        chrA_list = db.query_column('SELECT DISTINCT chrA FROM SVDB')
-        chrB_list = db.query_column('SELECT DISTINCT chrB FROM SVDB')
-        var_list = db.query_column('SELECT DISTINCT var FROM SVDB')
+        groups = db.query('SELECT DISTINCT var, chrA, chrB FROM SVDB')
 
-        if any("INS" in v for v in var_list) and not db.has_ins_table():
+        if any("INS" in var for var, _, _ in groups) and not db.has_ins_table():
             logger.warning(
                 "database does not contain insertion sequence/length data — "
                 "exporting insertions without sequence in ALT column. "
@@ -369,10 +327,8 @@ def export(args, sample_IDs):
 
         i = 0
         with open(args.prefix + ".vcf", 'a') as f:
-            for chrA in chrA_list:
-                for chrB in chrB_list:
-                    for variant in var_list:
-                        i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
+            for variant, chrA, chrB in groups:
+                i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
 
 
 def main(args):
