@@ -11,7 +11,7 @@ from .vcf_utils import normalize_chrom
 logger = logging.getLogger(__name__)
 
 try:
-    from scipy.spatial import cKDTree as _cKDTree
+    from scipy.spatial import cKDTree as _cKDTree  # type: ignore[import-untyped]
     _SCIPY_AVAILABLE = True
 except ImportError:
     _SCIPY_AVAILABLE = False
