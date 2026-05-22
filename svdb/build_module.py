@@ -8,6 +8,13 @@ from . import database, read_vcf, vcf_utils
 logger = logging.getLogger(__name__)
 
 
+def _cap_ins_seq(seq, max_len):
+    """Return seq if within max_len, else None so SVLEN-ratio matching still applies."""
+    if seq and max_len is not None and len(seq) > max_len:
+        return None
+    return seq
+
+
 def populate_db(args):
     with database.DB(args.db) as db:
         tables = db.tables
@@ -26,6 +33,7 @@ def populate_db(args):
                 idx = 1 + int(db.query("SELECT MAX(idx) FROM SVDB")[0][0])
 
         db.create_ins_table()
+        max_ins_seq_len = getattr(args, 'max_ins_seq_len', None)
 
         # populate the tables
         for vcf in args.files:
@@ -85,7 +93,7 @@ def populate_db(args):
                         var.append((event_type, chrA, chrB, posA, ci_A_lower,
                                     ci_A_upper, posB, ci_B_lower, ci_B_upper, sample_name, idx))
                         if is_ins:
-                            ins.append((idx, variant.ins_seq or None, variant.svlen))
+                            ins.append((idx, _cap_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
                         idx += 1
                     else:
                         sample_index = 0
@@ -94,7 +102,7 @@ def populate_db(args):
                                 var.append((event_type, chrA, chrB, posA, ci_A_lower, ci_A_upper,
                                             posB, ci_B_lower, ci_B_upper, sample_names[sample_index], idx))
                                 if is_ins:
-                                    ins.append((idx, variant.ins_seq or None, variant.svlen))
+                                    ins.append((idx, _cap_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
                                 idx += 1
                             sample_index += 1
 
@@ -127,6 +135,7 @@ def upgrade_db(args):
             return
 
         # Backfill INS table from the provided VCFs by matching idx via SVDB lookup
+        max_ins_seq_len = getattr(args, 'max_ins_seq_len', None)
         ins = []
         for vcf in args.files:
             sample_name = Path(vcf).stem.replace(".", "_")
@@ -151,7 +160,7 @@ def upgrade_db(args):
                         f"AND chrA == '{variant.chrA}' AND posA == {variant.posA}"
                     )
                     for (idx,) in rows:
-                        ins.append((idx, variant.ins_seq or None, variant.svlen))
+                        ins.append((idx, _cap_ins_seq(variant.ins_seq, max_ins_seq_len), variant.svlen))
 
         if ins:
             db.insert_ins_many(ins)

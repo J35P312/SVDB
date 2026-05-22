@@ -90,6 +90,27 @@ class TestBuildINSTable:
             assert db.has_ins_table()
             assert db.query("SELECT COUNT(*) FROM INS")[0][0] == 0
 
+    def test_build_max_ins_seq_len_caps_long_sequences(self, tmp_path):
+        """Sequences above --max_ins_seq_len are stored as NULL; ins_len is preserved."""
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [
+            ("1", 1000, "short", "ACGT" * 10),   # 40 bp — below cap
+            ("1", 2000, "long",  "ACGT" * 200),  # 800 bp — above cap
+        ])
+        subprocess.run(
+            SVDB + ["--build", "--files", str(vcf), "--prefix", str(tmp_path / "svdb"),
+                    "--max_ins_seq_len", "100"],
+            capture_output=True, check=True,
+        )
+        with DB(str(tmp_path / "svdb")) as db:
+            rows = db.query("SELECT ins_seq, ins_len FROM INS ORDER BY ins_len")
+        short_seq, short_len = rows[0]
+        long_seq, long_len = rows[1]
+        assert short_seq == "ACGT" * 10
+        assert short_len == 40
+        assert long_seq is None       # capped → no sequence stored
+        assert long_len == 800        # SVLEN still preserved for ratio matching
+
     def test_build_multiple_ins_variants_all_stored(self, tmp_path):
         vcf = tmp_path / "sample.vcf"
         make_ins_vcf(vcf, [

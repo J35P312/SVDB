@@ -149,6 +149,8 @@ def main():
                             help="the prefix of the output file, default = SVDB")
         parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, exits with INFO if already up to date",
                             required=False, action="store_true")
+        parser.add_argument('--max_ins_seq_len', type=int, default=None,
+                            help="maximum insertion sequence length (bp) to store; sequences longer than this are stored with NULL sequence but retain SVLEN for length-ratio matching (default: no limit)")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()
