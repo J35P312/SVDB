@@ -10,7 +10,7 @@ from .vcf_utils import normalize_chrom
 logger = logging.getLogger(__name__)
 
 
-def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_end, posB, ci_B_start, ci_B_end, ins_seq=None):
+def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_end, posB, ci_B_start, ci_B_end, ins_seq=None, ins_len=None):
     """Build the representing-variant dict used as cluster[0] in vcf_line."""
     return {
         "type": variant_type,
@@ -23,6 +23,7 @@ def make_representing_variant(variant_type, chrA, chrB, posA, ci_A_start, ci_A_e
         "ci_B_start": ci_B_start,
         "ci_B_end": ci_B_end,
         "ins_seq": ins_seq,
+        "ins_len": ins_len,
     }
 
 
@@ -127,9 +128,13 @@ def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False):
     is_ins = cluster[0]["type"] == "INS" and cluster[0]["chrA"] == cluster[0]["chrB"]
     if cluster[0]["chrA"] == cluster[0]["chrB"] and cluster[0]["type"] != "BND":
         ins_seq = cluster[0].get("ins_seq")
+        ins_len = cluster[0].get("ins_len")
         if is_ins and ins_seq:
             vcf_line.append("N" + ins_seq)
             info_field += "SVLEN={};".format(len(ins_seq))
+        elif is_ins and ins_len:
+            vcf_line.append("<INS>")
+            info_field += "END={};SVLEN={};".format(cluster[0]["posB"], ins_len)
         else:
             vcf_line.append("<" + cluster[0]["type"] + ">")
             info_field += "END={};SVLEN={};".format(cluster[0]["posB"], abs(cluster[0]["posA"] - cluster[0]["posB"]))
@@ -252,6 +257,14 @@ def _pick_ins_seq(variant_dict):
     return Counter(seqs).most_common(1)[0][0]
 
 
+def _pick_ins_len(variant_dict):
+    """Return the most common non-null ins_len across the cluster, or None."""
+    lens = [v.get("ins_len") for v in variant_dict.values() if v.get("ins_len")]
+    if not lens:
+        return None
+    return Counter(lens).most_common(1)[0][0]
+
+
 def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
     variant_dictionary, coordinates = fetch_index_variant(db, indexes)
     if "INS" in variant:
@@ -271,6 +284,7 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
         clustered_variants[0]["chrA"] = chrA
         clustered_variants[0]["chrB"] = chrB
         clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
+        clustered_variants[0]["ins_len"] = _pick_ins_len(clustered_variants[1])
         f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
         i += 1
     return i
@@ -299,8 +313,9 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     for xy, indexes in zip(unique_xy, unique_index):
         variant_dictionary = fetch_cluster_variant(db, [indexes])
         ins_seq = _pick_ins_seq(variant_dictionary)
+        ins_len = _pick_ins_len(variant_dictionary)
         representing_var = make_representing_variant(
-            variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1], ins_seq)
+            variant, chrA, chrB, xy[0], xy[0], xy[0], xy[1], xy[1], xy[1], ins_seq, ins_len)
         cluster = [representing_var, variant_dictionary]
         f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
         i += 1
@@ -320,12 +335,13 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 
             variant_dictionary = fetch_cluster_variant(db, indexes)
             ins_seq = _pick_ins_seq(variant_dictionary)
+            ins_len = _pick_ins_len(variant_dictionary)
 
             representing_var = make_representing_variant(
                 variant, chrA, chrB,
                 int(avg_point[0]), np.amin(xy[:, 0]), np.amax(xy[:, 0]),
                 int(avg_point[1]), np.amin(xy[:, 1]), np.amax(xy[:, 1]),
-                ins_seq)
+                ins_seq, ins_len)
             cluster = [representing_var, variant_dictionary]
             f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
             i += 1
