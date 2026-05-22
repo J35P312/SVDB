@@ -32,9 +32,10 @@ def populate_db(args):
             db.create(database.CREATE_TABLE_SQL)
             sample_IDs = []
         else:
-            db.drop("DROP INDEX SV")
-            db.drop("DROP INDEX IDX")
-            db.drop("DROP INDEX CHR")
+            db.drop("DROP INDEX IF EXISTS SV")
+            db.drop("DROP INDEX IF EXISTS SV_POS")
+            db.drop("DROP INDEX IF EXISTS IDX")
+            db.drop("DROP INDEX IF EXISTS CHR")
 
             sample_IDs = db.sample_ids
             if sample_IDs:
@@ -119,7 +120,8 @@ def populate_db(args):
             if ins:
                 db.insert_ins_many(ins)
 
-        db.create_index(name='SV', columns='(var, chrA, chrB, posA, posA, posB, posB)')
+        db.create_index(name='SV', columns='(var, chrA, chrB, posA)')
+        db.create_index(name='SV_POS', columns='(posA, posB)')
         db.create_index(name='IDX', columns='(idx)')
         db.create_index(name='CHR', columns='(chrA, chrB)')
     return sample_IDs
