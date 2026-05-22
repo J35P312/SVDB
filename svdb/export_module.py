@@ -272,7 +272,8 @@ def overlap_cluster(db, indexes, variant, chrA, chrB, sample_IDs, args, f, i):
         clustered_variants[0]["chrB"] = chrB
         clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
         f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
-    return i + len(clusters)
+        i += 1
+    return i
 
 
 def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):

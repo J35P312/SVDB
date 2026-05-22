@@ -431,3 +431,26 @@ class TestExportINS:
                         "--data_profile", "sample")
         assert r_profile.returncode == 0
         assert len(data_lines((tmp_path / "out_profile.vcf").read_text())) == 2
+
+    def test_export_subclusters_get_distinct_ids(self, tmp_path):
+        """Each sub-cluster produced by overlap_cluster must get a unique cluster ID.
+
+        Regression for a pre-existing bug where i was not incremented inside the
+        overlap_cluster loop — all sub-clusters from one DBSCAN group shared the
+        same cluster_N id.
+        """
+        vcf = tmp_path / "sample.vcf"
+        # Two insertions within ins_distance (5 bp apart) but with completely
+        # different sequences (similarity ≈ 0) → sequence gate splits them.
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "ACGT" * 10),   # 40 bp, all ACGT
+            ("1", 1005, "ins2", "TTTT" * 10),   # 40 bp, all T — sim ≈ 0.25
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"))
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) == 2
+        ids = [line.split("\t")[2] for line in lines]
+        assert ids[0] != ids[1], f"both sub-clusters got the same ID: {ids[0]}"
