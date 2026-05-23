@@ -244,6 +244,23 @@ class TestPositionWindow:
 
 class TestProfileOverridesThreshold:
 
+    def test_max_ins_seq_len_bypasses_sequence_gate(self):
+        # grch37_neg_c_sim0.672: extracted sequences ~70/67 bp, sim≈0.672 < 0.75 → normally 2 lines.
+        # With --max_ins_seq_len 50 both are capped to "" → gate skipped → merge → 1 line.
+        r = run_merge("--max_ins_seq_len", "50",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_max_ins_seq_len_above_seq_length_does_not_merge(self):
+        # Cap above actual sequence length (~70 bp) → sequences still compared → 2 lines.
+        r = run_merge("--max_ins_seq_len", "200",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 2
+
     def test_profile_wins_over_explicit_threshold_with_warning(self):
         # When both are specified, --data_profile overrides --ins_seq_similarity.
         # sample profile → threshold=0.85 → sim≈0.789 < 0.85 → rejected.

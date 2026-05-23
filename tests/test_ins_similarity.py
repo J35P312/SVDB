@@ -7,7 +7,7 @@ ins_similarity fixture VCFs.
 import pytest
 from pathlib import Path
 
-from svdb.ins_similarity import extract_ins_sequence, levenshtein_similarity, sequence_gate
+from svdb.ins_similarity import cap_seq, extract_ins_sequence, levenshtein_similarity, sequence_gate
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ins_similarity"
 
@@ -172,3 +172,25 @@ class TestSequenceGate:
         seq_a = _read_vcf_seq(FIXTURES / "grch37_neg_c_sim0.837" / "caller_a.vcf")
         seq_b = _read_vcf_seq(FIXTURES / "grch37_neg_c_sim0.837" / "caller_b.vcf")
         assert sequence_gate(seq_a, seq_b, threshold=0.75) is True
+
+
+class TestCapSeq:
+
+    def test_none_input_returns_empty(self):
+        assert cap_seq(None, 500) == ""
+
+    def test_empty_string_returns_empty(self):
+        assert cap_seq("", 500) == ""
+
+    def test_no_cap_returns_seq_unchanged(self):
+        assert cap_seq("ATCG", None) == "ATCG"
+
+    def test_under_cap_returns_seq_unchanged(self):
+        assert cap_seq("ATCG", 10) == "ATCG"
+
+    def test_over_cap_returns_empty(self):
+        assert cap_seq("A" * 600, 500) == ""
+
+    def test_exactly_at_cap_is_not_capped(self):
+        seq = "A" * 500
+        assert cap_seq(seq, 500) == seq

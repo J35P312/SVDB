@@ -292,6 +292,37 @@ class TestQuerySQLiteINS:
         assert len(lines) == 1
         assert "OCC=1" in lines[0]
 
+    def test_query_max_ins_seq_len_bypasses_sequence_gate(self, tmp_path):
+        """--max_ins_seq_len caps long sequences to empty, skipping the gate → hit counted."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        # completely different 200 bp sequences → default sequence gate blocks the match
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "A" * 200)])
+        make_ins_vcf(query_vcf, [("1", 1000, "q_ins", "C" * 200)])
+        build(tmp_path / "svdb", db_vcf)
+        # without cap: sim≈0 < 0.75 → no match
+        r_nocap = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                      "--query_vcf", str(query_vcf))
+        assert r_nocap.returncode == 0
+        assert "OCC=" not in data_lines(r_nocap.stdout)[0]
+        # with cap below 200 bp: both sequences capped to "" → gate skipped → match
+        r_cap = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                    "--query_vcf", str(query_vcf), "--max_ins_seq_len", "100")
+        assert r_cap.returncode == 0
+        assert "OCC=1" in data_lines(r_cap.stdout)[0]
+
+    def test_query_max_ins_seq_len_above_length_still_compares(self, tmp_path):
+        """Cap above the actual sequence length → sequences still compared → gate blocks."""
+        db_vcf = tmp_path / "db.vcf"
+        query_vcf = tmp_path / "query.vcf"
+        make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "A" * 50)])
+        make_ins_vcf(query_vcf, [("1", 1000, "q_ins", "C" * 50)])
+        build(tmp_path / "svdb", db_vcf)
+        r = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
+                "--query_vcf", str(query_vcf), "--max_ins_seq_len", "200")
+        assert r.returncode == 0
+        assert "OCC=" not in data_lines(r.stdout)[0]
+
     def test_query_data_profile_sample_blocks_moderate_similarity(self, tmp_path):
         """--data_profile sample sets threshold=0.85; sequence with sim≈0.80 should not match."""
         db_vcf = tmp_path / "db.vcf"
