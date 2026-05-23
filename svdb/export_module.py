@@ -4,7 +4,7 @@ from collections import Counter
 
 import numpy as np
 
-from . import dbscan, database, ins_similarity, overlap_module
+from . import dbscan, database, ins_similarity
 from .ins_similarity import decompress_ins_seq
 from .vcf_utils import normalize_chrom
 
