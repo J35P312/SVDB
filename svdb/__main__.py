@@ -202,6 +202,8 @@ def main():
                             required=False, action="store_true")
         parser.add_argument('--max_ins_seq_len', type=int, default=None,
                             help="sequences longer than this are excluded from sequence similarity comparison at export (use position+SVLEN only); full sequence still written to ALT field")
+        parser.add_argument('--samples', choices=['on', 'off'], default='on',
+                            help="include sample genotype columns (default: on); use 'off' for sites-only output analogous to gnomAD --sites-only")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()

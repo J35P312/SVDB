@@ -1,10 +1,33 @@
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
 from svdb.export_module import db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
 
 #mock argeparse arguments
 class args:
    version="9000"
+
+class args_no_samples:
+   version="9000"
+   samples="off"
+
+FIXTURES = Path(__file__).parent / "fixtures"
+MANTA_CHR1  = FIXTURES / "manta_chr1_del.vcf"
+HG002_CHR1  = FIXTURES / "dragen_hg002_chr1_del.vcf"
+SVDB = [sys.executable, "-m", "svdb"]
+
+
+def _chrom_header(text: str) -> str:
+    for line in text.splitlines():
+        if line.startswith("#CHROM"):
+            return line
+    return ""
+
+
+def _data_lines(text: str) -> list[str]:
+    return [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
 
 class TestExport(unittest.TestCase):
 
@@ -80,3 +103,76 @@ class TestVcfLineStripChr(unittest.TestCase):
     def test_no_chr_prefix_unaffected(self):
         line = make_vcf_line(self._cluster("1", "1"), "id1", ["s1"], strip_chr=True)
         assert line.startswith("1\t")
+
+
+class TestNoSamplesFlag(unittest.TestCase):
+    """--samples off: sites-only output — no FORMAT or GT columns."""
+
+    def _cluster(self):
+        rep = make_representing_variant("DEL", "1", "1", 100, 100, 100, 200, 200, 200)
+        variants = {
+            0: {"posA": 100, "posB": 200, "sample_id": "s1"},
+            1: {"posA": 102, "posB": 198, "sample_id": "s2"},
+        }
+        return [rep, variants]
+
+    def test_vcf_line_no_samples_has_eight_fields(self):
+        line = make_vcf_line(self._cluster(), "id1", ["s1", "s2"], no_samples=True)
+        assert len(line.split("\t")) == 8
+
+    def test_vcf_line_no_samples_omits_gt(self):
+        line = make_vcf_line(self._cluster(), "id1", ["s1", "s2"], no_samples=True)
+        assert "GT" not in line
+
+    def test_vcf_line_with_samples_has_format_and_gt(self):
+        line = make_vcf_line(self._cluster(), "id1", ["s1", "s2"], no_samples=False)
+        fields = line.split("\t")
+        assert fields[8] == "GT"
+        assert len(fields) == 11  # 8 fixed + FORMAT + 2 sample GT cols
+
+    def test_header_no_samples_omits_format_line(self):
+        hdr = db_header(args_no_samples)
+        assert "##FORMAT" not in hdr
+
+    def test_header_with_samples_includes_format_line(self):
+        hdr = db_header(args)
+        assert "##FORMAT" in hdr
+
+
+class TestNoSamplesIntegration:
+    """End-to-end: build a 2-sample DB, export with --samples off."""
+
+    def test_chrom_header_has_no_sample_columns(self, tmp_path):
+        prefix = tmp_path / "pop"
+        subprocess.run(SVDB + ["--build", "--files", str(MANTA_CHR1), str(HG002_CHR1),
+                               "--prefix", str(prefix)], check=True, capture_output=True)
+        subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "pop.db"),
+                               "--prefix", str(tmp_path / "out"),
+                               "--samples", "off"], check=True, capture_output=True)
+        vcf = (tmp_path / "out.vcf").read_text()
+        header = _chrom_header(vcf)
+        fields = header.split("\t")
+        assert fields == ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
+
+    def test_data_lines_have_eight_fields(self, tmp_path):
+        prefix = tmp_path / "pop"
+        subprocess.run(SVDB + ["--build", "--files", str(MANTA_CHR1), str(HG002_CHR1),
+                               "--prefix", str(prefix)], check=True, capture_output=True)
+        subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "pop.db"),
+                               "--prefix", str(tmp_path / "out"),
+                               "--samples", "off"], check=True, capture_output=True)
+        vcf = (tmp_path / "out.vcf").read_text()
+        for line in _data_lines(vcf):
+            assert len(line.split("\t")) == 8, f"Expected 8 fields, got: {line}"
+
+    def test_occ_and_frq_still_in_info(self, tmp_path):
+        prefix = tmp_path / "pop"
+        subprocess.run(SVDB + ["--build", "--files", str(MANTA_CHR1), str(HG002_CHR1),
+                               "--prefix", str(prefix)], check=True, capture_output=True)
+        subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "pop.db"),
+                               "--prefix", str(tmp_path / "out"),
+                               "--samples", "off"], check=True, capture_output=True)
+        vcf = (tmp_path / "out.vcf").read_text()
+        data = _data_lines(vcf)
+        assert len(data) > 0
+        assert all("OCC=" in ln and "FRQ=" in ln for ln in data)

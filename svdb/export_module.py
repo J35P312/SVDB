@@ -97,6 +97,7 @@ def fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len=None):
 
 
 def db_header(args):
+    no_samples = getattr(args, "samples", "on") == "off"
     headerString = '##fileformat=VCFv4.1\n'
     headerString += '##source=SVDB\n'
     headerString += '##ALT=<ID=DEL,Description="Deletion">\n'
@@ -113,12 +114,13 @@ def db_header(args):
     headerString += '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">\n'
     headerString += '##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS">\n'
     headerString += '##INFO=<ID=CIEND,Number=2,Type=Integer,Description="Confidence interval around END">\n'
-    headerString += '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    if not no_samples:
+        headerString += '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
     headerString += '##SVDB_version={} cmd=\"{}\"'.format(args.version, " ".join(sys.argv))
     return headerString
 
 
-def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False):
+def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False, no_samples=False):
     _chrom = normalize_chrom if strip_chr else (lambda x: x)
     info_field = "SVTYPE={};".format(cluster[0]["type"])
     vcf_line = []
@@ -165,10 +167,11 @@ def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False):
     vcf_line.append(".")
     vcf_line.append("PASS")
     vcf_line.append(info_field)
-    hit_sample_ids = [cluster[1][v]["sample_id"] for v in cluster[1]]
-    format_cols = build_genotype_columns(sample_IDs, hit_sample_ids)
-    vcf_line.append("GT")
-    vcf_line.append("\t".join(format_cols))
+    if not no_samples:
+        hit_sample_ids = [cluster[1][v]["sample_id"] for v in cluster[1]]
+        format_cols = build_genotype_columns(sample_IDs, hit_sample_ids)
+        vcf_line.append("GT")
+        vcf_line.append("\t".join(format_cols))
     return "\t".join(vcf_line)
 
 
@@ -270,6 +273,7 @@ def overlap_cluster(variant_dictionary, coordinates, variant, chrA, chrB, sample
            variant_dictionary, coordinates, chrA, chrB, args.bnd_distance, args.overlap)
 
     strip_chr = getattr(args, "strip_chr", False)
+    no_samples = getattr(args, "samples", "on") == "off"
     clusters = cluster_variants(variant_dictionary, similarity_matrix)
     for clustered_variants in clusters:
         clustered_variants[0]["type"] = variant
@@ -277,7 +281,7 @@ def overlap_cluster(variant_dictionary, coordinates, variant, chrA, chrB, sample
         clustered_variants[0]["chrB"] = chrB
         clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
         clustered_variants[0]["ins_len"] = _pick_ins_len(clustered_variants[1])
-        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
+        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
         i += 1
     return i
 
@@ -296,6 +300,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
         labels = dbscan.main(pos_coords, args.bnd_distance, 2)
 
     strip_chr = getattr(args, "strip_chr", False)
+    no_samples = getattr(args, "samples", "on") == "off"
     unique_labels = set(labels)
 
     # singletons
@@ -307,7 +312,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
             variant, chrA, chrB, pos[0], pos[0], pos[0], pos[1], pos[1], pos[1],
             v.get("ins_seq"), v.get("ins_len"))
         cluster = [representing_var, variant_dictionary]
-        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
+        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
         i += 1
 
     # clusters
@@ -332,7 +337,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
                 int(avg_point[1]), np.amin(cluster_pos[:, 1]), np.amax(cluster_pos[:, 1]),
                 ins_seq, ins_len)
             cluster = [representing_var, sub_dict]
-            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr) + "\n")
+            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
             i += 1
         else:
             i = overlap_cluster(sub_dict, sub_coords, variant, chrA, chrB, sample_IDs, args, f, i)
@@ -366,7 +371,11 @@ def main(args):
     with database.DB(args.db) as db:
         sample_IDs = db.query_column('SELECT DISTINCT sample FROM SVDB')
 
+    no_samples = getattr(args, "samples", "on") == "off"
     with open(args.prefix + ".vcf", 'w') as f:
         f.write(db_header(args) + "\n")
-        f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}\n".format("\t".join(sample_IDs)))
+        if no_samples:
+            f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+        else:
+            f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{}\n".format("\t".join(sample_IDs)))
     export(args, sample_IDs)
