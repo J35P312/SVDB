@@ -132,6 +132,40 @@ When the database was built with insertion sequence data (i.e. the INS table is 
         --strip_chr                 strip the 'chr' prefix from chromosome names in the output VCF
                                     (e.g. 'chr1' → '1')
 
+        --samples {on,off}          include per-sample genotype columns (default: on).
+                                    Use 'off' for sites-only output (analogous to gnomAD --sites-only):
+                                    the FORMAT and GT columns are omitted; OCC and FRQ are still written
+
+        --max_ins_seq_len N         cap the insertion sequence length used for similarity comparison.
+                                    Sequences longer than N bp are treated as unknown for clustering
+                                    purposes (position + SVLEN only); the ALT field falls back to
+                                    <INS> with SVLEN for those variants. Useful for controlling
+                                    memory and runtime when the database contains very long sequences.
+
+        --cluster_method {star,union_find}
+                                    clustering algorithm used to group variants within each DBSCAN
+                                    cluster (default: star).
+
+                                    star        greedy star clustering: the highest-degree variant
+                                                becomes the representative and claims its direct
+                                                neighbours. No transitivity: if A overlaps B and B
+                                                overlaps C but A does not overlap C, A and C end up
+                                                in separate clusters. Faster; produces more, smaller
+                                                clusters.
+
+                                    union_find  transitive closure via Union-Find: A-B and B-C are
+                                                always merged even if A and C do not overlap directly.
+                                                Produces fewer, larger clusters with higher OCC counts.
+                                                Prefer this when you want maximal merging across a
+                                                cohort; use star when you want conservative merging.
+
+        --workers N                 number of parallel worker processes for the clustering step
+                                    (default: 0 = use all logical CPUs; 1 = serial).
+                                    To find your optimal N: time with --workers 1, then increase
+                                    until wall-clock time stops improving — that plateau is the
+                                    serial floor (DB fetch, DBSCAN, file I/O). On shared systems
+                                    set N explicitly to avoid monopolising cores.
+
         --debug                     enable debug logging to stderr
 
 ## Query
