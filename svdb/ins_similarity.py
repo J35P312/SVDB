@@ -91,6 +91,17 @@ def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
     return levenshtein_similarity(seq_a, seq_b, score_cutoff=threshold) >= threshold
 
 
+def cap_seq(seq: Optional[str], max_len: Optional[int]) -> str:
+    """Return seq unchanged if within max_len; return "" if it exceeds the cap.
+
+    An empty return causes sequence_gate to skip similarity and defer to
+    position+SVLEN matching — consistent with symbolic ALT behaviour.
+    """
+    if seq and max_len is not None and len(seq) > max_len:
+        return ""
+    return seq or ""
+
+
 def parse_svlen(info_str: str) -> Optional[int]:
     """Extract |SVLEN| from a VCF INFO string. Returns None if absent or unparseable."""
     m = re.search(r'(?:^|;)SVLEN=(-?\d+)', info_str)

@@ -218,6 +218,11 @@ The query module is used to query one or more structural variant databases. Typi
                                 position and SVLEN only
                                 Applied with --db; also applied with --sqdb when the database
                                 contains the INS table; no effect with --bedpedb
+
+        --max_ins_seq_len N     sequences longer than N bp are excluded from sequence similarity
+                                matching and fall back to position+SVLEN; off by default.
+                                500 or 1000 is recommended for large databases to reduce runtime.
+
         --memory                load the database into memory: increases the memory requirements,
                                 but lowers the time consumption (may only be used with sqdb)
         --no_var                count overlapping variants of different type as hits in the db

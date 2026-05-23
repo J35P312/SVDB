@@ -1,5 +1,5 @@
 from . import overlap_module
-from .ins_similarity import sequence_gate
+from .ins_similarity import cap_seq, sequence_gate
 
 
 def sanitize_id(s: str) -> str:
@@ -227,6 +227,7 @@ def merge(variants, samples, sample_order, priority_order, args):
     ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
     ins_seq_similarity = getattr(args, "ins_seq_similarity", 0.75)
     no_ins_seq = getattr(args, "no_ins_seq", False)
+    max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
     # Sequence gate applies only within this hard cap, regardless of ins_distance.
     _INS_SEQ_HARD_CAP = 25
 
@@ -334,7 +335,7 @@ def merge(variants, samples, sample_order, priority_order, args):
                     if match and not no_ins_seq:
                         pos_dist = abs(posA_i - var_j.posA)
                         if pos_dist <= _INS_SEQ_HARD_CAP:
-                            if not sequence_gate(var_i.ins_seq, var_j.ins_seq, ins_seq_similarity):
+                            if not sequence_gate(cap_seq(var_i.ins_seq, max_ins_seq_len), cap_seq(var_j.ins_seq, max_ins_seq_len), ins_seq_similarity):
                                 match = False
 
                 if match:

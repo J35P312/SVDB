@@ -498,6 +498,15 @@ def export(args, sample_IDs):
                 "exporting insertions without sequence in ALT column. "
                 "To enable full insertion export, run: svdb --build --upgrade --files <original_vcfs>"
             )
+        elif (any("INS" in var for var, _, _ in groups)
+              and db.has_ins_table()
+              and getattr(args, "max_ins_seq_len", None) is None
+              and not getattr(args, "no_ins_seq", False)):
+            logger.info(
+                "No --max_ins_seq_len set; sequence similarity will run on all insertion lengths. "
+                "For large databases, --max_ins_seq_len 500 or --max_ins_seq_len 1000 "
+                "is recommended to significantly reduce export time."
+            )
 
         i = 0
         with open(args.prefix + ".vcf", 'a') as f:

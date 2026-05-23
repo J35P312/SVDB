@@ -4,7 +4,7 @@ import sys
 import numpy as np
 
 from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
-from .ins_similarity import decompress_ins_seq
+from .ins_similarity import cap_seq, decompress_ins_seq
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +239,8 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     similarity = []
 
     is_ins = "INS" in variation_type
-    query_seq = query_variant[7] if is_ins else ""
+    max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
+    query_seq = cap_seq(query_variant[7] if is_ins else "", max_ins_seq_len)
     query_svlen = query_variant[8] if is_ins else None
 
     ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
@@ -295,7 +296,7 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             if match and is_ins and chrA == chrB and not no_ins_seq:
                 pos_dist = abs(chrApos - int(event[0]))
                 if pos_dist <= _INS_SEQ_HARD_CAP:
-                    db_seq = DBvariants[chrA][chrB][var]["sequences"][candidate]
+                    db_seq = cap_seq(DBvariants[chrA][chrB][var]["sequences"][candidate], max_ins_seq_len)
                     if not ins_similarity.sequence_gate(query_seq, db_seq, ins_seq_threshold):
                         match = False
 
@@ -361,7 +362,8 @@ def SQDB(query_variant, args, db, has_ins_table=False):
 
     ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
     ins_seq_threshold = getattr(args, "ins_seq_similarity", 0.75)
-    query_seq = query_variant[7] if is_ins else ""
+    max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
+    query_seq = cap_seq(query_variant[7] if is_ins else "", max_ins_seq_len)
     query_svlen = query_variant[8] if is_ins else None
 
     match = set()
@@ -377,7 +379,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
                         similar = False
                 pos_dist = abs(variant["posA"] - hit_posA)
                 if similar and pos_dist <= _INS_SEQ_HARD_CAP:
-                    if not ins_similarity.sequence_gate(query_seq, hit_seq or "", ins_seq_threshold):
+                    if not ins_similarity.sequence_gate(query_seq, cap_seq(hit_seq, max_ins_seq_len), ins_seq_threshold):
                         similar = False
                 if similar:
                     match.add(hit_idx)

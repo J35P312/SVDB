@@ -110,6 +110,8 @@ def main():
                             help="set sequence similarity threshold preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
         parser.add_argument(
             '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb", required=False, action="store_true")
+        parser.add_argument('--max_ins_seq_len', type=int, default=None,
+                            help="sequences longer than this (bp) are excluded from sequence similarity matching and fall back to position+SVLEN; off by default; 500 or 1000 recommended for large databases")
         parser.add_argument('--overlap', type=float, default=0.6,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--memory',
@@ -245,6 +247,8 @@ def main():
                             help="set sequence similarity threshold preset: sample=0.85 (same individual, any tech), cohort=0.75 (cross-individual or cross-technology)")
         parser.add_argument(
             '--no_ins_seq', help="disable insertion sequence similarity check; merge on position+SVLEN only", required=False, action="store_true")
+        parser.add_argument('--max_ins_seq_len', type=int, default=None,
+                            help="sequences longer than this (bp) are excluded from sequence similarity matching and fall back to position+SVLEN; off by default; 500 or 1000 recommended for large inputs")
         parser.add_argument('--overlap', type=float, default=0.95,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument(
