@@ -5,7 +5,12 @@ from pathlib import Path
 
 import numpy as np
 
-from svdb.export_module import cluster_variants, cluster_variants_union_find, db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
+from svdb.export_module import (
+    cluster_variants, cluster_variants_union_find,
+    _expand_and_cluster_worker, _resolve_workers,
+    db_header, make_representing_variant, build_genotype_columns,
+    vcf_line as make_vcf_line,
+)
 
 #mock argeparse arguments
 class args:
@@ -357,3 +362,90 @@ class TestClusterMethodIntegration:
 
         assert len(star_lines) == 2, f"expected 2 star clusters, got {len(star_lines)}"
         assert len(uf_lines) == 1, f"expected 1 union_find cluster, got {len(uf_lines)}"
+
+
+class TestWorkers(unittest.TestCase):
+    """Unit tests for worker-count resolution and the worker function itself."""
+
+    def test_resolve_workers_auto_bounded(self):
+        n = _resolve_workers(0)
+        self.assertGreaterEqual(n, 1)
+        self.assertLessEqual(n, 4)
+
+    def test_resolve_workers_explicit(self):
+        self.assertEqual(_resolve_workers(2), 2)
+        self.assertEqual(_resolve_workers(8), 8)
+
+    def test_resolve_workers_serial(self):
+        self.assertEqual(_resolve_workers(1), 1)
+
+    def test_worker_fn_del(self):
+        sub_dict = {
+            0: {"posA": 1000, "posB": 2000, "sample_id": "s1", "ins_seq": None, "ins_len": None},
+            1: {"posA": 1050, "posB": 2050, "sample_id": "s2", "ins_seq": None, "ins_len": None},
+        }
+        sub_coords = np.array([[0, 1000, 2000], [1, 1050, 2050]])
+        task = (sub_dict, sub_coords, "DEL", "1", "1",
+                25, 2500, 0.8, None, None, False, "star")
+        result = _expand_and_cluster_worker(task)
+        self.assertIsInstance(result, list)
+        self.assertGreater(len(result), 0)
+        rep, cdict = result[0]
+        self.assertEqual(rep["type"], "DEL")
+        self.assertEqual(rep["chrA"], "1")
+        self.assertEqual(rep["chrB"], "1")
+
+    def test_worker_fn_union_find(self):
+        """Worker dispatches correctly to union_find when cluster_method='union_find'."""
+        sub_dict = {
+            0: {"posA": 100, "posB": 200, "sample_id": "s1", "ins_seq": None, "ins_len": None},
+            1: {"posA": 150, "posB": 250, "sample_id": "s2", "ins_seq": None, "ins_len": None},
+            2: {"posA": 200, "posB": 300, "sample_id": "s3", "ins_seq": None, "ins_len": None},
+        }
+        sub_coords = np.array([[0, 100, 200], [1, 150, 250], [2, 200, 300]])
+        # chain: 0-1 and 1-2 overlap at bnd_distance=2500, 0-2 also do → one cluster either way
+        task = (sub_dict, sub_coords, "DEL", "1", "1",
+                25, 2500, 0.6, None, None, False, "union_find")
+        result = _expand_and_cluster_worker(task)
+        total_members = sum(len(cdict) for _, cdict in result)
+        self.assertEqual(total_members, 3)
+
+
+class TestWorkersIntegration:
+    """--workers N produces the same variant count as --workers 1."""
+
+    def test_workers_flag_same_line_count(self, tmp_path):
+        """Parallel export (--workers 2) yields the same number of VCF lines as serial."""
+        import subprocess as _subprocess
+        vcf = tmp_path / "sample.vcf"
+        seq = "ACGT" * 20
+        lines = [
+            "##fileformat=VCFv4.1",
+            '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of SV">',
+            '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">',
+            '##INFO=<ID=END,Number=1,Type=Integer,Description="End position">',
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+            f"1\t1000\ti0\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1000",
+            f"1\t1015\ti1\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1015",
+            f"1\t5000\ti2\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=5000",
+            f"1\t5015\ti3\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=5015",
+        ]
+        vcf.write_text("\n".join(lines) + "\n")
+        _subprocess.run(SVDB + ["--build", "--files", str(vcf),
+                                "--prefix", str(tmp_path / "svdb")],
+                        check=True, capture_output=True)
+
+        for label, w in [("serial", "1"), ("parallel", "2")]:
+            _subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
+                                    "--prefix", str(tmp_path / f"out_{label}"),
+                                    "--workers", w, "--no_ins_seq"],
+                            check=True, capture_output=True)
+
+        def data_lines(p):
+            return [ln for ln in p.read_text().splitlines() if ln and not ln.startswith("#")]
+
+        serial = data_lines(tmp_path / "out_serial.vcf")
+        parallel = data_lines(tmp_path / "out_parallel.vcf")
+        assert len(serial) == len(parallel), (
+            f"serial={len(serial)} lines, parallel={len(parallel)} lines"
+        )

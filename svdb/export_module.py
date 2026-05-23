@@ -1,4 +1,6 @@
 import logging
+import multiprocessing
+import os
 import sys
 from collections import Counter
 
@@ -354,35 +356,69 @@ def _pick_ins_len(variant_dict):
     return Counter(lens).most_common(1)[0][0]
 
 
-def overlap_cluster(variant_dictionary, coordinates, variant, chrA, chrB, sample_IDs, args, f, i):
+def _expand_and_cluster_worker(task: tuple) -> list:
+    """Worker: run expand_chain + cluster for one DBSCAN group.
+
+    All arguments are plain scalars, dicts, or ndarrays so the tuple
+    pickles cleanly for multiprocessing.Pool dispatch.
+    """
+    (sub_dict, sub_coords, variant, chrA, chrB,
+     ins_distance, bnd_distance, overlap,
+     ins_svlen_ratio, ins_seq_threshold, no_ins_seq, cluster_method) = task
+
     if "INS" in variant:
         similarity_matrix = expand_chain(
-            variant_dictionary, coordinates, chrA, chrB, args.ins_distance, -1,
-            ins_svlen_ratio=getattr(args, "ins_svlen_ratio", None),
-            ins_seq_threshold=getattr(args, "ins_seq_similarity", None),
-            no_ins_seq=getattr(args, "no_ins_seq", False))
+            sub_dict, sub_coords, chrA, chrB, ins_distance, -1,
+            ins_svlen_ratio=ins_svlen_ratio,
+            ins_seq_threshold=ins_seq_threshold,
+            no_ins_seq=no_ins_seq,
+        )
     else:
         similarity_matrix = expand_chain(
-           variant_dictionary, coordinates, chrA, chrB, args.bnd_distance, args.overlap)
+            sub_dict, sub_coords, chrA, chrB, bnd_distance, overlap)
 
-    strip_chr = getattr(args, "strip_chr", False)
-    no_samples = getattr(args, "samples", "on") == "off"
     cluster_fn = (cluster_variants_union_find
-                  if getattr(args, "cluster_method", "star") == "union_find"
+                  if cluster_method == "union_find"
                   else cluster_variants)
-    clusters = cluster_fn(variant_dictionary, similarity_matrix)
-    for clustered_variants in clusters:
-        clustered_variants[0]["type"] = variant
-        clustered_variants[0]["chrA"] = chrA
-        clustered_variants[0]["chrB"] = chrB
-        clustered_variants[0]["ins_seq"] = _pick_ins_seq(clustered_variants[1])
-        clustered_variants[0]["ins_len"] = _pick_ins_len(clustered_variants[1])
-        f.write(vcf_line(clustered_variants, f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
-        i += 1
-    return i
+    clusters = cluster_fn(sub_dict, similarity_matrix)
+
+    result = []
+    for rep, cdict in clusters:
+        rep["type"] = variant
+        rep["chrA"] = chrA
+        rep["chrB"] = chrB
+        rep["ins_seq"] = _pick_ins_seq(cdict)
+        rep["ins_len"] = _pick_ins_len(cdict)
+        result.append((rep, cdict))
+    return result
+
+
+def _resolve_workers(requested: int) -> int:
+    """0 = auto (capped at cpu_count, max 4); ≥1 = explicit count."""
+    if requested <= 0:
+        return max(1, min(os.cpu_count() or 1, 4))
+    return requested
+
+
+def _run_tasks(tasks: list, workers: int) -> list:
+    """Dispatch tasks to a process pool; fall back to serial on any failure."""
+    if not tasks:
+        return []
+    w = min(workers, len(tasks))
+    if w <= 1:
+        return [_expand_and_cluster_worker(t) for t in tasks]
+    chunksize = max(1, len(tasks) // (w * 4))
+    try:
+        ctx = multiprocessing.get_context("spawn")
+        with ctx.Pool(processes=w) as pool:
+            return pool.map(_expand_and_cluster_worker, tasks, chunksize=chunksize)
+    except Exception as exc:
+        logger.warning("parallel clustering failed (%s); using serial fallback", exc)
+        return [_expand_and_cluster_worker(t) for t in tasks]
 
 
 def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
+    workers = _resolve_workers(getattr(args, "workers", 1))
     max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
     all_data, pos_coords, pos_indices = fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len)
     if not all_data:
@@ -399,26 +435,24 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     no_samples = getattr(args, "samples", "on") == "off"
     unique_labels = set(labels)
 
-    # singletons
+    # singletons: written immediately, no clustering needed
     singleton_mask = labels == -1
     for pos, idx in zip(pos_coords[singleton_mask], pos_indices[singleton_mask]):
         v = all_data[idx]
-        variant_dictionary = {0: v}
         representing_var = make_representing_variant(
             variant, chrA, chrB, pos[0], pos[0], pos[0], pos[1], pos[1], pos[1],
             v.get("ins_seq"), v.get("ins_len"))
-        cluster = [representing_var, variant_dictionary]
-        f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
+        f.write(vcf_line([representing_var, {0: v}], f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
         i += 1
 
-    # clusters
+    # non-singleton clusters
+    tasks = []
     for unique_label in unique_labels:
         if unique_label == -1:
             continue
         mask = labels == unique_label
         cluster_pos = pos_coords[mask]
         cluster_idxs = pos_indices[mask]
-
         sub_dict = {j: all_data[idx] for j, idx in enumerate(cluster_idxs)}
         sub_coords = np.array([[j, all_data[idx]["posA"], all_data[idx]["posB"]]
                                 for j, idx in enumerate(cluster_idxs)])
@@ -432,11 +466,22 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
                 int(avg_point[0]), np.amin(cluster_pos[:, 0]), np.amax(cluster_pos[:, 0]),
                 int(avg_point[1]), np.amin(cluster_pos[:, 1]), np.amax(cluster_pos[:, 1]),
                 ins_seq, ins_len)
-            cluster = [representing_var, sub_dict]
-            f.write(vcf_line(cluster, f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
+            f.write(vcf_line([representing_var, sub_dict], f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
             i += 1
         else:
-            i = overlap_cluster(sub_dict, sub_coords, variant, chrA, chrB, sample_IDs, args, f, i)
+            tasks.append((
+                sub_dict, sub_coords, variant, chrA, chrB,
+                args.ins_distance, args.bnd_distance, args.overlap,
+                getattr(args, "ins_svlen_ratio", None),
+                getattr(args, "ins_seq_similarity", None),
+                getattr(args, "no_ins_seq", False),
+                getattr(args, "cluster_method", "star"),
+            ))
+
+    for group_clusters in _run_tasks(tasks, workers):
+        for rep, cdict in group_clusters:
+            f.write(vcf_line([rep, cdict], f"cluster_{i}", sample_IDs, strip_chr, no_samples) + "\n")
+            i += 1
 
     return i
 
