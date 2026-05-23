@@ -3,7 +3,11 @@ import sys
 import unittest
 from pathlib import Path
 
-from svdb.export_module import db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
+import pytest
+
+import numpy as np
+
+from svdb.export_module import cluster_variants, db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
 
 #mock argeparse arguments
 class args:
@@ -176,3 +180,54 @@ class TestNoSamplesIntegration:
         data = _data_lines(vcf)
         assert len(data) > 0
         assert all("OCC=" in ln and "FRQ=" in ln for ln in data)
+
+
+class TestClusterVariantsNoDuplicateMembership(unittest.TestCase):
+    """Each variant must appear in exactly one output cluster.
+
+    Regression test for the greedy-star duplicate-membership bug: a variant
+    that is a neighbour of two different representatives gets added to both
+    clusters because the inner loop does not check whether the variant has
+    already been claimed.
+
+    Scenario
+    --------
+    Representatives 0 (3 neighbours) and 3 (2 neighbours) both have variant 1
+    in their neighbour lists.  Representative 0 is processed first (highest
+    degree) and claims variant 1.  Representative 3 is not in 0's list so it
+    stays unclaimed; when it is processed it adds variant 1 a second time.
+
+    This test FAILS with the current (buggy) cluster_variants and will PASS
+    once the implementation skips already-claimed neighbours.
+    """
+
+    def _make_inputs(self):
+        variant_dictionary = {
+            0: {"posA": 100, "posB": 200, "sample_id": "s"},
+            1: {"posA": 200, "posB": 300, "sample_id": "s"},
+            2: {"posA": 150, "posB": 250, "sample_id": "s"},
+            3: {"posA": 500, "posB": 600, "sample_id": "s"},
+        }
+        similarity_matrix = {
+            0: np.array([0, 1, 2]),  # highest degree → processed first
+            1: np.array([0, 1, 2]),
+            2: np.array([0, 1, 2]),
+            3: np.array([1, 3]),     # shares neighbour 1 with rep 0; not in 0's list
+        }
+        return variant_dictionary, similarity_matrix
+
+    @pytest.mark.xfail(strict=True, reason="greedy_star cluster_variants has a duplicate-membership bug; remove xfail once fixed")
+    def test_no_variant_in_two_clusters(self):
+        variant_dictionary, similarity_matrix = self._make_inputs()
+        clusters = cluster_variants(variant_dictionary, similarity_matrix)
+
+        membership: dict[int, list[int]] = {}
+        for cluster_idx, cluster in enumerate(clusters):
+            for var_idx in cluster[1]:
+                membership.setdefault(var_idx, []).append(cluster_idx)
+
+        duplicates = {k: v for k, v in membership.items() if len(v) > 1}
+        self.assertFalse(
+            duplicates,
+            f"variants appear in multiple clusters (bug): {duplicates}",
+        )

@@ -177,53 +177,96 @@ def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False, no_samples=False):
 
 def expand_chain(chain, coordinates, chrA, chrB, distance, overlap,
                  ins_svlen_ratio=None, ins_seq_threshold=None, no_ins_seq=False):
+    """Build pairwise match lists for every variant in the cluster.
+
+    `chain` is a dict {0..n-1: variant_dict} and `coordinates` is an (n,3)
+    int array with columns [chain_idx, posA, posB].  Because both are built
+    with the same enumerate(), coordinates[k,0]==k for all k, so row indices
+    and chain keys are interchangeable — this is exploited throughout.
+
+    Overlap gates are evaluated in cheapest-first order:
+      1. Spatial lookup    — numpy mask or cKDTree (L∞), already vectorised
+      2. Overlap ratio     — vectorised numpy (DEL/DUP/INV only)
+      3. SVLEN ratio       — vectorised numpy (INS only)
+      4. Sequence gate     — per-pair rapidfuzz (INS only, irreducibly serial)
+    """
     is_ins = chrA == chrB and overlap == -1
+    n = len(chain)
     chain_data = {}
 
-    # Build spatial index once for large clusters; numpy scan is faster for small ones.
-    use_tree = _SCIPY_AVAILABLE and len(chain) >= _KDTREE_MIN_SIZE
+    use_tree = _SCIPY_AVAILABLE and n >= _KDTREE_MIN_SIZE
     tree = _cKDTree(coordinates[:, 1:3].astype(float)) if use_tree else None
 
-    for i, idx in enumerate(chain):
-        chain_data[i] = []
-        variant = chain[idx]
+    # Precompute per-variant arrays so the inner loop avoids repeated dict access.
+    # Safe because chain keys are exactly 0..n-1.
+    if is_ins and ins_svlen_ratio is not None:
+        all_lens = np.array([chain[k].get("ins_len") or 0 for k in range(n)],
+                            dtype=np.float64)
 
+    need_seq = is_ins and not no_ins_seq and ins_seq_threshold is not None
+    if need_seq:
+        all_seqs = [chain[k].get("ins_seq") or "" for k in range(n)]
+
+    for i in range(n):
+        variant = chain[i]
+        va_posA = variant["posA"]
+        va_posB = variant["posB"]
+
+        # ── 1. spatial lookup ────────────────────────────────────────────────
+        # Returns row indices into `coordinates`, which equal chain keys.
+        # L∞ norm: max(|dposA|, |dposB|) ≤ distance — identical to both
+        # precise_overlap (INS/BND) and the position guard in isSameVariation.
         if use_tree:
-            hit_rows = tree.query_ball_point(
-                [variant["posA"], variant["posB"]], distance, p=np.inf)
-            candidates = coordinates[hit_rows, 0]
+            cand_idxs = np.array(
+                tree.query_ball_point([va_posA, va_posB], distance, p=np.inf),
+                dtype=np.int64)
         else:
-            rows = coordinates[(distance >= abs(coordinates[:, 1] - variant["posA"]))
-                               & (distance >= abs(coordinates[:, 2] - variant["posB"]))]
-            candidates = rows[:, 0]
-        for candidate in candidates:
-            var = chain[candidate]
-            if chrA != chrB:
-                match = True
-            elif is_ins:
-                _, match = overlap_module.precise_overlap(
-                    variant["posA"], variant["posB"], var["posA"], var["posB"], distance)
-            else:
-                _, match = overlap_module.isSameVariation(
-                    variant["posA"], variant["posB"], var["posA"], var["posB"], overlap, distance)
+            cand_idxs = np.where(
+                (np.abs(coordinates[:, 1] - va_posA) <= distance) &
+                (np.abs(coordinates[:, 2] - va_posB) <= distance)
+            )[0].astype(np.int64)
 
-            if match and is_ins and ins_svlen_ratio is not None:
-                len_a = variant.get("ins_len")
-                len_b = var.get("ins_len")
-                if len_a is not None and len_b is not None:
-                    if not overlap_module.insertion_svlen_match(len_a, len_b, ins_svlen_ratio):
-                        match = False
+        if len(cand_idxs) == 0:
+            chain_data[i] = np.array([], dtype=np.int64)
+            continue
 
-            if match and is_ins and not no_ins_seq and ins_seq_threshold is not None:
-                seq_a = variant.get("ins_seq") or ""
-                seq_b = var.get("ins_seq") or ""
-                if not ins_similarity.sequence_gate(seq_a, seq_b, ins_seq_threshold):
-                    match = False
+        # ── 2. overlap ratio (DEL / DUP / INV) ──────────────────────────────
+        # INS and BND: position check already equals the full gate → all pass.
+        if chrA != chrB or is_ins:
+            match_mask = np.ones(len(cand_idxs), dtype=bool)
+        else:
+            cand_posA = coordinates[cand_idxs, 1]
+            cand_posB = coordinates[cand_idxs, 2]
+            region_start  = np.minimum(cand_posA, va_posA)
+            overlap_start = np.maximum(cand_posA, va_posA)
+            region_end    = np.maximum(cand_posB, va_posB)
+            overlap_end   = np.minimum(cand_posB, va_posB)
+            denom = (region_end - region_start + 1).astype(np.float64)
+            ratio_vals = (overlap_end - overlap_start + 1) / denom
+            match_mask = ratio_vals >= overlap
 
-            if match:
-                chain_data[i].append(candidate)
+        # ── 3. SVLEN ratio (INS, vectorised) ────────────────────────────────
+        if is_ins and ins_svlen_ratio is not None:
+            va_len = variant.get("ins_len") or 0
+            if va_len > 0:
+                cand_lens = all_lens[cand_idxs]
+                valid = cand_lens > 0
+                svlen_ratio = np.where(
+                    valid,
+                    np.minimum(cand_lens, va_len) / np.maximum(cand_lens, va_len),
+                    1.0,
+                )
+                match_mask &= svlen_ratio >= ins_svlen_ratio
 
-        chain_data[i] = np.array(chain_data[i])
+        # ── 4. sequence gate (INS, per-pair) ────────────────────────────────
+        if need_seq:
+            va_seq = variant.get("ins_seq") or ""
+            for k in np.where(match_mask)[0]:
+                if not ins_similarity.sequence_gate(
+                        va_seq, all_seqs[int(cand_idxs[k])], ins_seq_threshold):
+                    match_mask[k] = False
+
+        chain_data[i] = cand_idxs[match_mask]
     return chain_data
 
 
