@@ -48,7 +48,7 @@ def build_genotype_columns(sample_IDs, hit_sample_ids):
     return [zygosity[sample] for sample in sample_IDs]
 
 
-def fetch_all_variants(variant, chrA, chrB, db):
+def fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len=None):
     """Load all variant data for one (var, chrA, chrB) group in a single query.
 
     Returns (variant_dict, pos_coords, pos_indices):
@@ -56,6 +56,10 @@ def fetch_all_variants(variant, chrA, chrB, db):
       pos_coords     – np.array shape (n, 2) columns [posA, posB]
       pos_indices    – np.array shape (n,) of idx values, parallel to pos_coords
     Returns ({}, empty, empty) when the group has no rows.
+
+    max_ins_seq_len: if set, sequences longer than this are treated as None
+    during comparison (position+SVLEN only); the full sequence is still written
+    to the ALT field of the output VCF.
     """
     has_ins = db.has_ins_table()
     if has_ins:
@@ -76,11 +80,14 @@ def fetch_all_variants(variant, chrA, chrB, db):
     x, y, indices = [], [], []
     for hit in hits:
         idx = int(hit[3])
+        seq = decompress_ins_seq(hit[4]) if has_ins else None
+        if seq and max_ins_seq_len is not None and len(seq) > max_ins_seq_len:
+            seq = None
         variant_dict[idx] = {
             "posA": int(hit[0]),
             "posB": int(hit[1]),
             "sample_id": hit[2],
-            "ins_seq": decompress_ins_seq(hit[4]) if has_ins else None,
+            "ins_seq": seq,
             "ins_len": hit[5] if has_ins else None,
         }
         x.append(int(hit[0]))
@@ -276,7 +283,8 @@ def overlap_cluster(variant_dictionary, coordinates, variant, chrA, chrB, sample
 
 
 def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
-    all_data, pos_coords, pos_indices = fetch_all_variants(variant, chrA, chrB, db)
+    max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
+    all_data, pos_coords, pos_indices = fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len)
     if not all_data:
         return i
 

@@ -68,13 +68,15 @@ def extract_ins_sequence(ref: str, alt: str) -> str:
     return alt
 
 
-def levenshtein_similarity(seq_a: str, seq_b: str) -> float:
+def levenshtein_similarity(seq_a: str, seq_b: str, score_cutoff: float = 0.0) -> float:
     """Normalised Levenshtein similarity in [0, 1].
 
     Uses rapidfuzz for efficiency (~14–33 µs/pair on typical insertion lengths).
     Two empty strings are considered identical (returns 1.0).
+    score_cutoff enables early termination: returns 0.0 immediately when the
+    similarity cannot reach the cutoff, avoiding the full O(n*m) computation.
     """
-    return Levenshtein.normalized_similarity(seq_a, seq_b)
+    return Levenshtein.normalized_similarity(seq_a, seq_b, score_cutoff=score_cutoff)
 
 
 def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
@@ -86,7 +88,7 @@ def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
     """
     if not seq_a or not seq_b:
         return True
-    return levenshtein_similarity(seq_a, seq_b) >= threshold
+    return levenshtein_similarity(seq_a, seq_b, score_cutoff=threshold) >= threshold
 
 
 def parse_svlen(info_str: str) -> Optional[int]:

@@ -200,6 +200,8 @@ def main():
             '--memory', help="load the database into memory: increases the memory requirements, but lowers the time consumption", required=False, action="store_true")
         parser.add_argument('--strip_chr', help="strip the 'chr' prefix from chromosome names in the output VCF",
                             required=False, action="store_true")
+        parser.add_argument('--max_ins_seq_len', type=int, default=None,
+                            help="sequences longer than this are excluded from sequence similarity comparison at export (use position+SVLEN only); full sequence still written to ALT field")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()
