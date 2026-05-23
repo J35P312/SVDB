@@ -207,7 +207,9 @@ def main():
         parser.add_argument('--cluster_method', choices=['star', 'union_find'], default='star',
                             help="clustering algorithm: 'star' = greedy star, highest-degree representative, no transitivity (default); 'union_find' = transitive closure, fewer output clusters, higher OCC counts")
         parser.add_argument('--workers', type=int, default=0,
-                            help="number of parallel worker processes for expand_chain+cluster (0 = auto, capped at min(cpu_count,4); 1 = serial; default: 0)")
+                            help="parallel worker processes for clustering (0 = auto, uses all logical CPUs; 1 = serial). "
+                                 "To find your optimal N: time with --workers 1, then increase until wall-clock time stops improving — "
+                                 "that is the serial floor (DB fetch, DBSCAN, I/O). On shared systems set N explicitly to be a good neighbour.")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()

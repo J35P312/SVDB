@@ -368,9 +368,10 @@ class TestWorkers(unittest.TestCase):
     """Unit tests for worker-count resolution and the worker function itself."""
 
     def test_resolve_workers_auto_bounded(self):
+        import os
         n = _resolve_workers(0)
         self.assertGreaterEqual(n, 1)
-        self.assertLessEqual(n, 4)
+        self.assertLessEqual(n, max(1, os.cpu_count() or 1))
 
     def test_resolve_workers_explicit(self):
         self.assertEqual(_resolve_workers(2), 2)

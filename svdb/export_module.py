@@ -394,9 +394,9 @@ def _expand_and_cluster_worker(task: tuple) -> list:
 
 
 def _resolve_workers(requested: int) -> int:
-    """0 = auto (capped at cpu_count, max 4); ≥1 = explicit count."""
+    """0 = auto (all logical CPUs); ≥1 = explicit count."""
     if requested <= 0:
-        return max(1, min(os.cpu_count() or 1, 4))
+        return max(1, os.cpu_count() or 1)
     return requested
 
 
@@ -407,6 +407,7 @@ def _run_tasks(tasks: list, workers: int) -> list:
     w = min(workers, len(tasks))
     if w <= 1:
         return [_expand_and_cluster_worker(t) for t in tasks]
+    logger.info("clustering %d group(s) with %d worker(s)", len(tasks), w)
     chunksize = max(1, len(tasks) // (w * 4))
     try:
         ctx = multiprocessing.get_context("spawn")
