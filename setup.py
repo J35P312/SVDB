@@ -26,4 +26,5 @@ setup(name='svdb',
       ext_modules=ext_modules,
       packages=['svdb'],
       install_requires=['numpy', 'rapidfuzz'],
+      extras_require={'scipy': ['scipy']},
       entry_points={'console_scripts': ['svdb = svdb.__main__:main']},)
