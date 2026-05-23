@@ -454,6 +454,47 @@ class TestExportINS:
         assert r_profile.returncode == 0
         assert len(data_lines((tmp_path / "out_profile.vcf").read_text())) == 2
 
+    def test_export_max_ins_seq_len_bypasses_sequence_gate(self, tmp_path):
+        """Sequences above --max_ins_seq_len are not compared: dissimilar long sequences
+        at nearby positions merge on position+SVLEN only."""
+        vcf = tmp_path / "sample.vcf"
+        seq_a = "ACGT" * 50   # 200 bp
+        seq_b = "TTTT" * 50   # 200 bp — completely different (sim ≈ 0)
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", seq_a),
+            ("1", 1001, "ins2", seq_b),
+        ])
+        build(tmp_path / "svdb", vcf)
+        # without cap: sequence gate keeps them separate
+        run("--export", "--db", str(tmp_path / "svdb.db"),
+            "--prefix", str(tmp_path / "out_nocap"))
+        assert len(data_lines((tmp_path / "out_nocap.vcf").read_text())) == 2
+        # with cap below sequence length: gate bypassed → merge into one cluster
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out_cap"),
+                "--max_ins_seq_len", "100")
+        assert r.returncode == 0
+        assert len(data_lines((tmp_path / "out_cap.vcf").read_text())) == 1
+
+    def test_export_max_ins_seq_len_alt_falls_back_to_symbolic(self, tmp_path):
+        """Capped sequences produce <INS> in ALT (not full sequence); SVLEN preserved."""
+        vcf = tmp_path / "sample.vcf"
+        seq = "ACGT" * 50   # 200 bp
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", seq),
+            ("1", 1001, "ins2", seq),
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"),
+                "--max_ins_seq_len", "100")
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) == 1
+        fields = lines[0].split("\t")
+        assert fields[4] == "<INS>"
+        assert "SVLEN=200" in fields[7]
+
     def test_export_subclusters_get_distinct_ids(self, tmp_path):
         """Each sub-cluster produced by overlap_cluster must get a unique cluster ID.
 
