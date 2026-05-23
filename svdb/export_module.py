@@ -271,6 +271,11 @@ def expand_chain(chain, coordinates, chrA, chrB, distance, overlap,
 
 
 def cluster_variants(variant_dictionary, similarity_matrix):
+    """Greedy star clustering (default).
+
+    Highest-degree variant becomes representative and claims its neighbours.
+    No transitivity: A-B and B-C do not force A and C into the same cluster.
+    """
     cluster_sizes = [[i, len(similarity_matrix[i])] for i in range(len(variant_dictionary))]
 
     clusters = []
@@ -280,11 +285,56 @@ def cluster_variants(variant_dictionary, similarity_matrix):
 
         cluster_dictionary = {}
         for var in similarity_matrix[i]:
-            similarity_matrix[var][0] = -1
-            cluster_dictionary[var] = variant_dictionary[var]
+            if similarity_matrix[var][0] != -1:   # skip already-claimed
+                similarity_matrix[var][0] = -1
+                cluster_dictionary[var] = variant_dictionary[var]
         variant = variant_dictionary[i]
 
         clusters.append([variant, cluster_dictionary])
+    return clusters
+
+
+def cluster_variants_union_find(variant_dictionary, similarity_matrix):
+    """Union-Find clustering.
+
+    Full transitive closure of the overlap graph: A-B and B-C always merge
+    A, B, C into one component even if A and C don't overlap directly.
+    Structurally prevents duplicate membership.  Representative is the
+    highest-degree member of each component.
+    """
+    n = len(variant_dictionary)
+    parent = list(range(n))
+    rank = [0] * n
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(x: int, y: int) -> None:
+        px, py = find(x), find(y)
+        if px == py:
+            return
+        if rank[px] < rank[py]:
+            px, py = py, px
+        parent[py] = px
+        if rank[px] == rank[py]:
+            rank[px] += 1
+
+    for i in range(n):
+        for neighbor in similarity_matrix[i]:
+            union(i, int(neighbor))
+
+    components: dict[int, list[int]] = {}
+    for i in range(n):
+        components.setdefault(find(i), []).append(i)
+
+    clusters = []
+    for members in components.values():
+        rep = max(members, key=lambda x: len(similarity_matrix[x]))
+        cluster_dict = {m: variant_dictionary[m] for m in members}
+        clusters.append([variant_dictionary[rep], cluster_dict])
     return clusters
 
 
@@ -317,7 +367,10 @@ def overlap_cluster(variant_dictionary, coordinates, variant, chrA, chrB, sample
 
     strip_chr = getattr(args, "strip_chr", False)
     no_samples = getattr(args, "samples", "on") == "off"
-    clusters = cluster_variants(variant_dictionary, similarity_matrix)
+    cluster_fn = (cluster_variants_union_find
+                  if getattr(args, "cluster_method", "star") == "union_find"
+                  else cluster_variants)
+    clusters = cluster_fn(variant_dictionary, similarity_matrix)
     for clustered_variants in clusters:
         clustered_variants[0]["type"] = variant
         clustered_variants[0]["chrA"] = chrA

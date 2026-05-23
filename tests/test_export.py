@@ -3,11 +3,9 @@ import sys
 import unittest
 from pathlib import Path
 
-import pytest
-
 import numpy as np
 
-from svdb.export_module import cluster_variants, db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
+from svdb.export_module import cluster_variants, cluster_variants_union_find, db_header, make_representing_variant, build_genotype_columns, vcf_line as make_vcf_line
 
 #mock argeparse arguments
 class args:
@@ -216,7 +214,6 @@ class TestClusterVariantsNoDuplicateMembership(unittest.TestCase):
         }
         return variant_dictionary, similarity_matrix
 
-    @pytest.mark.xfail(strict=True, reason="greedy_star cluster_variants has a duplicate-membership bug; remove xfail once fixed")
     def test_no_variant_in_two_clusters(self):
         variant_dictionary, similarity_matrix = self._make_inputs()
         clusters = cluster_variants(variant_dictionary, similarity_matrix)
@@ -231,3 +228,132 @@ class TestClusterVariantsNoDuplicateMembership(unittest.TestCase):
             duplicates,
             f"variants appear in multiple clusters (bug): {duplicates}",
         )
+
+
+class TestClusterVariantsUnionFind(unittest.TestCase):
+    """Union-Find clustering: transitivity and no duplicate membership."""
+
+    def _make_chain_inputs(self):
+        """A-B and B-C overlap; A-C do not.
+
+        greedy_star produces two clusters ({A,B} and {C} or {A} and {B,C}
+        depending on degree); union_find must produce one: {A, B, C}.
+        """
+        variant_dictionary = {
+            0: {"posA": 100, "posB": 200, "sample_id": "s"},  # A
+            1: {"posA": 150, "posB": 250, "sample_id": "s"},  # B — overlaps A and C
+            2: {"posA": 200, "posB": 300, "sample_id": "s"},  # C
+        }
+        # A-B edge, B-C edge, no A-C edge
+        similarity_matrix = {
+            0: np.array([0, 1]),
+            1: np.array([0, 1, 2]),
+            2: np.array([1, 2]),
+        }
+        return variant_dictionary, similarity_matrix
+
+    def test_transitivity_merges_chain(self):
+        """A-B and B-C must all end up in one cluster."""
+        variant_dictionary, similarity_matrix = self._make_chain_inputs()
+        clusters = cluster_variants_union_find(variant_dictionary, similarity_matrix)
+        self.assertEqual(len(clusters), 1)
+        self.assertEqual(set(clusters[0][1].keys()), {0, 1, 2})
+
+    def test_no_duplicate_membership(self):
+        """Each variant appears in exactly one cluster."""
+        variant_dictionary, similarity_matrix = self._make_chain_inputs()
+        clusters = cluster_variants_union_find(variant_dictionary, similarity_matrix)
+        membership: dict[int, list[int]] = {}
+        for idx, cluster in enumerate(clusters):
+            for var in cluster[1]:
+                membership.setdefault(var, []).append(idx)
+        duplicates = {k: v for k, v in membership.items() if len(v) > 1}
+        self.assertFalse(duplicates)
+
+    def test_disjoint_groups_stay_separate(self):
+        """Two groups with no edges between them produce two clusters."""
+        variant_dictionary = {
+            0: {"posA": 100, "posB": 200, "sample_id": "s"},
+            1: {"posA": 110, "posB": 210, "sample_id": "s"},
+            2: {"posA": 900, "posB": 1000, "sample_id": "s"},
+            3: {"posA": 910, "posB": 1010, "sample_id": "s"},
+        }
+        similarity_matrix = {
+            0: np.array([0, 1]),
+            1: np.array([0, 1]),
+            2: np.array([2, 3]),
+            3: np.array([2, 3]),
+        }
+        clusters = cluster_variants_union_find(variant_dictionary, similarity_matrix)
+        self.assertEqual(len(clusters), 2)
+        members = [set(c[1].keys()) for c in clusters]
+        self.assertIn({0, 1}, members)
+        self.assertIn({2, 3}, members)
+
+    def test_representative_is_highest_degree(self):
+        """The representative of a component is the variant with most neighbours."""
+        variant_dictionary = {
+            0: {"posA": 100, "posB": 200, "sample_id": "s"},
+            1: {"posA": 150, "posB": 250, "sample_id": "s"},
+            2: {"posA": 200, "posB": 300, "sample_id": "s"},
+        }
+        similarity_matrix = {
+            0: np.array([0, 1]),
+            1: np.array([0, 1, 2]),  # highest degree
+            2: np.array([1, 2]),
+        }
+        clusters = cluster_variants_union_find(variant_dictionary, similarity_matrix)
+        self.assertEqual(len(clusters), 1)
+        # representative posA should be variant 1's posA=150
+        self.assertEqual(clusters[0][0]["posA"], 150)
+
+
+class TestClusterMethodIntegration:
+    """--cluster_method union_find produces fewer lines and no duplicate membership."""
+
+    def test_union_find_export_fewer_lines_than_star(self, tmp_path):
+        """Union-Find merges transitively; star splits a 4-node chain into two clusters.
+
+        Chain: ins0(1000) - ins1(1015) - ins2(1030) - ins3(1045), step=15 ≤ ins_distance=25.
+        Non-adjacent pairs (gap=30) do NOT overlap. Degrees: ins0=2, ins1=3, ins2=3, ins3=2.
+        Greedy star: ins1 (first highest-degree) claims ins0,ins1,ins2; ins3 is left alone → 2 clusters.
+        Union-Find: transitive closure connects all four → 1 cluster.
+        """
+        import subprocess as _subprocess
+        vcf = tmp_path / "sample.vcf"
+        seq = "ACGT" * 20   # 80 bp, identical
+        lines = [
+            "##fileformat=VCFv4.1",
+            '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of SV">',
+            '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">',
+            '##INFO=<ID=END,Number=1,Type=Integer,Description="End position">',
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+            f"1\t1000\tins0\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1000",
+            f"1\t1015\tins1\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1015",
+            f"1\t1030\tins2\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1030",
+            f"1\t1045\tins3\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1045",
+        ]
+        vcf.write_text("\n".join(lines) + "\n")
+        _subprocess.run(SVDB + ["--build", "--files", str(vcf),
+                                "--prefix", str(tmp_path / "svdb")],
+                        check=True, capture_output=True)
+
+        # greedy star: ins1 has degree 3, claims ins0+ins1+ins2; ins3 is a singleton → 2 lines
+        _subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
+                                "--prefix", str(tmp_path / "out_star"),
+                                "--no_ins_seq"],
+                        check=True, capture_output=True)
+        star_lines = [ln for ln in (tmp_path / "out_star.vcf").read_text().splitlines()
+                      if ln and not ln.startswith("#")]
+
+        # union_find: transitive closure merges all four into one → 1 line
+        _subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
+                                "--prefix", str(tmp_path / "out_uf"),
+                                "--cluster_method", "union_find",
+                                "--no_ins_seq"],
+                        check=True, capture_output=True)
+        uf_lines = [ln for ln in (tmp_path / "out_uf.vcf").read_text().splitlines()
+                    if ln and not ln.startswith("#")]
+
+        assert len(star_lines) == 2, f"expected 2 star clusters, got {len(star_lines)}"
+        assert len(uf_lines) == 1, f"expected 1 union_find cluster, got {len(uf_lines)}"

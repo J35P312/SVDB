@@ -204,6 +204,8 @@ def main():
                             help="sequences longer than this are excluded from sequence similarity comparison at export (use position+SVLEN only); ALT falls back to <INS> with SVLEN for capped variants")
         parser.add_argument('--samples', choices=['on', 'off'], default='on',
                             help="include sample genotype columns (default: on); use 'off' for sites-only output analogous to gnomAD --sites-only")
+        parser.add_argument('--cluster_method', choices=['star', 'union_find'], default='star',
+                            help="clustering algorithm: 'star' = greedy star, highest-degree representative, no transitivity (default); 'union_find' = transitive closure, fewer output clusters, higher OCC counts")
         parser.add_argument('--debug', help="enable debug logging",
                             required=False, action="store_true")
         args = parser.parse_args()
