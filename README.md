@@ -77,8 +77,8 @@ This module is used to construct structural variant databases from vcf files. Th
     svdb --build --help
     svdb --build --files sample1.vcf sample2.vcf sample3.vcf
     svdb --build --folder SV_analysis_folder/
-    svdb --build --upgrade --prefix existing_db
-    svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db
+    svdb --build --upgrade --prefix existing_db                                    # add INS table to existing db (schema-only, no data change)
+    svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db   # add INS table + backfill insertion sequences from original VCFs
 
   input (one of required):
     --files [FILES ...]             vcf files to build the db from (cannot be used with --folder)
