@@ -151,123 +151,61 @@ merge_vcf_module_cython.merge
 
 **`svdb --export`**
 
-```text
-SQLite (.db)
-  └─ fetch_all_variants (single LEFT JOIN query per var/chrA/chrB group)
-       SVDB s JOIN INS i ON s.idx = i.idx
-       → variant_dict {idx: {posA, posB, sample_id, ins_seq, ins_len}}
-       → pos_coords ndarray (n×2)
-       ins_seq: zlib-decompressed; capped to None if len > --max_ins_seq_len
-
-  └─ dbscan.main (DBSCAN first pass, groups by spatial proximity)
-       epsilon = ins_distance (INS) or bnd_distance (other types)
-       → labels array: -1 = singleton, 0..k = cluster id
-
-  └─ singletons (label == -1): written immediately, one VCF line each
-
-  └─ per DBSCAN group → _expand_and_cluster_worker (may run in parallel)
-       expand_chain (numpy-vectorised pairwise overlap, evaluated cheapest-first):
-         1. spatial lookup  – L∞ mask or cKDTree (n ≥ 200, requires scipy)
-         2. overlap ratio   – vectorised numpy (DEL/DUP/INV)
-         3. SVLEN ratio     – vectorised numpy (INS, --ins_svlen_ratio)
-         4. sequence gate   – per-pair rapidfuzz Levenshtein (INS, serial)
-       → similarity_matrix {idx: ndarray of matching idx values}
-
-       cluster_variants (--cluster_method star, default)
-         greedy star: sort by degree desc; highest-degree variant claims
-         its unclaimed neighbours; no transitivity
-       OR
-       cluster_variants_union_find (--cluster_method union_find)
-         Union-Find transitive closure: A-B and B-C always merge A,B,C
-         even if A and C do not overlap directly; structurally prevents
-         duplicate cluster membership
-
-       → [(rep_variant, cluster_dict), ...]
-         rep: ins_seq = most-common non-null sequence across cluster members
-              ins_len = most-common non-null length
-
-  └─ _run_tasks: parallel dispatch
-       workers = --workers (0 = os.cpu_count(); 1 = serial)
-       multiprocessing.get_context("spawn") pool → pool.map
-       fallback to serial on any pool exception (MemoryError, OS limits, …)
-       results returned in submission order (deterministic)
-
-  └─ vcf_line per cluster
-       ALT: N+ins_seq  if ins_seq present
-            <INS>       if ins_len present but no sequence (capped or absent)
-            <SVTYPE>    for all other types
-       INFO: SVTYPE, END, SVLEN, NSAMPLES, OCC, FRQ, CIPOS, CIEND, VARIANTS
-       --samples off: omit FORMAT and GT columns (sites-only, analogous to
-                      gnomAD --sites-only); OCC/FRQ still written
-       --strip_chr: normalise chromosome names (chr1 → 1)
-
-  → VCF file (header written before export loop; clusters appended)
+```mermaid
+flowchart TD
+    DB[(SQLite .db)] -->|"LEFT JOIN SVDB + INS\nper var/chrA/chrB group"| FV[fetch_all_variants\nvariant_dict + pos_coords ndarray]
+    FV --> DBSCAN["Pass 1: DBSCAN spatial grouping\ndbscan.main(pos_coords, epsilon, min_pts)\nlabels: -1=singleton, 0..k=cluster"]
+    DBSCAN -->|"label == -1"| SNG[Singletons\none VCF line each]
+    DBSCAN -->|"label >= 0\nper DBSCAN group"| COARSE{--coarse?}
+    COARSE -->|"yes"| CTR["Centroid representative\nmost-common ins_seq/len\none VCF line per group"]
+    COARSE -->|"no (default)"| EC["Pass 2: expand_chain\npairwise overlap gates\n→ similarity_matrix"]
+    EC --> CM{"--cluster_method"}
+    CM -->|"star (default)"| STAR["Greedy star\nhighest-degree claims neighbours\nno transitivity"]
+    CM -->|"union_find"| UF["Union-Find\ntransitive closure\nA-B + B-C → {A,B,C}"]
+    STAR --> OUT[VCF lines\none per cluster]
+    UF --> Out2[VCF lines\none per cluster]
+    SNG --> VCF[VCF output]
+    CTR --> VCF
+    Out2 --> VCF
+    Out2 --> Par
+    STAR --> Par["(parallel workers via multiprocessing.Pool)"]
+    Par --> VCF
 ```
 
-## Export clustering algorithms
+**Pass 1 — DBSCAN spatial grouping**: groups nearby variants by proximity.
+Epsilon = `--ins_distance` for INS, `--bnd_distance` for other types.
+Singletons (noise, no neighbours within epsilon) are written immediately.
+See [algorithms.md](algorithms.md) for full parameter and algorithm reference.
 
-Two algorithms are available via `--cluster_method`:
+**Pass 2 — `expand_chain` overlap gates** (cheapest-first):
 
-### Greedy star (default: `--cluster_method star`)
+| Gate | Applied to | Implementation |
+| ---- | ---------- | -------------- |
+| Spatial (L∞) | all types | numpy mask; cKDTree when n ≥ 200 (requires scipy) |
+| Overlap ratio | DEL/DUP/INV | vectorised numpy |
+| SVLEN ratio | INS | vectorised numpy (`--ins_svlen_ratio`) |
+| Sequence similarity | INS | per-pair rapidfuzz Levenshtein (`--ins_seq_similarity`) |
 
-Operates on the overlap graph produced by `expand_chain`:
+The sequence gate is irreducibly serial; the earlier gates eliminate the vast
+majority of candidates before it runs.
 
-1. Sort variants by degree (number of overlapping neighbours) descending.
-2. The highest-degree unclaimed variant becomes a cluster representative.
-3. The representative claims all its unclaimed neighbours.
-4. Repeat until all variants are claimed.
+**Clustering** (`--cluster_method`): operates on the similarity graph output
+of `expand_chain`. `star` (default): greedy, no transitivity. `union_find`:
+transitive closure, fewer larger clusters.
 
-**Properties**: fast; no transitivity (A-B and B-C do not force A and C
-together unless A-C also overlap); one VCF line per representative.
+**`--coarse`**: skips Pass 2 entirely; centroid + most-common ins_seq/len from
+the DBSCAN group directly. Controlled by `--epsilon`/`--min_pts`.
 
-**When to use**: conservative merging; when you want the representative to
-directly overlap every cluster member.
+**ALT field per cluster**:
 
-### Union-Find (`--cluster_method union_find`)
+- `N<ins_seq>` — ins_seq present (most-common non-null across members)
+- `<INS>` — ins_len present but sequence absent (capped or missing)
+- `<SVTYPE>` — all other types
 
-Builds the full transitive closure of the overlap graph using a
-path-compressed, union-by-rank disjoint-set structure:
-
-1. For every overlapping pair (i, j) in `similarity_matrix`, call union(i, j).
-2. Collect connected components; representative = highest-degree member.
-
-**Properties**: structurally prevents duplicate cluster membership; merges
-chains (A-B, B-C → {A,B,C}) that greedy star would split; produces fewer,
-larger clusters with higher OCC counts.
-
-**When to use**: maximal merging across a cohort; population-level databases
-where transitive relationships are expected.
-
-### expand_chain performance
-
-`expand_chain` computes the pairwise overlap matrix within each DBSCAN group.
-Overlap gates are evaluated cheapest-first to minimise work:
-
-| Gate                | Applied to  | Implementation                                          |
-| ------------------- | ----------- | ------------------------------------------------------- |
-| Spatial (L∞)        | all types   | numpy mask; cKDTree when n ≥ 200 (requires scipy)       |
-| Overlap ratio       | DEL/DUP/INV | vectorised numpy                                        |
-| SVLEN ratio         | INS         | vectorised numpy (`--ins_svlen_ratio`)                  |
-| Sequence similarity | INS         | per-pair rapidfuzz Levenshtein (`--ins_seq_similarity`) |
-
-The sequence gate is irreducibly serial (per-pair string comparison); the
-three earlier gates eliminate the vast majority of candidates before it runs.
-
-### Parallelism
-
-DBSCAN groups within each `(variant, chrA, chrB)` batch are dispatched to a
-`multiprocessing.Pool` (spawn context, safe with numpy on all platforms).
-Workers receive only plain dicts and ndarrays — no file handles, no DB
-connections — and return `(rep, cluster_dict)` pairs. The main thread writes
-results in order.
-
-The serial floor (DB fetch, DBSCAN, singleton writes, file I/O) is
-approximately 7% of total runtime for a 500-sample database, setting a
-theoretical minimum of ~7× speedup regardless of worker count. Observed
-speedup on a 32-core server: 6–7× with 10–24 workers.
-
-A fallback to serial execution is triggered automatically if pool creation or
-`pool.map` raises any exception (including `MemoryError`).
+**Parallelism**: DBSCAN groups dispatched via `multiprocessing.Pool` (spawn,
+safe with numpy). Workers receive plain dicts/ndarrays; results returned in
+deterministic order. Serial floor ≈ 7% of runtime on a 500-sample database.
+Fallback to serial on any pool exception.
 
 ## Packaging notes
 

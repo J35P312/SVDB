@@ -74,7 +74,7 @@ def populate_db(args):
                         continue
 
                     variant = read_vcf.readVCFLine(line)
-                    if args.passonly and variant.vcf_filter not in ("PASS", "."):
+                    if args.pass_only and variant.vcf_filter not in ("PASS", "."):
                         continue
 
                     chrA = variant.chrA

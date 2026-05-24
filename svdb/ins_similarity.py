@@ -23,8 +23,7 @@ Public API used by merge, query, and export pipelines:
   apply_ins_profile(args) -> None
       Resolve all INS matching parameters onto args, applying --data_profile
       presets.  Profile sets the base; explicit flags override per-parameter.
-      Handles deprecated --no_ins_seq with a warning.  All args.ins_* attributes
-      are guaranteed non-None after this call.
+      All args.ins_* attributes are guaranteed non-None after this call.
 """
 
 import logging
@@ -59,7 +58,7 @@ _PROFILES: dict = {
         "no_ins_seq": False,
     },
     "position_only": {
-        "ins_distance": 25,
+        "ins_distance": 50,
         "ins_svlen_ratio": 0.90,
         "ins_seq_similarity": 0.75,  # unused when no_ins_seq=True
         "no_ins_seq": True,
@@ -146,33 +145,12 @@ def apply_ins_profile(args) -> None:
     --data_profile sets the base for all INS parameters; any individually
     specified --ins_* flag overrides the profile for that parameter only.
     All args.ins_* attributes are guaranteed non-None after this call.
-
-    Handles deprecated --no_ins_seq: converts it to --data_profile position_only
-    with a warning.  If --no_ins_seq and --data_profile are both set, the profile
-    wins and --no_ins_seq is ignored (with a warning).
     """
     profile_name = getattr(args, "data_profile", None)
-
-    # Handle deprecated --no_ins_seq
-    if getattr(args, "no_ins_seq", False):
-        if profile_name is not None:
-            logger.warning(
-                "--no_ins_seq is deprecated and has no effect when --data_profile is "
-                "set; ignoring --no_ins_seq, using profile '%s'", profile_name
-            )
-            args.no_ins_seq = False
-        else:
-            logger.warning(
-                "--no_ins_seq is deprecated; use --data_profile position_only instead"
-            )
-            args.data_profile = "position_only"
-            profile_name = "position_only"
-
     profile = _PROFILES.get(profile_name, {})
 
-    # no_ins_seq: set from profile if not already True
-    if not getattr(args, "no_ins_seq", False):
-        args.no_ins_seq = profile.get("no_ins_seq", False)
+    # no_ins_seq: always derived from profile (position_only sets it to True)
+    args.no_ins_seq = profile.get("no_ins_seq", False)
 
     # Numeric params: None = not explicitly set → use profile value then default
     for key in ("ins_distance", "ins_svlen_ratio", "ins_seq_similarity"):

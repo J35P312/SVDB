@@ -222,15 +222,15 @@ class TestQuerySQLiteINS:
         assert len(lines) == 1
         assert "OCC=" not in lines[0]
 
-    def test_query_no_ins_seq_skips_sequence_gate(self, tmp_path):
-        """--no_ins_seq should match on position only, ignoring dissimilar sequences."""
+    def test_query_position_only_skips_sequence_gate(self, tmp_path):
+        """--data_profile position_only should match on position only, ignoring dissimilar sequences."""
         db_vcf = tmp_path / "db.vcf"
         query_vcf = tmp_path / "query.vcf"
         make_ins_vcf(db_vcf, [("1", 1000, "db_ins", "AAAAAAAAAAAAAAAA")])
         make_ins_vcf(query_vcf, [("1", 1000, "q_ins", "CCCCCCCCCCCCCCCC")])
         build(tmp_path / "svdb", db_vcf)
         r = run("--query", "--sqdb", str(tmp_path / "svdb.db"),
-                "--query_vcf", str(query_vcf), "--no_ins_seq")
+                "--query_vcf", str(query_vcf), "--data_profile", "position_only")
         assert r.returncode == 0
         lines = data_lines(r.stdout)
         assert len(lines) == 1
@@ -401,10 +401,10 @@ class TestExportINS:
         ])
         build(tmp_path / "svdb", vcf)
         r = run("--export", "--db", str(tmp_path / "svdb.db"),
-                "--prefix", str(tmp_path / "out"), "--no_ins_seq")
+                "--prefix", str(tmp_path / "out"), "--data_profile", "position_only")
         assert r.returncode == 0
         lines = data_lines((tmp_path / "out.vcf").read_text())
-        # All four cluster together (--no_ins_seq); most common seq is ACGTACGT
+        # All four cluster together (position_only); most common seq is ACGTACGT
         assert any("NACGTACGT" in line for line in lines)
 
     def test_export_ins_svlen_ratio_separates_different_lengths(self, tmp_path):
@@ -417,7 +417,7 @@ class TestExportINS:
         ])
         build(tmp_path / "svdb", vcf)
         r = run("--export", "--db", str(tmp_path / "svdb.db"),
-                "--prefix", str(tmp_path / "out"), "--no_ins_seq")
+                "--prefix", str(tmp_path / "out"), "--data_profile", "position_only")
         assert r.returncode == 0
         lines = data_lines((tmp_path / "out.vcf").read_text())
         assert len(lines) == 2
@@ -432,7 +432,7 @@ class TestExportINS:
         build(tmp_path / "svdb", vcf)
         r = run("--export", "--db", str(tmp_path / "svdb.db"),
                 "--prefix", str(tmp_path / "out"),
-                "--no_ins_seq", "--ins_svlen_ratio", "0.10")
+                "--data_profile", "position_only", "--ins_svlen_ratio", "0.10")
         assert r.returncode == 0
         lines = data_lines((tmp_path / "out.vcf").read_text())
         assert len(lines) == 1

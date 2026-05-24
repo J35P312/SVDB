@@ -319,8 +319,8 @@ class TestClusterMethodIntegration:
     def test_union_find_export_fewer_lines_than_star(self, tmp_path):
         """Union-Find merges transitively; star splits a 4-node chain into two clusters.
 
-        Chain: ins0(1000) - ins1(1015) - ins2(1030) - ins3(1045), step=15 ≤ ins_distance=25.
-        Non-adjacent pairs (gap=30) do NOT overlap. Degrees: ins0=2, ins1=3, ins2=3, ins3=2.
+        Chain: ins0(1000) - ins1(1030) - ins2(1060) - ins3(1090), step=30 ≤ position_only ins_distance=50.
+        Non-adjacent pairs (gap=60) exceed ins_distance=50. Degrees: ins0=2, ins1=3, ins2=3, ins3=2.
         Greedy star: ins1 (first highest-degree) claims ins0,ins1,ins2; ins3 is left alone → 2 clusters.
         Union-Find: transitive closure connects all four → 1 cluster.
         """
@@ -334,9 +334,9 @@ class TestClusterMethodIntegration:
             '##INFO=<ID=END,Number=1,Type=Integer,Description="End position">',
             "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
             f"1\t1000\tins0\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1000",
-            f"1\t1015\tins1\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1015",
-            f"1\t1030\tins2\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1030",
-            f"1\t1045\tins3\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1045",
+            f"1\t1030\tins1\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1030",
+            f"1\t1060\tins2\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1060",
+            f"1\t1090\tins3\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1090",
         ]
         vcf.write_text("\n".join(lines) + "\n")
         _subprocess.run(SVDB + ["--build", "--files", str(vcf),
@@ -346,7 +346,7 @@ class TestClusterMethodIntegration:
         # greedy star: ins1 has degree 3, claims ins0+ins1+ins2; ins3 is a singleton → 2 lines
         _subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
                                 "--prefix", str(tmp_path / "out_star"),
-                                "--no_ins_seq"],
+                                "--data_profile", "position_only"],
                         check=True, capture_output=True)
         star_lines = [ln for ln in (tmp_path / "out_star.vcf").read_text().splitlines()
                       if ln and not ln.startswith("#")]
@@ -355,7 +355,7 @@ class TestClusterMethodIntegration:
         _subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
                                 "--prefix", str(tmp_path / "out_uf"),
                                 "--cluster_method", "union_find",
-                                "--no_ins_seq"],
+                                "--data_profile", "position_only"],
                         check=True, capture_output=True)
         uf_lines = [ln for ln in (tmp_path / "out_uf.vcf").read_text().splitlines()
                     if ln and not ln.startswith("#")]
@@ -439,7 +439,7 @@ class TestWorkersIntegration:
         for label, w in [("serial", "1"), ("parallel", "2")]:
             _subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
                                     "--prefix", str(tmp_path / f"out_{label}"),
-                                    "--workers", w, "--no_ins_seq"],
+                                    "--workers", w, "--data_profile", "position_only"],
                             check=True, capture_output=True)
 
         def data_lines(p):

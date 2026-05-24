@@ -48,11 +48,18 @@ class TestBuild:
         assert r.returncode == 0
         assert (tmp_path / "svdb.db").exists()
 
-    def test_build_passonly(self, tmp_path):
+    def test_build_pass_only(self, tmp_path):
         prefix = tmp_path / "svdb_pass"
-        r = run("--build", "--files", str(MANTA), "--passonly", "--prefix", str(prefix))
+        r = run("--build", "--files", str(MANTA), "--pass_only", "--prefix", str(prefix))
         assert r.returncode == 0
         assert (tmp_path / "svdb_pass.db").exists()
+
+    def test_build_passonly_deprecated_alias(self, tmp_path):
+        prefix = tmp_path / "svdb_pass_alias"
+        r = run("--build", "--files", str(MANTA), "--passonly", "--prefix", str(prefix))
+        assert r.returncode == 0
+        assert (tmp_path / "svdb_pass_alias.db").exists()
+        assert "deprecated" in r.stderr.lower()
 
     def test_build_from_folder(self, tmp_path):
         import shutil

@@ -162,36 +162,6 @@ class TestDataProfileCohort:
 
 
 # ---------------------------------------------------------------------------
-# --no_ins_seq: disable sequence gate entirely
-# ---------------------------------------------------------------------------
-
-class TestNoInsSeq:
-
-    def test_low_sim_merges_when_seq_disabled(self):
-        # sim≈0.700 would normally be rejected; with --no_ins_seq it merges on pos+SVLEN
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
-                      fixture("grch37_neg_c_sim0.672", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 1
-
-    def test_adversarial_neg_c_merges_when_seq_disabled(self):
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("grch37_neg_c_sim0.837", "caller_a"),
-                      fixture("grch37_neg_c_sim0.837", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 1
-
-    def test_low_svlen_ratio_still_rejected_with_seq_disabled(self):
-        # SVLEN gate is independent of sequence gate
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("low_svlen_ratio", "caller_a"),
-                      fixture("low_svlen_ratio", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 2
-
-
-# ---------------------------------------------------------------------------
 # --ins_svlen_ratio custom value
 # ---------------------------------------------------------------------------
 
@@ -199,8 +169,8 @@ class TestInsSvlenRatio:
 
     def test_loose_svlen_ratio_merges_low_ratio_pair(self):
         # SVLEN=100/220, ratio=0.455. With --ins_svlen_ratio 0.40 the SVLEN gate passes.
-        # Disable sequence check to isolate SVLEN gate behaviour.
-        r = run_merge("--ins_svlen_ratio", "0.40", "--no_ins_seq",
+        # Use position_only to isolate SVLEN gate behaviour without sequence comparison.
+        r = run_merge("--ins_svlen_ratio", "0.40", "--data_profile", "position_only",
                       "--vcf", fixture("low_svlen_ratio", "caller_a"),
                       fixture("low_svlen_ratio", "caller_b"))
         assert r.returncode == 0
@@ -240,7 +210,6 @@ class TestPositionWindow:
 
 # ---------------------------------------------------------------------------
 # --data_profile + explicit flags: explicit wins per-parameter
-# --no_ins_seq deprecated: same behaviour as --data_profile position_only
 # ---------------------------------------------------------------------------
 
 class TestProfileAndExplicitInteraction:
@@ -282,21 +251,3 @@ class TestProfileAndExplicitInteraction:
         assert r.returncode == 0
         assert len(data_lines(r.stdout)) == 1
 
-    def test_no_ins_seq_deprecated_warns_and_merges(self):
-        # --no_ins_seq is deprecated; emits a deprecation warning but behaves like position_only.
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
-                      fixture("grch37_neg_c_sim0.672", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 1
-        assert "deprecated" in r.stderr.lower()
-
-    def test_no_ins_seq_with_data_profile_profile_wins_warns(self):
-        # --no_ins_seq + --data_profile: profile wins, --no_ins_seq ignored with warning.
-        # cohort profile: sim threshold=0.75 — sim≈0.672 < 0.75 → rejected.
-        r = run_merge("--no_ins_seq", "--data_profile", "cohort",
-                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
-                      fixture("grch37_neg_c_sim0.672", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 2
-        assert "deprecated" in r.stderr.lower()

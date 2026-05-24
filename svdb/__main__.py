@@ -23,7 +23,7 @@ def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--ins_distance', type=int, default=None,
         help="maximum distance to match two insertions "
-             "(default: 25; profile cohort: 50)")
+             "(default: 25; profile cohort/position_only: 50)")
     parser.add_argument(
         '--ins_svlen_ratio', type=float, default=None,
         help="minimum SVLEN ratio (min/max) for insertions with known length "
@@ -37,11 +37,8 @@ def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
         help="insertion matching preset. "
              "sample: strict (dist=25, ratio=0.90, sim=0.85) — same individual / technology. "
              "cohort: permissive (dist=50, ratio=0.80, sim=0.75) — cross-individual or cross-caller. "
-             "position_only: skip sequence comparison, match on position+SVLEN only. "
+             "position_only: no sequence gate, match on position+SVLEN only (dist=50, ratio=0.90). "
              "Individual --ins_* flags override profile values.")
-    parser.add_argument(
-        '--no_ins_seq', action="store_true",
-        help="[DEPRECATED] use --data_profile position_only instead")
     parser.add_argument(
         '--max_ins_seq_len', type=int, default=None,
         help="sequences longer than N bp are excluded from sequence similarity "
@@ -162,7 +159,9 @@ def main():
         parser.add_argument('--build', help="create a db",
                             required=False, action="store_true")
         parser.add_argument(
-            '--passonly', help="Remove filtered variants (i.e anything not labeled  \"PASS\" or \".\")", required=False, action="store_true")
+            '--pass_only', help="only include variants with PASS or . in the FILTER field", required=False, action="store_true")
+        parser.add_argument(
+            '--passonly', help=argparse.SUPPRESS, required=False, action="store_true")
         parser.add_argument('--files', type=str, nargs='*',
                             help="create a db using the specified vcf files(cannot be used with --folder)")
         parser.add_argument(
@@ -176,6 +175,9 @@ def main():
         parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
+        if args.passonly:
+            logger.warning("--passonly is deprecated; use --pass_only instead")
+            args.pass_only = True
         args.version = version
         if (args.files and args.folder):
             logger.error("only one DB build input source may be selected (--files or --folder)")
@@ -203,15 +205,20 @@ def main():
                             help="the overlap required to merge two events (0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(
             '--coarse', help="skip the second-pass refinement (overlap/SVLEN/sequence gates) and use "
-                             "centroid-based representative selection directly from DBSCAN groups; "
-                             "produces fewer, coarser clusters. Combine with --epsilon/--min_pts to tune.",
+                             "centroid-based representative selection directly from the DBSCAN spatial "
+                             "clusters; produces fewer, coarser clusters. Combine with --epsilon/--min_pts to tune.",
             required=False, action="store_true")
         parser.add_argument(
             '--DBSCAN', help=argparse.SUPPRESS, required=False, action="store_true")
         parser.add_argument('--epsilon', type=float, default=500,
-                            help="used together with --coarse; sets the DBSCAN epsilon parameter (default = 500)", required=False)
+                            help="used together with --coarse; spatial grouping radius in bp (DBSCAN-style "
+                                 "epsilon): variants within this distance of each other are candidates "
+                                 "for the same cluster (default = 500)", required=False)
         parser.add_argument('--min_pts', type=int, default=2,
-                            help="used together with --coarse; sets the DBSCAN min_pts parameter (default = 2)", required=False)
+                            help="used together with --coarse; DBSCAN-style min_pts: minimum number of "
+                                 "consecutively-positioned variants that must all fall within --epsilon "
+                                 "to seed a cluster — isolated variants become singletons "
+                                 "(default = 2, meaning any pair within --epsilon forms a cluster)", required=False)
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = same as input")
         parser.add_argument(
@@ -221,7 +228,9 @@ def main():
         parser.add_argument('--samples', choices=['on', 'off'], default='on',
                             help="include sample genotype columns (default: on); use 'off' for sites-only output analogous to gnomAD --sites-only")
         parser.add_argument('--cluster_method', choices=['star', 'union_find'], default='star',
-                            help="clustering algorithm: 'star' = greedy star, highest-degree representative, no transitivity (default); 'union_find' = transitive closure, fewer output clusters, higher OCC counts")
+                            help="second-pass clustering algorithm applied within each DBSCAN spatial group: "
+                                 "'star' = greedy star, highest-degree representative, no transitivity (default); "
+                                 "'union_find' = transitive closure, fewer output clusters, higher OCC counts")
         parser.add_argument('--workers', type=int, default=0,
                             help="parallel worker processes for clustering (0 = auto, uses all logical CPUs; 1 = serial). "
                                  "To find your optimal N: time with --workers 1, then increase until wall-clock time stops improving — "
