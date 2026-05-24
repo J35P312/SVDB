@@ -48,9 +48,7 @@ cd SVDB
 pip install .
 ```
 
-SVDB is available as a container on BioContainers:
-
-<https://quay.io/repository/biocontainers/svdb?tab=tags&tag=>
+SVDB is available as a container on [BioContainers](https://quay.io/repository/biocontainers/svdb?tab=tags&tag=).
 
 SVDB is available on Singularity:
 
