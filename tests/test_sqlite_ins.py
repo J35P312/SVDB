@@ -21,7 +21,7 @@ SVDB = [sys.executable, "-m", "svdb"]
 # ---------------------------------------------------------------------------
 
 def make_ins_vcf(path: Path, variants: list) -> None:
-    """Write a minimal single-sample INS VCF.
+    """Write an INFO-only INS VCF (no sample columns).
 
     variants: list of (chrom, pos, id, sequence) tuples.
     """
@@ -36,6 +36,29 @@ def make_ins_vcf(path: Path, variants: list) -> None:
         lines.append(
             f"{chrom}\t{pos}\t{id_}\tN\tN{seq}\t.\tPASS\t"
             f"SVTYPE=INS;SVLEN={len(seq)};END={pos}"
+        )
+    path.write_text("\n".join(lines) + "\n")
+
+
+def make_gt_vcf(path: Path, sample_name: str, variants: list) -> None:
+    """Write an INS VCF with a named GT sample column.
+
+    variants: list of (chrom, pos, id, sequence) tuples.
+    The sample column name differs from the filename stem to let tests verify
+    that build/upgrade uses the header name, not the stem.
+    """
+    lines = [
+        "##fileformat=VCFv4.1",
+        '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of SV">',
+        '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">',
+        '##INFO=<ID=END,Number=1,Type=Integer,Description="End position">',
+        '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+        f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample_name}",
+    ]
+    for chrom, pos, id_, seq in variants:
+        lines.append(
+            f"{chrom}\t{pos}\t{id_}\tN\tN{seq}\t.\tPASS\t"
+            f"SVTYPE=INS;SVLEN={len(seq)};END={pos}\tGT\t0/1"
         )
     path.write_text("\n".join(lines) + "\n")
 
@@ -559,3 +582,128 @@ class TestExportINS:
         assert len(lines) == 2
         ids = [line.split("\t")[2] for line in lines]
         assert ids[0] != ids[1], f"both sub-clusters got the same ID: {ids[0]}"
+
+
+# ---------------------------------------------------------------------------
+# Sample name consistency: build and upgrade use header names, not filename stems
+# ---------------------------------------------------------------------------
+
+# Five distinct sample names and sequences for fixture construction.
+_GT_SAMPLES = [
+    ("patient_A", "ACGTACGT"),
+    ("patient_B", "TGCATGCA"),
+    ("patient_C", "AAAACCCC"),
+    ("patient_D", "GGGGTTTT"),
+    ("patient_E", "ATATATAT"),
+]
+
+
+class TestBuildSampleNames:
+
+    def test_build_uses_header_name_not_stem(self, tmp_path):
+        """Build stores the header column name, not the filename stem."""
+        vcf = tmp_path / "file_with_different_stem.vcf"
+        make_gt_vcf(vcf, "MySample", [("1", 1000, "ins1", "ACGTACGT")])
+        build(tmp_path / "svdb", vcf)
+        with DB(str(tmp_path / "svdb")) as db:
+            stored = db.sample_ids
+        assert "MySample" in stored
+        assert "file_with_different_stem" not in stored
+
+    def test_build_dedup_uses_header_name(self, tmp_path):
+        """Building the same GT-column VCF twice stores data only once."""
+        vcf = tmp_path / "file.vcf"
+        make_gt_vcf(vcf, "PatientX", [("1", 1000, "ins1", "ACGTACGT")])
+        build(tmp_path / "svdb", vcf)
+        # second build on the same DB must not double-insert
+        build(tmp_path / "svdb", vcf)
+        with DB(str(tmp_path / "svdb")) as db:
+            count = db.query("SELECT COUNT(*) FROM SVDB")[0][0]
+        assert count == 1
+
+
+class TestUpgradeSampleNames:
+
+    def _build_old_db(self, prefix: Path, samples_seqs: list) -> None:
+        """Create an old DB (no INS table) from (sample_name, seq) pairs at distinct positions."""
+        rows = [
+            ("INS", "1", "1", 1000 + i * 100, 0, 0, 1000 + i * 100, 0, 0, sname, i)
+            for i, (sname, _) in enumerate(samples_seqs)
+        ]
+        make_old_db(prefix, rows)
+
+    def _make_gt_vcfs(self, tmp_path: Path, samples_seqs: list) -> list:
+        """Write one GT-column VCF per (sample_name, seq) pair; filename stems differ from names."""
+        paths = []
+        for i, (sname, seq) in enumerate(samples_seqs):
+            vcf = tmp_path / f"vcf_{i:02d}.vcf"
+            make_gt_vcf(vcf, sname, [("1", 1000 + i * 100, "ins1", seq)])
+            paths.append(vcf)
+        return paths
+
+    def test_upgrade_uses_header_name_not_stem(self, tmp_path):
+        """upgrade_db matches SVDB rows by header sample name, not filename stem."""
+        sname, seq = "MySample", "ACGTACGT"
+        vcf = tmp_path / "completely_different_stem.vcf"
+        make_gt_vcf(vcf, sname, [("1", 1000, "ins1", seq)])
+        make_old_db(tmp_path / "svdb", [
+            ("INS", "1", "1", 1000, 0, 0, 1000, 0, 0, sname, 0)
+        ])
+        r = run("--build", "--upgrade", "--files", str(vcf), "--prefix", str(tmp_path / "svdb"))
+        assert r.returncode == 0
+        with DB(str(tmp_path / "svdb")) as db:
+            rows = db.query("SELECT ins_seq FROM INS")
+        assert len(rows) == 1, "header-name match failed — stem was used instead"
+
+    def test_upgrade_5_samples_all_backfilled(self, tmp_path):
+        """Upgrading with all 5 VCFs backfills every sample."""
+        self._build_old_db(tmp_path / "svdb", _GT_SAMPLES)
+        vcf_paths = self._make_gt_vcfs(tmp_path, _GT_SAMPLES)
+        r = run(
+            "--build", "--upgrade",
+            "--files", *[str(v) for v in vcf_paths],
+            "--prefix", str(tmp_path / "svdb"),
+        )
+        assert r.returncode == 0
+        with DB(str(tmp_path / "svdb")) as db:
+            count = db.query("SELECT COUNT(*) FROM INS")[0][0]
+        assert count == 5
+
+    def test_upgrade_partial_warns_missing_samples(self, tmp_path):
+        """Upgrading with only 3 of 5 VCFs warns about the 2 missing samples."""
+        self._build_old_db(tmp_path / "svdb", _GT_SAMPLES)
+        vcf_paths = self._make_gt_vcfs(tmp_path, _GT_SAMPLES)
+        r = run(
+            "--build", "--upgrade",
+            "--files", *[str(v) for v in vcf_paths[:3]],
+            "--prefix", str(tmp_path / "svdb"),
+        )
+        assert r.returncode == 0
+        # 3 samples backfilled
+        with DB(str(tmp_path / "svdb")) as db:
+            count = db.query("SELECT COUNT(*) FROM INS")[0][0]
+        assert count == 3
+        # 2 missing-sample warnings
+        warnings = [ln for ln in r.stderr.splitlines() if "INS data not backfilled" in ln]
+        assert len(warnings) == 2
+
+    def test_upgrade_extra_vcf_logs_no_db_entries(self, tmp_path):
+        """A VCF whose sample has no SVDB rows produces an info log, not an error."""
+        sname, seq = _GT_SAMPLES[0]
+        vcf_known = tmp_path / "vcf_00.vcf"
+        make_gt_vcf(vcf_known, sname, [("1", 1000, "ins1", seq)])
+        make_old_db(tmp_path / "svdb", [
+            ("INS", "1", "1", 1000, 0, 0, 1000, 0, 0, sname, 0)
+        ])
+
+        extra_vcf = tmp_path / "extra.vcf"
+        make_gt_vcf(extra_vcf, "UnknownSample", [("1", 2000, "ins1", "TTTTTTTT")])
+
+        r = run(
+            "--build", "--upgrade",
+            "--files", str(vcf_known), str(extra_vcf),
+            "--prefix", str(tmp_path / "svdb"),
+        )
+        assert r.returncode == 0
+        assert "UnknownSample" in r.stderr
+        assert "no entries in the database" in r.stderr

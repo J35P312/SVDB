@@ -171,7 +171,10 @@ def main():
             '--folder', type=str, help="create a db using all vcf files in the given folder")
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="prefix for the output file (default: SVDB)")
-        parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, exits with INFO if already up to date",
+        parser.add_argument('--upgrade', help="create the INS table and backfill insertion sequences "
+                            "from the provided VCFs; schema-only, no existing SVDB rows are changed. "
+                            "Exits with INFO if the INS table already exists. "
+                            "Warns for DB samples with no matching VCF; logs DB-absent VCF samples.",
                             required=False, action="store_true")
         parser.add_argument('--max_ins_seq_len', type=int, default=None,
                             help="maximum insertion sequence length (bp) to store; sequences longer than this "

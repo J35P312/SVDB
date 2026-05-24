@@ -73,6 +73,9 @@ SVDB consists of modules that are used to build, query, export, and analyse stru
 
 This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
 
+Sample names are taken from the VCF header's sample column (the named `FORMAT` columns).
+For VCFs with no sample columns (INFO-only format), the filename stem is used instead.
+
 ```text
     svdb --build --help
     svdb --build --files sample1.vcf sample2.vcf sample3.vcf
@@ -89,8 +92,12 @@ This module is used to construct structural variant databases from vcf files. Th
                                     (--passonly is a deprecated alias; emits a warning)
 
   upgrade existing db:
-    --upgrade                       add the INS table to an existing db and backfill insertion
-                                    sequences; requires --files or --folder with the original VCFs
+    --upgrade                       create the INS table and backfill insertion sequences from the
+                                    provided VCFs; schema-only, no existing SVDB rows are changed.
+                                    Exits with INFO if the INS table already exists.
+                                    Warns (WARNING) for DB samples with no matching VCF provided;
+                                    logs (INFO) VCF samples that have no entries in the database.
+                                    Requires --files or --folder.
 
   storage:
     --max_ins_seq_len N             cap on stored insertion sequence length (bp); sequences
