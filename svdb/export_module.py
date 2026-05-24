@@ -357,7 +357,7 @@ def _pick_ins_len(variant_dict):
 
 
 def _expand_and_cluster_worker(task: tuple) -> list:
-    """Worker: run expand_chain + cluster for one DBSCAN group.
+    """Worker: run expand_chain + cluster for one spatial cluster group.
 
     All arguments are plain scalars, dicts, or ndarrays so the tuple
     pickles cleanly for multiprocessing.Pool dispatch.
@@ -425,7 +425,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
     if not all_data:
         return i
 
-    if args.DBSCAN:
+    if args.coarse:
         labels = dbscan.main(pos_coords, args.epsilon, args.min_pts)
     elif "INS" in variant:
         labels = dbscan.main(pos_coords, args.ins_distance, 2)
@@ -458,7 +458,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
         sub_coords = np.array([[j, all_data[idx]["posA"], all_data[idx]["posB"]]
                                 for j, idx in enumerate(cluster_idxs)])
 
-        if args.DBSCAN:
+        if args.coarse:
             avg_point = np.array([np.mean(cluster_pos[:, 0]), np.mean(cluster_pos[:, 1])])
             ins_seq = _pick_ins_seq(sub_dict)
             ins_len = _pick_ins_len(sub_dict)

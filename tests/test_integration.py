@@ -110,11 +110,17 @@ class TestExport:
         n1 = len(vcf_data_lines((ov1.parent / "ov1.vcf").read_text()))
         assert n0 <= n1
 
-    def test_export_dbscan(self, db, tmp_path):
-        prefix = tmp_path / "dbscan"
-        r = run("--export", "--db", str(db), "--DBSCAN", "--epsilon", "500",
+    def test_export_coarse(self, db, tmp_path):
+        prefix = tmp_path / "coarse"
+        r = run("--export", "--db", str(db), "--coarse", "--epsilon", "500",
                 "--min_pts", "2", "--prefix", str(prefix))
         assert r.returncode == 0
+
+    def test_export_dbscan_deprecated_alias(self, db, tmp_path):
+        prefix = tmp_path / "dbscan_alias"
+        r = run("--export", "--db", str(db), "--DBSCAN", "--prefix", str(prefix))
+        assert r.returncode == 0
+        assert "deprecated" in r.stderr.lower()
 
     def test_export_memory_flag(self, db, tmp_path):
         prefix = tmp_path / "mem"

@@ -121,10 +121,13 @@ When the database was built with insertion sequence data (i.e. the INS table is 
                                     touches will be merged, 1 means that two events must be identical
                                     to be merged), default = 0.8
 
-        --DBSCAN                    use dbscan to cluster the variants, overrides the overlap based
-                                    clustering algorithm
+        --coarse                    skip the second-pass refinement (overlap/SVLEN/sequence gates) and
+                                    use centroid-based representative selection directly from DBSCAN
+                                    spatial groups. Produces fewer, coarser clusters. Combine with
+                                    --epsilon/--min_pts to tune spatial grouping.
+                                    (--DBSCAN is a deprecated alias; emits a warning)
 
-        --epsilon EPSILON           used together with --DBSCAN; sets the epsilon parameter (default = 500bp)
+        --epsilon EPSILON           used together with --coarse; sets the DBSCAN epsilon parameter (default = 500bp)
 
         --min_pts MIN_PTS           the min_pts parameter (default = 2)
 

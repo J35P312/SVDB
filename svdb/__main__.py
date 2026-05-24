@@ -202,11 +202,16 @@ def main():
         parser.add_argument('--overlap', type=float, default=0.8,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(
-            '--DBSCAN', help="use dbscan to cluster the variants", required=False, action="store_true")
+            '--coarse', help="skip the second-pass refinement (overlap/SVLEN/sequence gates) and use "
+                             "centroid-based representative selection directly from DBSCAN groups; "
+                             "produces fewer, coarser clusters. Combine with --epsilon/--min_pts to tune.",
+            required=False, action="store_true")
+        parser.add_argument(
+            '--DBSCAN', help=argparse.SUPPRESS, required=False, action="store_true")
         parser.add_argument('--epsilon', type=float, default=500,
-                            help="used together with --DBSCAN; sets the epsilon paramter(default = 500)", required=False)
+                            help="used together with --coarse; sets the DBSCAN epsilon parameter (default = 500)", required=False)
         parser.add_argument('--min_pts', type=int, default=2,
-                            help="used together with --DBSCAN; sets the min_pts parameter(default = 2)", required=False)
+                            help="used together with --coarse; sets the DBSCAN min_pts parameter (default = 2)", required=False)
         parser.add_argument('--prefix', type=str, default="SVDB",
                             help="the prefix of the output file, default = same as input")
         parser.add_argument(
@@ -224,6 +229,10 @@ def main():
         parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
+
+        if args.DBSCAN:
+            logger.warning("--DBSCAN is deprecated; use --coarse instead")
+            args.coarse = True
 
         # merging will be impossible
         if args.no_merge:
