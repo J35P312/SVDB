@@ -97,21 +97,25 @@ When the database was built with insertion sequence data (i.e. the INS table is 
 
         --bnd_distance BND_DISTANCE the maximum distance between two similar precise breakpoints (default = 2500)
 
-        --ins_distance INS_DISTANCE the maximum distance to cluster two insertions (default = 25)
+        --ins_distance INS_DISTANCE the maximum distance to cluster two insertions
+                                    (default: 25; profile cohort: 50)
 
-        --ins_svlen_ratio RATIO      minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90);
-                                    requires INS table
+        --ins_svlen_ratio RATIO      minimum SVLEN ratio (min/max) for insertion clustering
+                                    (default: 0.90; profile cohort: 0.80); requires INS table
 
         --ins_seq_similarity THRESHOLD
-                                    minimum Levenshtein sequence similarity (0–1) for insertion clustering
-                                    (default = 0.75); overridden by --data_profile; requires INS table
+                                    minimum Levenshtein sequence similarity (0–1) for insertion clustering;
+                                    explicit value overrides --data_profile for this parameter
+                                    (effective default: 0.75); requires INS table
 
-        --data_profile {sample,cohort}
-                                    set a sequence similarity preset: sample=0.85, cohort=0.75;
-                                    overrides --ins_seq_similarity; requires INS table
+        --data_profile {sample,cohort,position_only}
+                                    insertion matching preset; requires INS table:
+                                      sample:        strict (dist=25, ratio=0.90, sim=0.85) — same individual / technology
+                                      cohort:        permissive (dist=50, ratio=0.80, sim=0.75) — cross-individual or cross-caller
+                                      position_only: skip sequence comparison, cluster on position+SVLEN only
+                                    individual --ins_* flags override profile values
 
-        --no_ins_seq                disable insertion sequence similarity check for clustering;
-                                    cluster on position and SVLEN only; requires INS table
+        --no_ins_seq                [DEPRECATED] use --data_profile position_only instead
 
         --overlap OVERLAP           the overlap required to merge two events (0 means anything that
                                     touches will be merged, 1 means that two events must be identical
@@ -166,8 +170,6 @@ When the database was built with insertion sequence data (i.e. the INS table is 
                                     serial floor (DB fetch, DBSCAN, file I/O). On shared systems
                                     set N explicitly to avoid monopolising cores.
 
-        --debug                     enable debug logging to stderr
-
 ## Query
 The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
@@ -197,27 +199,30 @@ The query module is used to query one or more structural variant databases. Typi
                                 touches will be merged, 1 means that two events must be identical
                                 to be merged), default = 0.6
         --ins_distance INS_DISTANCE
-                                the maximum distance to match two insertions (default = 25)
+                                maximum distance to match two insertions
+                                (default: 25; profile cohort: 50)
+                                Applied with --db; also applied with --sqdb when the database
+                                contains the INS table; no effect with --bedpedb
         --ins_svlen_ratio INS_SVLEN_RATIO
                                 minimum SVLEN ratio (min/max) required to match two insertions
-                                with known length (default = 0.90)
+                                with known length (default: 0.90; profile cohort: 0.80)
                                 Applied with --db; also applied with --sqdb when the database
                                 contains the INS table; no effect with --bedpedb
         --ins_seq_similarity THRESHOLD
                                 minimum Levenshtein sequence similarity (0–1) required to match
-                                two insertions with known sequence (default = 0.75); overridden
-                                by --data_profile
+                                two insertions with known sequence; explicit value overrides
+                                --data_profile for this parameter (effective default: 0.75)
                                 Applied with --db; also applied with --sqdb when the database
                                 contains the INS table; no effect with --bedpedb
-        --data_profile {sample,cohort}
-                                set a sequence similarity preset: sample=0.85, cohort=0.75;
-                                overrides --ins_seq_similarity
+        --data_profile {sample,cohort,position_only}
+                                insertion matching preset:
+                                  sample:        strict (dist=25, ratio=0.90, sim=0.85) — same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) — cross-individual or cross-caller
+                                  position_only: skip sequence comparison, match on position+SVLEN only
+                                individual --ins_* flags override profile values
                                 Applied with --db; also applied with --sqdb when the database
                                 contains the INS table; no effect with --bedpedb
-        --no_ins_seq            disable insertion sequence similarity check; match insertions on
-                                position and SVLEN only
-                                Applied with --db; also applied with --sqdb when the database
-                                contains the INS table; no effect with --bedpedb
+        --no_ins_seq            [DEPRECATED] use --data_profile position_only instead
 
         --max_ins_seq_len N     sequences longer than N bp are excluded from sequence similarity
                                 matching and fall back to position+SVLEN; off by default.
@@ -226,7 +231,6 @@ The query module is used to query one or more structural variant databases. Typi
         --memory                load the database into memory: increases the memory requirements,
                                 but lowers the time consumption (may only be used with sqdb)
         --no_var                count overlapping variants of different type as hits in the db
-        --debug                 enable debug logging to stderr
 
     
 ## Merge
@@ -255,23 +259,26 @@ The merge module merges variants within one or more vcf files. This could be use
                                         anything that touches will be merged, 1 means that two
                                         events must be identical to be merged), default = 0.95
 
-        --ins_distance INS_DISTANCE     the maximum distance to merge two insertions (default = 25)
+        --ins_distance INS_DISTANCE     maximum distance to merge two insertions
+                                        (default: 25; profile cohort: 50)
 
         --ins_svlen_ratio INS_SVLEN_RATIO
                                         minimum SVLEN ratio (min/max) required to merge two
-                                        insertions with known length (default = 0.90)
+                                        insertions with known length (default: 0.90; profile cohort: 0.80)
 
         --ins_seq_similarity THRESHOLD  minimum Levenshtein sequence similarity (0–1) required to
-                                        merge two insertions with known sequence (default = 0.75);
-                                        overridden by --data_profile
+                                        merge two insertions with known sequence; explicit value
+                                        overrides --data_profile for this parameter
+                                        (effective default: 0.75)
 
-        --data_profile {sample,cohort}  set a sequence similarity preset: sample=0.85 (same
-                                        individual / same technology), cohort=0.75 (cross-
-                                        individual or cross-technology); overrides
-                                        --ins_seq_similarity
+        --data_profile {sample,cohort,position_only}
+                                        insertion matching preset:
+                                          sample:        strict (dist=25, ratio=0.90, sim=0.85) — same individual / technology
+                                          cohort:        permissive (dist=50, ratio=0.80, sim=0.75) — cross-individual or cross-caller
+                                          position_only: skip sequence comparison, merge on position+SVLEN only
+                                        individual --ins_* flags override profile values
 
-        --no_ins_seq                    disable insertion sequence similarity check; merge
-                                        insertions on position and SVLEN only
+        --no_ins_seq                    [DEPRECATED] use --data_profile position_only instead
 
         --priority                      prioritise the input vcf files
 
@@ -283,8 +290,6 @@ The merge module merges variants within one or more vcf files. This could be use
 
         --same_order                    assume that the samples are ordered the same way (skip
                                         reordering and merging of the sample columns)
-
-        --debug                         enable debug logging to stderr
 
 # For developers
 

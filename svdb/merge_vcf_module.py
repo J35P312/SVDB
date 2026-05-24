@@ -2,7 +2,7 @@ import logging
 import sys
 
 from . import merge_vcf_module_cython, read_vcf, vcf_utils
-from .ins_similarity import resolve_ins_seq_threshold
+from .ins_similarity import apply_ins_profile
 from .models import MergeVariant
 
 logger = logging.getLogger(__name__)
@@ -143,8 +143,7 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
 
 
 def main(args):
-    # Resolve insertion sequence similarity threshold once before the merge loop.
-    args.ins_seq_similarity = resolve_ins_seq_threshold(args)
+    apply_ins_profile(args)
 
     variants = {}
     # add all the variants into a dictionary

@@ -473,10 +473,10 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
             tasks.append((
                 sub_dict, sub_coords, variant, chrA, chrB,
                 args.ins_distance, args.bnd_distance, args.overlap,
-                getattr(args, "ins_svlen_ratio", None),
-                getattr(args, "ins_seq_similarity", None),
-                getattr(args, "no_ins_seq", False),
-                getattr(args, "cluster_method", "star"),
+                args.ins_svlen_ratio,
+                args.ins_seq_similarity,
+                args.no_ins_seq,
+                args.cluster_method,
             ))
 
     for group_clusters in _run_tasks(tasks, workers):
@@ -488,7 +488,7 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 
 
 def export(args, sample_IDs):
-    args.ins_seq_similarity = ins_similarity.resolve_ins_seq_threshold(args)
+    ins_similarity.apply_ins_profile(args)
     with database.DB(args.db, memory=args.memory) as db:
         groups = db.query('SELECT DISTINCT var, chrA, chrB FROM SVDB')
 

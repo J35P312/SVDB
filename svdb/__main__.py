@@ -18,6 +18,37 @@ def _setup_logging(debug: bool) -> None:
     )
 
 
+def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
+    """Add the shared insertion matching flags to a subcommand parser."""
+    parser.add_argument(
+        '--ins_distance', type=int, default=None,
+        help="maximum distance to match two insertions "
+             "(default: 25; profile cohort: 50)")
+    parser.add_argument(
+        '--ins_svlen_ratio', type=float, default=None,
+        help="minimum SVLEN ratio (min/max) for insertions with known length "
+             "(default: 0.90; profile cohort: 0.80)")
+    parser.add_argument(
+        '--ins_seq_similarity', type=float, default=None,
+        help="minimum Levenshtein sequence similarity (0–1); explicit value "
+             "overrides --data_profile for this parameter (effective default: 0.75)")
+    parser.add_argument(
+        '--data_profile', choices=["sample", "cohort", "position_only"], default=None,
+        help="insertion matching preset. "
+             "sample: strict (dist=25, ratio=0.90, sim=0.85) — same individual / technology. "
+             "cohort: permissive (dist=50, ratio=0.80, sim=0.75) — cross-individual or cross-caller. "
+             "position_only: skip sequence comparison, match on position+SVLEN only. "
+             "Individual --ins_* flags override profile values.")
+    parser.add_argument(
+        '--no_ins_seq', action="store_true",
+        help="[DEPRECATED] use --data_profile position_only instead")
+    parser.add_argument(
+        '--max_ins_seq_len', type=int, default=None,
+        help="sequences longer than N bp are excluded from sequence similarity "
+             "and fall back to position+SVLEN; off by default. "
+             "500 or 1000 recommended for large datasets.")
+
+
 def make_query_calls (args, queries, keyword):
     if len(queries) > 1 and args.prefix:
         if all(variable is not None for variable in [args.in_occ, args.out_occ, args.in_frq, args.out_frq]):
@@ -72,7 +103,7 @@ def main():
                         required=False, action="store_true")
     parser.add_argument('--export', help="export a database",
                         required=False, action="store_true")
-    parser.add_argument('--debug', help="enable debug logging",
+    parser.add_argument('--debug', help="enable debug logging to stderr",
                         required=False, action="store_true")
     args, unknown = parser.parse_known_args()
     _setup_logging(args.debug)
@@ -100,25 +131,14 @@ def main():
                             help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="the maximum distance between two similar breakpoints(default = 10000)")
-        parser.add_argument('--ins_distance', type=int, default=25,
-                            help="the maximum distance to match two insertions(default = 25)")
-        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90); applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
-        parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum Levenshtein sequence similarity to match two insertions (default = 0.75); overridden by --data_profile; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
-        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity threshold preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
-        parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb", required=False, action="store_true")
-        parser.add_argument('--max_ins_seq_len', type=int, default=None,
-                            help="sequences longer than this (bp) are excluded from sequence similarity matching and fall back to position+SVLEN; off by default; 500 or 1000 recommended for large databases")
+        _add_ins_flags(parser)
         parser.add_argument('--overlap', type=float, default=0.6,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--memory',
                             help="load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)", required=False, action="store_true")
         parser.add_argument('--no_var',
                             help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
-        parser.add_argument('--debug', help="enable debug logging",
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
@@ -153,7 +173,7 @@ def main():
                             required=False, action="store_true")
         parser.add_argument('--max_ins_seq_len', type=int, default=None,
                             help="maximum insertion sequence length (bp) to store; sequences longer than this are stored with NULL sequence but retain SVLEN for length-ratio matching (default: no limit)")
-        parser.add_argument('--debug', help="enable debug logging",
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
@@ -178,16 +198,7 @@ def main():
             '--no_merge', help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int, default=2500,
                             help="the maximum distance between two similar precise breakpoints(default = 2500)")
-        parser.add_argument('--ins_distance', type=int, default=25,
-                            help="the maximum distance to cluster two insertions (default = 25)")
-        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; requires INS table)")
-        parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum sequence similarity for insertion clustering (default = 0.75); overridden by --data_profile; requires INS table")
-        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; requires INS table")
-        parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check for clustering; requires INS table", required=False, action="store_true")
+        _add_ins_flags(parser)
         parser.add_argument('--overlap', type=float, default=0.8,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(
@@ -202,8 +213,6 @@ def main():
             '--memory', help="load the database into memory: increases the memory requirements, but lowers the time consumption", required=False, action="store_true")
         parser.add_argument('--strip_chr', help="strip the 'chr' prefix from chromosome names in the output VCF",
                             required=False, action="store_true")
-        parser.add_argument('--max_ins_seq_len', type=int, default=None,
-                            help="sequences longer than this are excluded from sequence similarity comparison at export (use position+SVLEN only); ALT falls back to <INS> with SVLEN for capped variants")
         parser.add_argument('--samples', choices=['on', 'off'], default='on',
                             help="include sample genotype columns (default: on); use 'off' for sites-only output analogous to gnomAD --sites-only")
         parser.add_argument('--cluster_method', choices=['star', 'union_find'], default='star',
@@ -212,7 +221,7 @@ def main():
                             help="parallel worker processes for clustering (0 = auto, uses all logical CPUs; 1 = serial). "
                                  "To find your optimal N: time with --workers 1, then increase until wall-clock time stops improving — "
                                  "that is the serial floor (DB fetch, DBSCAN, I/O). On shared systems set N explicitly to be a good neighbour.")
-        parser.add_argument('--debug', help="enable debug logging",
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
 
@@ -237,18 +246,7 @@ def main():
             '--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
         parser.add_argument('--bnd_distance', type=int, default=2000,
                             help="the maximum distance between two similar precise breakpoints(default = 2000)")
-        parser.add_argument('--ins_distance', type=int, default=25,
-                            help="the maximum distance to merge two insertions (default = 25)")
-        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) required to merge two insertions (default = 0.90)")
-        parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum Levenshtein sequence similarity to merge two insertions with known sequence (default = 0.75); overridden by --data_profile")
-        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity threshold preset: sample=0.85 (same individual, any tech), cohort=0.75 (cross-individual or cross-technology)")
-        parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check; merge on position+SVLEN only", required=False, action="store_true")
-        parser.add_argument('--max_ins_seq_len', type=int, default=None,
-                            help="sequences longer than this (bp) are excluded from sequence similarity matching and fall back to position+SVLEN; off by default; 500 or 1000 recommended for large inputs")
+        _add_ins_flags(parser)
         parser.add_argument('--overlap', type=float, default=0.95,
                             help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument(
@@ -259,7 +257,7 @@ def main():
             '--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         parser.add_argument(
             '--same_order', help="Across all input vcf files, the order of the sample columns are the same", required=False, action="store_true")
-        parser.add_argument('--debug', help="enable debug logging",
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version

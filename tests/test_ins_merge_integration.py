@@ -239,10 +239,11 @@ class TestPositionWindow:
 
 
 # ---------------------------------------------------------------------------
-# --data_profile + explicit --ins_seq_similarity conflict: profile wins
+# --data_profile + explicit flags: explicit wins per-parameter
+# --no_ins_seq deprecated: same behaviour as --data_profile position_only
 # ---------------------------------------------------------------------------
 
-class TestProfileOverridesThreshold:
+class TestProfileAndExplicitInteraction:
 
     def test_max_ins_seq_len_bypasses_sequence_gate(self):
         # grch37_neg_c_sim0.672: extracted sequences ~70/67 bp, sim≈0.672 < 0.75 → normally 2 lines.
@@ -261,14 +262,41 @@ class TestProfileOverridesThreshold:
         assert r.returncode == 0
         assert len(data_lines(r.stdout)) == 2
 
-    def test_profile_wins_over_explicit_threshold_with_warning(self):
-        # When both are specified, --data_profile overrides --ins_seq_similarity.
-        # sample profile → threshold=0.85 → sim≈0.789 < 0.85 → rejected.
-        # If user's explicit 0.50 were used instead, it would pass.
+    def test_explicit_threshold_overrides_profile(self):
+        # Explicit --ins_seq_similarity wins over --data_profile for that parameter.
+        # sample profile sets sim=0.85, which would reject this pair (sim≈0.789).
+        # Explicit 0.50 overrides → sim≈0.789 > 0.50 → merged.
         r = run_merge("--data_profile", "sample",
                       "--ins_seq_similarity", "0.50",
                       "--vcf", fixture("grch37_pos25_sim0.789", "caller_a"),
                       fixture("grch37_pos25_sim0.789", "caller_b"))
         assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 2  # profile threshold 0.85 wins
-        assert "Warning" in r.stderr or "warning" in r.stderr.lower()
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_position_only_profile_skips_sequence_gate(self):
+        # position_only: sequence gate disabled, match on pos+SVLEN only.
+        # sim≈0.700 would normally reject; position_only bypasses that gate.
+        r = run_merge("--data_profile", "position_only",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_no_ins_seq_deprecated_warns_and_merges(self):
+        # --no_ins_seq is deprecated; emits a deprecation warning but behaves like position_only.
+        r = run_merge("--no_ins_seq",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+        assert "deprecated" in r.stderr.lower()
+
+    def test_no_ins_seq_with_data_profile_profile_wins_warns(self):
+        # --no_ins_seq + --data_profile: profile wins, --no_ins_seq ignored with warning.
+        # cohort profile: sim threshold=0.75 — sim≈0.672 < 0.75 → rejected.
+        r = run_merge("--no_ins_seq", "--data_profile", "cohort",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 2
+        assert "deprecated" in r.stderr.lower()

@@ -224,10 +224,10 @@ def merge(variants, samples, sample_order, priority_order, args):
     no_intra = args.no_intra
     no_var = args.no_var
     pass_only = args.pass_only
-    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
-    ins_seq_similarity = getattr(args, "ins_seq_similarity", 0.75)
-    no_ins_seq = getattr(args, "no_ins_seq", False)
-    max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
+    ins_svlen_ratio = args.ins_svlen_ratio
+    ins_seq_similarity = args.ins_seq_similarity
+    no_ins_seq = args.no_ins_seq
+    max_ins_seq_len = args.max_ins_seq_len
     # Sequence gate applies only within this hard cap, regardless of ins_distance.
     _INS_SEQ_HARD_CAP = 25
 

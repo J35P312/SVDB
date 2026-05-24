@@ -13,12 +13,18 @@ Public API used by merge, query, and export pipelines:
       True = allow merge; False = reject.  Returns True when either sequence is
       empty (symbolic ALT or absent), deferring to position+SVLEN.
 
+  cap_seq(seq, max_len) -> str
+      Cap insertion sequence to max_len before comparison; returns "" if over
+      the cap, which causes sequence_gate to defer to position+SVLEN.
+
   parse_svlen(info_str) -> Optional[int]
       Extract |SVLEN| from a VCF INFO string.
 
-  resolve_ins_seq_threshold(args) -> float
-      Resolve effective sequence similarity threshold from args, applying
-      --data_profile presets and emitting a warning on conflict.
+  apply_ins_profile(args) -> None
+      Resolve all INS matching parameters onto args, applying --data_profile
+      presets.  Profile sets the base; explicit flags override per-parameter.
+      Handles deprecated --no_ins_seq with a warning.  All args.ins_* attributes
+      are guaranteed non-None after this call.
 """
 
 import logging
@@ -30,11 +36,35 @@ from rapidfuzz.distance import Levenshtein
 
 logger = logging.getLogger(__name__)
 
-_DATA_PROFILE_THRESHOLDS = {
-    "sample": 0.85,
-    "cohort": 0.75,
+# Effective defaults when no profile and no explicit flag is set.
+_INS_DEFAULTS: dict = {
+    "ins_distance": 25,
+    "ins_svlen_ratio": 0.90,
+    "ins_seq_similarity": 0.75,
+    "no_ins_seq": False,
 }
-_DEFAULT_INS_SEQ_SIMILARITY = 0.75
+
+# Full presets.  Profile values are overridden by any individually specified flag.
+_PROFILES: dict = {
+    "sample": {
+        "ins_distance": 25,
+        "ins_svlen_ratio": 0.90,
+        "ins_seq_similarity": 0.85,
+        "no_ins_seq": False,
+    },
+    "cohort": {
+        "ins_distance": 50,
+        "ins_svlen_ratio": 0.80,
+        "ins_seq_similarity": 0.75,
+        "no_ins_seq": False,
+    },
+    "position_only": {
+        "ins_distance": 25,
+        "ins_svlen_ratio": 0.90,
+        "ins_seq_similarity": 0.75,  # unused when no_ins_seq=True
+        "no_ins_seq": True,
+    },
+}
 
 
 def decompress_ins_seq(raw: Union[bytes, str, None]) -> Optional[str]:
@@ -110,25 +140,41 @@ def parse_svlen(info_str: str) -> Optional[int]:
     return None
 
 
-def resolve_ins_seq_threshold(args) -> float:
-    """Return the effective insertion sequence similarity threshold.
+def apply_ins_profile(args) -> None:
+    """Resolve INS matching parameters from --data_profile and explicit flags.
 
-    --data_profile takes precedence over an explicit --ins_seq_similarity.
-    If both are supplied, emits a warning and uses the profile threshold.
+    --data_profile sets the base for all INS parameters; any individually
+    specified --ins_* flag overrides the profile for that parameter only.
+    All args.ins_* attributes are guaranteed non-None after this call.
+
+    Handles deprecated --no_ins_seq: converts it to --data_profile position_only
+    with a warning.  If --no_ins_seq and --data_profile are both set, the profile
+    wins and --no_ins_seq is ignored (with a warning).
     """
-    profile = getattr(args, "data_profile", None)
-    explicit = getattr(args, "ins_seq_similarity", None)
+    profile_name = getattr(args, "data_profile", None)
 
-    if profile is not None and explicit is not None:
-        resolved = _DATA_PROFILE_THRESHOLDS[profile]
-        logger.warning(
-            "Both --data_profile %s and --ins_seq_similarity %.2f were specified. "
-            "--data_profile takes precedence; using threshold %.2f.",
-            profile, explicit, resolved,
-        )
-        return resolved
-    if profile is not None:
-        return _DATA_PROFILE_THRESHOLDS[profile]
-    if explicit is not None:
-        return explicit
-    return _DEFAULT_INS_SEQ_SIMILARITY
+    # Handle deprecated --no_ins_seq
+    if getattr(args, "no_ins_seq", False):
+        if profile_name is not None:
+            logger.warning(
+                "--no_ins_seq is deprecated and has no effect when --data_profile is "
+                "set; ignoring --no_ins_seq, using profile '%s'", profile_name
+            )
+            args.no_ins_seq = False
+        else:
+            logger.warning(
+                "--no_ins_seq is deprecated; use --data_profile position_only instead"
+            )
+            args.data_profile = "position_only"
+            profile_name = "position_only"
+
+    profile = _PROFILES.get(profile_name, {})
+
+    # no_ins_seq: set from profile if not already True
+    if not getattr(args, "no_ins_seq", False):
+        args.no_ins_seq = profile.get("no_ins_seq", False)
+
+    # Numeric params: None = not explicitly set → use profile value then default
+    for key in ("ins_distance", "ins_svlen_ratio", "ins_seq_similarity"):
+        if getattr(args, key, None) is None:
+            setattr(args, key, profile.get(key, _INS_DEFAULTS[key]))
