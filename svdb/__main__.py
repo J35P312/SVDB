@@ -130,12 +130,12 @@ def main():
         parser.add_argument('--prefix', type=str, default=None,
                             help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
         parser.add_argument('--bnd_distance', type=int, default=10000,
-                            help="the maximum distance between two similar breakpoints(default = 10000)")
+                            help="the maximum distance between two similar breakpoints (default = 10000)")
         _add_ins_flags(parser)
         parser.add_argument('--overlap', type=float, default=0.6,
-                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
+                            help="the overlap required to merge two events (0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
         parser.add_argument('--memory',
-                            help="load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)", required=False, action="store_true")
+                            help="load the database into memory: increases the memory requirements, but lowers the time consumption (may only be used with sqdb)", required=False, action="store_true")
         parser.add_argument('--no_var',
                             help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
         parser.add_argument('--debug', help=argparse.SUPPRESS,
@@ -190,17 +190,17 @@ def main():
     elif args.export:
         parser = argparse.ArgumentParser(
             f"""SVDB-{version}: export module; export the variants of the SVDB sqlite database into a vcf file""")
-        parser.add_argument('--export', help="create a db",
+        parser.add_argument('--export', help="export the database",
                             required=False, action="store_true")
         parser.add_argument('--db', type=str, required=True,
-                            help="The SQLite database")
+                            help="the SQLite database")
         parser.add_argument(
             '--no_merge', help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int, default=2500,
-                            help="the maximum distance between two similar precise breakpoints(default = 2500)")
+                            help="the maximum distance between two similar precise breakpoints (default = 2500)")
         _add_ins_flags(parser)
         parser.add_argument('--overlap', type=float, default=0.8,
-                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
+                            help="the overlap required to merge two events (0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
         parser.add_argument(
             '--coarse', help="skip the second-pass refinement (overlap/SVLEN/sequence gates) and use "
                              "centroid-based representative selection directly from DBSCAN groups; "
@@ -254,10 +254,10 @@ def main():
         parser.add_argument(
             '--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
         parser.add_argument('--bnd_distance', type=int, default=2000,
-                            help="the maximum distance between two similar precise breakpoints(default = 2000)")
+                            help="the maximum distance between two similar precise breakpoints (default = 2000)")
         _add_ins_flags(parser)
         parser.add_argument('--overlap', type=float, default=0.95,
-                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
+                            help="the overlap required to merge two events (0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
         parser.add_argument(
             '--no_intra', help="no merging of variants within the same vcf", required=False, action="store_true")
         parser.add_argument(
