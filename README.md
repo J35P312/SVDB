@@ -74,35 +74,27 @@ SVDB consists of modules that are used to build, query, export, and analyse stru
 This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
 
 ```text
-print a help message
-    svdb  --build --help
-Construct a database from a set of vcf files:
+    svdb --build --help
     svdb --build --files sample1.vcf sample2.vcf sample3.vcf
-Construct a database from vcf files stored in a folder:
     svdb --build --folder SV_analysis_folder/
-Upgrade an existing database schema to the current SVDB version:
     svdb --build --upgrade --prefix existing_db
-Upgrade schema and backfill insertion data from the original VCFs:
     svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db
 
-optional arguments:
-    -h, --help                      show this help message and exit
+  input (one of required):
+    --files [FILES ...]             vcf files to build the db from (cannot be used with --folder)
+    --folder FOLDER                 use all vcf files in the given folder
+    --upgrade                       create the INS table in an existing db (safe to re-run;
+                                    combine with --files/--folder to backfill insertion data)
 
-    --files [FILES [FILES ...]]      create a db using the specified vcf files (cannot be
-                                    used with --folder)
-
-    --folder FOLDER                 create a db using all the vcf files in the folders
-
+  output:
     --prefix PREFIX                 prefix for the output file (default: SVDB)
-
-    --upgrade                       create the INS sequence/length table in an existing
-                                    database (safe to run on any database; exits with INFO
-                                    if already up to date). Optionally combine with --files
-                                    or --folder to backfill insertion data from the original
-                                    VCFs without rebuilding the full database.
-
     --pass_only                     only include variants with PASS or . in the FILTER field
                                     (--passonly is a deprecated alias; emits a warning)
+
+  storage:
+    --max_ins_seq_len N             cap on stored insertion sequence length (bp); sequences
+                                    longer than N are stored with NULL sequence but retain
+                                    SVLEN for length-ratio matching (default: no limit)
 ```
 
 ## Export
@@ -117,90 +109,58 @@ for a detailed description of all three algorithms.
 When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
 
 ```text
-print a help message
-    svdb  --export --help
-Export the variants of the database database.db:
+    svdb --export --help
     svdb --export --db database.db
 
-optional arguments:
-    --no_merge                  skip the merging of variants, print all variants in the db to a vcf file
+  input (required):
+    --db DB                     the SQLite database to export
 
+  output:
+    --prefix PREFIX             prefix for the output file (default: same as input)
+    --no_merge                  skip merging; print all variants as-is
+    --strip_chr                 strip the 'chr' prefix from chromosome names (e.g. 'chr1' -> '1')
+    --samples {on,off}          include per-sample genotype columns (default: on);
+                                use 'off' for sites-only output (FORMAT/GT omitted, OCC/FRQ kept)
+
+  algorithm — SV matching:
     --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2500)
-
-    --ins_distance INS_DISTANCE the maximum distance to cluster two insertions
-                                (default: 25; profile cohort/position_only: 50)
-
-    --ins_svlen_ratio RATIO      minimum SVLEN ratio (min/max) for insertion clustering
-                                (default: 0.90; profile cohort: 0.80); requires INS table
-
-    --ins_seq_similarity THRESHOLD
-                                minimum Levenshtein sequence similarity (0-1) for insertion clustering;
-                                explicit value overrides --data_profile for this parameter
-                                (effective default: 0.75); requires INS table
-
-    --data_profile {sample,cohort,position_only}
-                                insertion matching preset; requires INS table:
-                                  sample:        strict (dist=25, ratio=0.90, sim=0.85) - same individual / technology
-                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
-                                  position_only: no sequence gate, cluster on position+SVLEN only (dist=50, ratio=0.90)
-                                individual --ins_* flags override profile values
-
-    --overlap OVERLAP           minimum reciprocal overlap required to merge two events
+    --overlap OVERLAP           minimum reciprocal overlap to merge two events
                                 (0 = anything touching; 1 = identical) (default: 0.8)
 
-    --coarse                    skip the second-pass refinement (overlap/SVLEN/sequence gates) and
-                                use centroid-based representative selection directly from the DBSCAN
-                                spatial clusters. Produces fewer, coarser clusters. Combine with
-                                --epsilon/--min_pts to tune the DBSCAN grouping.
+  algorithm — insertion matching (requires INS table):
+    --data_profile {sample,cohort,position_only}
+                                preset for all insertion parameters; individual --ins_* flags override:
+                                  sample:        strict  (dist=25, ratio=0.90, sim=0.85) - same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
+                                  position_only: no sequence gate (dist=50, ratio=0.90)
+    --ins_distance INS_DISTANCE maximum distance to cluster two insertions
+                                (default: 25; profile cohort/position_only: 50)
+    --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertion clustering
+                                (default: 0.90; profile cohort: 0.80)
+    --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity (0-1); explicit value
+                                overrides --data_profile (effective default: 0.75)
+
+  algorithm — clustering:
+    --coarse                    skip second-pass refinement; use centroid from DBSCAN spatial
+                                clusters directly. Produces fewer, coarser clusters.
                                 (--DBSCAN is a deprecated alias; emits a warning)
-
-    --epsilon EPSILON           used together with --coarse; spatial grouping radius in bp
-                                (DBSCAN-style epsilon): variants within this distance of each
-                                other are candidates for the same cluster (default: 500)
-
-    --min_pts MIN_PTS           used together with --coarse; DBSCAN-style min_pts: minimum number
-                                of consecutively-positioned variants that must all fall within
-                                --epsilon to seed a cluster. Isolated variants become singletons.
+    --epsilon EPSILON           DBSCAN-style spatial grouping radius in bp (default: 500)
+    --min_pts MIN_PTS           DBSCAN-style min_pts: minimum variants within --epsilon to seed
+                                a cluster; isolated variants become singletons
                                 (default: 2, meaning any pair within --epsilon forms a cluster)
-
-    --prefix PREFIX             prefix for the output file (default: same as input)
-
-    --memory                    load the database into memory: increases memory use but lowers export time
-
-    --strip_chr                 strip the 'chr' prefix from chromosome names in the output VCF
-                                (e.g. 'chr1' -> '1')
-
-    --samples {on,off}          include per-sample genotype columns (default: on).
-                                Use 'off' for sites-only output (analogous to gnomAD --sites-only):
-                                the FORMAT and GT columns are omitted; OCC and FRQ are still written
-
-    --max_ins_seq_len N         sequences longer than N bp are excluded from sequence similarity
-                                and fall back to position+SVLEN (default: 500). Increase for
-                                databases with long insertion sequences.
-
     --cluster_method {star,union_find}
-                                second-pass clustering algorithm applied within each DBSCAN spatial
-                                group (default: star).
+                                second-pass clustering algorithm (default: star):
+                                  star        greedy; highest-degree variant claims neighbours.
+                                              No transitivity — faster, more smaller clusters.
+                                  union_find  transitive closure; A-B + B-C → {A,B,C}.
+                                              Fewer, larger clusters with higher OCC counts.
 
-                                star        greedy star clustering: the highest-degree variant
-                                            becomes the representative and claims its direct
-                                            neighbours. No transitivity: if A overlaps B and B
-                                            overlaps C but A does not overlap C, A and C end up
-                                            in separate clusters. Faster; produces more, smaller
-                                            clusters.
-
-                                union_find  transitive closure via Union-Find: A-B and B-C are
-                                            always merged even if A and C do not overlap directly.
-                                            Produces fewer, larger clusters with higher OCC counts.
-                                            Prefer this when you want maximal merging across a
-                                            cohort; use star when you want conservative merging.
-
-    --workers N                 number of parallel worker processes for the clustering step
-                                (default: 0 = use all logical CPUs; 1 = serial).
-                                To find your optimal N: time with --workers 1, then increase
-                                until wall-clock time stops improving - that plateau is the
-                                serial floor (DB fetch, DBSCAN-style grouping, file I/O). On
-                                shared systems set N explicitly to avoid monopolising cores.
+  performance:
+    --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
+                                (default: 500); increase for databases with long insertions
+    --memory                    load the db into memory: higher memory use, lower export time
+    --workers N                 parallel worker processes (default: 0 = all logical CPUs; 1 = serial)
 ```
 
 ## Query
@@ -208,69 +168,56 @@ optional arguments:
 The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilizes the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file (either multisample vcf or SVDB sqlite database):
 
 ```text
-print a help message
-   svdb --query --help
-Query a structural variant database, using a vcf file as query:
-
+    svdb --query --help
     svdb --query --query_vcf patient1.vcf --db control_db.vcf
+    svdb --query --query_vcf patient1.vcf --db control_db1.vcf,control_db2.vcf \
+         --prefix test --in_occ default,Obs --in_frq FRQ,default \
+         --out_frq db1_AF,db2_Frq --out_occ db1_AC,db2_Obs
 
-Query multiple databases, using a vcf file as query:
+  input (required):
+    --query_vcf VCF             query vcf file
+    --db DB                     db vcf, or a comma-separated list (no effect on --bedpedb)
+    --sqdb SQDB                 SVDB sqlite db, or a comma-separated list
+    --bedpedb BEDPEDB           SV db in chrA-posA-chrB-posB-type-count-frequency format,
+                                or a comma-separated list
 
-    svdb --query --query_vcf patient1.vcf --db control_db1.vcf,control_db2.vcf --prefix test --in_occ default,Obs --in_frq FRQ,default --out_frq db1_AF,db2_Frq --out_occ db1_AC,db2_Obs
+  output:
+    --prefix PREFIX             prefix for the output file (default: print to stdout);
+                                required when querying multiple databases
+    --out_occ OUT_OCC           output tag for allele count (default: OCC)
+    --out_frq OUT_FRQ           output tag for allele frequency (default: FRQ)
+    --in_occ IN_OCC             allele count tag in the db INFO column (usually OCC or AN);
+                                required when querying multiple databases
+    --in_frq IN_FRQ             allele frequency tag in the db INFO column (usually FRQ or AF);
+                                required when querying multiple databases
 
-optional arguments:
+  algorithm — SV matching:
+    --bnd_distance BND_DISTANCE maximum distance between two similar breakpoints (default: 10000)
+    --overlap OVERLAP           minimum reciprocal overlap to match two events
+                                (0 = anything touching; 1 = identical) (default: 0.6)
+    --max_frq MAX_FRQ           only report variants with frequency at or below this value
+                                (default: 1, i.e. all variants)
+    --no_var                    count overlapping variants of different type as hits in the db
 
-    -h, --help              show this help message and exit
-    --db DB                 path to a db vcf, or a comma-separated list of vcfs
-    --sqdb SQDB             path to a SVDB sqlite db, or a comma-separated list of dbs
-    --bedpedb BEDPEDB       path to a SV db in chrA-posA-chrB-posB-type-count-frequency format,
-                            or a comma-separated list of files
-    --in_occ IN_OCC         the allele count tag in the db INFO column (usually OCC or AN);
-                            required when querying multiple databases
-    --in_frq IN_FRQ         the allele frequency tag in the db INFO column (usually FRQ or AF);
-                            required when querying multiple databases
-    --out_occ OUT_OCC       output tag for allele count (default: OCC);
-                            required when querying multiple databases
-    --out_frq OUT_FRQ       output tag for allele frequency (default: FRQ);
-                            required when querying multiple databases
-    --prefix PREFIX         prefix for the output file (default: print to stdout);
-                            required when querying multiple databases
-    --bnd_distance BND_DISTANCE
-                            maximum distance between two similar breakpoints (default: 10000)
-    --overlap OVERLAP       minimum reciprocal overlap required to match two events
-                            (0 = anything touching; 1 = identical) (default: 0.6)
-    --ins_distance INS_DISTANCE
-                            maximum distance to match two insertions
-                            (default: 25; profile cohort/position_only: 50)
-                            Applied with --db; also applied with --sqdb when the database
-                            contains the INS table; no effect with --bedpedb
-    --ins_svlen_ratio INS_SVLEN_RATIO
-                            minimum SVLEN ratio (min/max) required to match two insertions
-                            with known length (default: 0.90; profile cohort: 0.80)
-                            Applied with --db; also applied with --sqdb when the database
-                            contains the INS table; no effect with --bedpedb
-    --ins_seq_similarity THRESHOLD
-                            minimum Levenshtein sequence similarity (0-1) required to match
-                            two insertions with known sequence; explicit value overrides
-                            --data_profile for this parameter (effective default: 0.75)
-                            Applied with --db; also applied with --sqdb when the database
-                            contains the INS table; no effect with --bedpedb
+  algorithm — insertion matching (--db and --sqdb with INS table; no effect with --bedpedb):
     --data_profile {sample,cohort,position_only}
-                            insertion matching preset:
-                              sample:        strict (dist=25, ratio=0.90, sim=0.85) - same individual / technology
-                              cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
-                              position_only: no sequence gate, match on position+SVLEN only (dist=50, ratio=0.90)
-                            individual --ins_* flags override profile values
-                            Applied with --db; also applied with --sqdb when the database
-                            contains the INS table; no effect with --bedpedb
+                                preset for all insertion parameters; individual --ins_* flags override:
+                                  sample:        strict  (dist=25, ratio=0.90, sim=0.85) - same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
+                                  position_only: no sequence gate (dist=50, ratio=0.90)
+    --ins_distance INS_DISTANCE maximum distance to match two insertions
+                                (default: 25; profile cohort/position_only: 50)
+    --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertions with known length
+                                (default: 0.90; profile cohort: 0.80)
+    --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity (0-1); explicit value
+                                overrides --data_profile (effective default: 0.75)
 
-    --max_ins_seq_len N     sequences longer than N bp are excluded from sequence similarity
-                            and fall back to position+SVLEN (default: 500). Increase for
-                            databases with long insertion sequences.
-
-    --memory                load the database into memory: increases the memory requirements,
-                            but lowers the time consumption (may only be used with sqdb)
-    --no_var                count overlapping variants of different type as hits in the db
+  performance:
+    --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
+                                (default: 500); increase for databases with long insertions
+    --memory                    load the db into memory: higher memory use, lower query time
+                                (sqdb only)
 ```
 
 ## Merge
@@ -278,59 +225,47 @@ optional arguments:
 The merge module merges variants within one or more vcf files. This could be used to either merge the output of multiple callers, or to merge variants that are called multiple times due to noise or some other error:
 
 ```text
-print a help message:
-   python SVDB.py --merge --help
-merge vcf files:
-    svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf > patient1_merged_callers.vcf
+    svdb --merge --help
+    svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf
+    svdb --merge --vcf patient1_lumpy.vcf:one patient1_cnvnator.vcf:2 patient1_TIDDIT.vcf:tiddit \
+         --priority tiddit,2,one
 
-Similar variants will be merged, and presented according to the order of the input vcf files. I.e If lumpy and cnvnator calls the same variant in the top example,
-the variant will be printed as the lumpy call. In most cases, the order should be set according to the accuracy or detail of the info field of the different callers.
-The order could also be set using the --priority flag:
-    svdb --merge --vcf patient1_lumpy.vcf:one patient1_cnvnator.vcf:2 patient1_TIDDIT.vcf:tiddit --priority tiddit,2,one > patient1_merged_callers.vcf
+Variants are merged and output in the order of the input files (first file takes precedence).
+Use --priority to override the order explicitly.
 
-In this example, tiddit will have the highest order, cnvnator second etc.
+  input (required):
+    --vcf VCF [VCF ...]         input vcf files to merge
 
-optional arguments:
-    -h, --help                      show this help message and exit
+  input control:
+    --priority ORDER            prioritise input files; format: --vcf a.vcf:1 b.vcf:2 --priority 2,1
+    --pass_only                 merge only variants labeled PASS
+    --no_intra                  skip merging of variants within the same vcf
+    --same_order                assume sample columns are in the same order across all input files
+    --notag                     do not add VARID and set entries to the INFO field
 
-    --bnd_distance BND_DISTANCE     maximum distance between two similar precise breakpoints
-                                    (default: 2000)
+  algorithm — SV matching:
+    --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2000)
+    --overlap OVERLAP           minimum reciprocal overlap to merge two events
+                                (0 = anything touching; 1 = identical) (default: 0.95)
+    --no_var                    variants of different type will be merged
 
-    --overlap OVERLAP               minimum reciprocal overlap required to merge two events
-                                    (0 = anything touching; 1 = identical) (default: 0.95)
-
-    --ins_distance INS_DISTANCE     maximum distance to merge two insertions
-                                    (default: 25; profile cohort/position_only: 50)
-
-    --ins_svlen_ratio INS_SVLEN_RATIO
-                                    minimum SVLEN ratio (min/max) required to merge two
-                                    insertions with known length (default: 0.90; profile cohort: 0.80)
-
-    --ins_seq_similarity THRESHOLD  minimum Levenshtein sequence similarity (0-1) required to
-                                    merge two insertions with known sequence; explicit value
-                                    overrides --data_profile for this parameter
-                                    (effective default: 0.75)
-
+  algorithm — insertion matching:
     --data_profile {sample,cohort,position_only}
-                                    insertion matching preset:
-                                      sample:        strict (dist=25, ratio=0.90, sim=0.85) - same individual / technology
-                                      cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
-                                      position_only: no sequence gate, merge on position+SVLEN only (dist=50, ratio=0.90)
-                                    individual --ins_* flags override profile values
+                                preset for all insertion parameters; individual --ins_* flags override:
+                                  sample:        strict  (dist=25, ratio=0.90, sim=0.85) - same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
+                                  position_only: no sequence gate (dist=50, ratio=0.90)
+    --ins_distance INS_DISTANCE maximum distance to merge two insertions
+                                (default: 25; profile cohort/position_only: 50)
+    --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertions with known length
+                                (default: 0.90; profile cohort: 0.80)
+    --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity (0-1); explicit value
+                                overrides --data_profile (effective default: 0.75)
 
-    --max_ins_seq_len N             sequences longer than N bp are excluded from sequence similarity
-                                    and fall back to position+SVLEN (default: 500)
-
-    --priority                      prioritise the input vcf files
-
-    --no_intra                      no merging of variants within the same vcf
-
-    --no_var                        variants of different type will be merged
-
-    --pass_only                     merge only variants labeled PASS
-
-    --same_order                    assume that the samples are ordered the same way (skip
-                                    reordering and merging of the sample columns)
+  performance:
+    --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
+                                (default: 500); increase for databases with long insertions
 ```
 
 ## For developers
