@@ -93,7 +93,7 @@ optional arguments:
 
     --folder FOLDER                 create a db using all the vcf files in the folders
 
-    --prefix PREFIX                 the prefix of the output file, default = SVDB
+    --prefix PREFIX                 prefix for the output file (default: SVDB)
 
     --upgrade                       create the INS sequence/length table in an existing
                                     database (safe to run on any database; exits with INFO
@@ -125,7 +125,7 @@ Export the variants of the database database.db:
 optional arguments:
     --no_merge                  skip the merging of variants, print all variants in the db to a vcf file
 
-    --bnd_distance BND_DISTANCE the maximum distance between two similar precise breakpoints (default = 2500)
+    --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2500)
 
     --ins_distance INS_DISTANCE the maximum distance to cluster two insertions
                                 (default: 25; profile cohort/position_only: 50)
@@ -145,9 +145,8 @@ optional arguments:
                                   position_only: no sequence gate, cluster on position+SVLEN only (dist=50, ratio=0.90)
                                 individual --ins_* flags override profile values
 
-    --overlap OVERLAP           the overlap required to merge two events (0 means anything that
-                                touches will be merged, 1 means that two events must be identical
-                                to be merged), default = 0.8
+    --overlap OVERLAP           minimum reciprocal overlap required to merge two events
+                                (0 = anything touching; 1 = identical) (default: 0.8)
 
     --coarse                    skip the second-pass refinement (overlap/SVLEN/sequence gates) and
                                 use centroid-based representative selection directly from the DBSCAN
@@ -157,17 +156,16 @@ optional arguments:
 
     --epsilon EPSILON           used together with --coarse; spatial grouping radius in bp
                                 (DBSCAN-style epsilon): variants within this distance of each
-                                other are candidates for the same cluster (default = 500)
+                                other are candidates for the same cluster (default: 500)
 
     --min_pts MIN_PTS           used together with --coarse; DBSCAN-style min_pts: minimum number
                                 of consecutively-positioned variants that must all fall within
                                 --epsilon to seed a cluster. Isolated variants become singletons.
-                                (default = 2, meaning any pair within --epsilon forms a cluster)
+                                (default: 2, meaning any pair within --epsilon forms a cluster)
 
-    --prefix PREFIX             the prefix of the output file, default = same as input
+    --prefix PREFIX             prefix for the output file (default: same as input)
 
-    --memory                    load the database into memory: increases the memory requirements,
-                                but lowers the time consumption
+    --memory                    load the database into memory: increases memory use but lowers export time
 
     --strip_chr                 strip the 'chr' prefix from chromosome names in the output VCF
                                 (e.g. 'chr1' -> '1')
@@ -176,11 +174,9 @@ optional arguments:
                                 Use 'off' for sites-only output (analogous to gnomAD --sites-only):
                                 the FORMAT and GT columns are omitted; OCC and FRQ are still written
 
-    --max_ins_seq_len N         cap the insertion sequence length used for similarity comparison.
-                                Sequences longer than N bp are treated as unknown for clustering
-                                purposes (position + SVLEN only); the ALT field falls back to
-                                <INS> with SVLEN for those variants. Useful for controlling
-                                memory and runtime when the database contains very long sequences.
+    --max_ins_seq_len N         sequences longer than N bp are excluded from sequence similarity
+                                and fall back to position+SVLEN (default: 500). Increase for
+                                databases with long insertion sequences.
 
     --cluster_method {star,union_find}
                                 second-pass clustering algorithm applied within each DBSCAN spatial
@@ -225,25 +221,24 @@ Query multiple databases, using a vcf file as query:
 optional arguments:
 
     -h, --help              show this help message and exit
-    --db DB                 path to a db vcf, or a comma separated list of vcfs
-    --sqdb SQDB             path to a SVDB sqlite db, or a comma separated list of dbs
-    --bedpedb BEDPEDB       path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency,
-                            or a comma separated list of files
-    --in_occ IN_OCC         The allele count tag, if used, this tag must be present in the INFO column of the
-                            input DB (usually set to AN or OCC). Required if multiple databases are queried.
-    --in_frq IN_FRQ         The frequency count tag, if used, this tag must be present in the INFO column of the
-                            input DB (usually set to AF or FRQ). Required if multiple databases are queried.
-    --out_occ OUT_OCC       the allele count tag, as annotated by SVDB variant (default=OCC).
-                            Required if multiple databases are queried.
-    --out_frq OUT_FRQ       the tag used to describe the frequency of the variant (default=FRQ).
-                            Required if multiple databases are queried.
-    --prefix PREFIX         the prefix of the output file, default = print to stdout.
-                            Required if multiple databases are queried.
+    --db DB                 path to a db vcf, or a comma-separated list of vcfs
+    --sqdb SQDB             path to a SVDB sqlite db, or a comma-separated list of dbs
+    --bedpedb BEDPEDB       path to a SV db in chrA-posA-chrB-posB-type-count-frequency format,
+                            or a comma-separated list of files
+    --in_occ IN_OCC         the allele count tag in the db INFO column (usually OCC or AN);
+                            required when querying multiple databases
+    --in_frq IN_FRQ         the allele frequency tag in the db INFO column (usually FRQ or AF);
+                            required when querying multiple databases
+    --out_occ OUT_OCC       output tag for allele count (default: OCC);
+                            required when querying multiple databases
+    --out_frq OUT_FRQ       output tag for allele frequency (default: FRQ);
+                            required when querying multiple databases
+    --prefix PREFIX         prefix for the output file (default: print to stdout);
+                            required when querying multiple databases
     --bnd_distance BND_DISTANCE
-                            the maximum distance between two similar breakpoints (default = 10000)
-    --overlap OVERLAP       the overlap required to merge two events (0 means anything that
-                            touches will be merged, 1 means that two events must be identical
-                            to be merged), default = 0.6
+                            maximum distance between two similar breakpoints (default: 10000)
+    --overlap OVERLAP       minimum reciprocal overlap required to match two events
+                            (0 = anything touching; 1 = identical) (default: 0.6)
     --ins_distance INS_DISTANCE
                             maximum distance to match two insertions
                             (default: 25; profile cohort/position_only: 50)
@@ -270,8 +265,8 @@ optional arguments:
                             contains the INS table; no effect with --bedpedb
 
     --max_ins_seq_len N     sequences longer than N bp are excluded from sequence similarity
-                            matching and fall back to position+SVLEN; off by default.
-                            500 or 1000 is recommended for large databases to reduce runtime.
+                            and fall back to position+SVLEN (default: 500). Increase for
+                            databases with long insertion sequences.
 
     --memory                load the database into memory: increases the memory requirements,
                             but lowers the time consumption (may only be used with sqdb)
@@ -298,12 +293,11 @@ In this example, tiddit will have the highest order, cnvnator second etc.
 optional arguments:
     -h, --help                      show this help message and exit
 
-    --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
-                                    (default = 2000)
+    --bnd_distance BND_DISTANCE     maximum distance between two similar precise breakpoints
+                                    (default: 2000)
 
-    --overlap OVERLAP               the overlap required to merge two events (0 means
-                                    anything that touches will be merged, 1 means that two
-                                    events must be identical to be merged), default = 0.95
+    --overlap OVERLAP               minimum reciprocal overlap required to merge two events
+                                    (0 = anything touching; 1 = identical) (default: 0.95)
 
     --ins_distance INS_DISTANCE     maximum distance to merge two insertions
                                     (default: 25; profile cohort/position_only: 50)
@@ -323,6 +317,9 @@ optional arguments:
                                       cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
                                       position_only: no sequence gate, merge on position+SVLEN only (dist=50, ratio=0.90)
                                     individual --ins_* flags override profile values
+
+    --max_ins_seq_len N             sequences longer than N bp are excluded from sequence similarity
+                                    and fall back to position+SVLEN (default: 500)
 
     --priority                      prioritise the input vcf files
 

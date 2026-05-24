@@ -4,10 +4,19 @@ Covers extract_ins_sequence, levenshtein_similarity, and sequence_gate using
 both simple synthetic sequences and sequences extracted directly from the
 ins_similarity fixture VCFs.
 """
+import argparse
 import pytest
 from pathlib import Path
 
-from svdb.ins_similarity import cap_seq, extract_ins_sequence, levenshtein_similarity, sequence_gate
+from svdb.ins_similarity import (
+    apply_ins_profile,
+    cap_seq,
+    decompress_ins_seq,
+    extract_ins_sequence,
+    levenshtein_similarity,
+    parse_svlen,
+    sequence_gate,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ins_similarity"
 
@@ -194,3 +203,89 @@ class TestCapSeq:
     def test_exactly_at_cap_is_not_capped(self):
         seq = "A" * 500
         assert cap_seq(seq, 500) == seq
+
+
+class TestDecompressInsSeq:
+
+    def test_none_returns_none(self):
+        assert decompress_ins_seq(None) is None
+
+    def test_str_passthrough(self):
+        assert decompress_ins_seq("ATCG") == "ATCG"
+
+    def test_bytes_decompresses(self):
+        import zlib
+        compressed = zlib.compress(b"ATCGATCG")
+        assert decompress_ins_seq(compressed) == "ATCGATCG"
+
+
+class TestParseSvlen:
+
+    def test_positive_svlen(self):
+        assert parse_svlen("END=1000;SVLEN=150;SVTYPE=INS") == 150
+
+    def test_negative_svlen_returns_abs(self):
+        assert parse_svlen("SVLEN=-200;SVTYPE=DEL") == 200
+
+    def test_absent_returns_none(self):
+        assert parse_svlen("END=1000;SVTYPE=DEL") is None
+
+    def test_at_start_of_info(self):
+        assert parse_svlen("SVLEN=42") == 42
+
+
+class TestApplyInsProfile:
+
+    def _args(self, **kwargs):
+        ns = argparse.Namespace(
+            data_profile=None,
+            ins_distance=None,
+            ins_svlen_ratio=None,
+            ins_seq_similarity=None,
+        )
+        for k, v in kwargs.items():
+            setattr(ns, k, v)
+        return ns
+
+    def test_no_profile_sets_defaults(self):
+        args = self._args()
+        apply_ins_profile(args)
+        assert args.ins_distance == 25
+        assert args.ins_svlen_ratio == 0.90
+        assert args.ins_seq_similarity == 0.75
+        assert args.no_ins_seq is False
+
+    def test_cohort_profile(self):
+        args = self._args(data_profile="cohort")
+        apply_ins_profile(args)
+        assert args.ins_distance == 50
+        assert args.ins_svlen_ratio == 0.80
+        assert args.ins_seq_similarity == 0.75
+        assert args.no_ins_seq is False
+
+    def test_sample_profile(self):
+        args = self._args(data_profile="sample")
+        apply_ins_profile(args)
+        assert args.ins_distance == 25
+        assert args.ins_svlen_ratio == 0.90
+        assert args.ins_seq_similarity == 0.85
+        assert args.no_ins_seq is False
+
+    def test_position_only_profile(self):
+        args = self._args(data_profile="position_only")
+        apply_ins_profile(args)
+        assert args.ins_distance == 50
+        assert args.ins_svlen_ratio == 0.90
+        assert args.no_ins_seq is True
+
+    def test_explicit_flag_overrides_profile(self):
+        args = self._args(data_profile="cohort", ins_distance=10)
+        apply_ins_profile(args)
+        assert args.ins_distance == 10
+        assert args.ins_svlen_ratio == 0.80  # from cohort
+
+    def test_explicit_sim_overrides_position_only(self):
+        args = self._args(data_profile="position_only", ins_seq_similarity=0.90)
+        apply_ins_profile(args)
+        assert args.ins_seq_similarity == 0.90
+        assert args.no_ins_seq is True  # profile still sets this
