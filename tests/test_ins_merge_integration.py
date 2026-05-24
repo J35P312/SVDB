@@ -251,3 +251,21 @@ class TestProfileAndExplicitInteraction:
         assert r.returncode == 0
         assert len(data_lines(r.stdout)) == 1
 
+    def test_position_only_adversarial_neg_c_merges(self):
+        # sim≈0.837 would pass the default threshold but this confirms
+        # position_only merges regardless of sequence content.
+        r = run_merge("--data_profile", "position_only",
+                      "--vcf", fixture("grch37_neg_c_sim0.837", "caller_a"),
+                      fixture("grch37_neg_c_sim0.837", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_position_only_svlen_gate_still_rejects(self):
+        # SVLEN gate is independent of the sequence gate: even with position_only,
+        # a pair whose SVLEN ratio falls below the default threshold (0.90) is rejected.
+        r = run_merge("--data_profile", "position_only",
+                      "--vcf", fixture("low_svlen_ratio", "caller_a"),
+                      fixture("low_svlen_ratio", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 2
+
