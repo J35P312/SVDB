@@ -53,7 +53,7 @@ import svdb.database as database
 from svdb.export_module import db_header, export
 from svdb.ins_similarity import resolve_ins_seq_threshold
 
-BENCH_DIR = "/Users/kselav/Documents/repos/svdb_bench"
+BENCH_DIR = "/path/to/bench_dir"  # UPDATE THIS
 PRUNE_SPREAD_THRESHOLD = 2500
 
 
