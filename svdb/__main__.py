@@ -188,6 +188,9 @@ def main():
             logger.error("only one DB build input source may be selected (--files or --folder)")
             sys.exit(1)
 
+        if args.upgrade and not args.files and not args.folder:
+            logger.error("--upgrade requires --files or --folder to backfill insertion sequences")
+            sys.exit(1)
         if args.upgrade:
             build_module.main(args)
         elif args.folder or args.files:

@@ -130,13 +130,22 @@ class TestBuildINSTable:
 
 class TestUpgrade:
 
-    def test_upgrade_creates_ins_table_on_old_db(self, tmp_path):
+    def test_upgrade_without_files_errors(self, tmp_path):
+        prefix = tmp_path / "svdb"
+        make_old_db(prefix, [("INS", "1", "1", 1000, 0, 0, 1000, 0, 0, "sample_A", 0)])
+        r = run("--build", "--upgrade", "--prefix", str(prefix))
+        assert r.returncode != 0
+        assert "requires --files or --folder" in r.stderr
+
+    def test_upgrade_with_files_creates_ins_table_on_old_db(self, tmp_path):
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [("1", 1000, "ins1", "ACGT")])
         prefix = tmp_path / "svdb"
         make_old_db(prefix, [("INS", "1", "1", 1000, 0, 0, 1000, 0, 0, "sample_A", 0)])
         with DB(str(prefix)) as db:
             assert not db.has_ins_table()
 
-        r = run("--build", "--upgrade", "--prefix", str(prefix))
+        r = run("--build", "--upgrade", "--files", str(vcf), "--prefix", str(prefix))
         assert r.returncode == 0
         assert "INS table created" in r.stderr
         with DB(str(prefix)) as db:
@@ -147,7 +156,7 @@ class TestUpgrade:
         make_ins_vcf(vcf, [("1", 1000, "ins1", "ACGT")])
         build(tmp_path / "svdb", vcf)
 
-        r = run("--build", "--upgrade", "--prefix", str(tmp_path / "svdb"))
+        r = run("--build", "--upgrade", "--files", str(vcf), "--prefix", str(tmp_path / "svdb"))
         assert r.returncode == 0
         assert "up to date" in r.stderr
 
@@ -168,8 +177,10 @@ class TestUpgrade:
         assert decompress_ins_seq(rows[0][0]) == "ACGTACGT"
         assert rows[0][1] == 8
 
-    def test_upgrade_on_missing_db_exits_gracefully(self, tmp_path):
-        r = run("--build", "--upgrade", "--prefix", str(tmp_path / "nonexistent"))
+    def test_upgrade_on_missing_db_exits_with_error(self, tmp_path):
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [("1", 1000, "ins1", "ACGT")])
+        r = run("--build", "--upgrade", "--files", str(vcf), "--prefix", str(tmp_path / "nonexistent"))
         assert r.returncode == 0
         assert "no SVDB table" in r.stderr
 
