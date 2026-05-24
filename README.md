@@ -56,6 +56,15 @@ SVDB is available on Singularity:
 singularity pull shub://J35P312/SVDB
 ```
 
+## Global options
+
+These flags apply to all subcommands and must be placed before the subcommand name:
+
+```text
+    --debug     enable debug logging to stderr
+                e.g. svdb --debug --build --files sample.vcf
+```
+
 ## Modules
 
 SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
@@ -94,8 +103,6 @@ optional arguments:
 
     --pass_only                     only include variants with PASS or . in the FILTER field
                                     (--passonly is a deprecated alias; emits a warning)
-
-    --debug                         enable debug logging to stderr
 ```
 
 ## Export
