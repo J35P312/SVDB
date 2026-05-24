@@ -33,7 +33,14 @@ Here the `AF` and `AN` are the allele frequency tags of the database, the `AF` i
 ## Install
 
 Dependencies: SVDB requires Python 3.9+ and numpy.
-SVDB is installed using the following command:
+
+Install from PyPI:
+
+```bash
+pip install svdb
+```
+
+Install from source:
 
 ```bash
 git clone https://github.com/J35P312/SVDB.git
@@ -41,7 +48,11 @@ cd SVDB
 pip install .
 ```
 
-SVDB is available on singularity:
+SVDB is available as a container on BioContainers:
+
+<https://quay.io/repository/biocontainers/svdb?tab=tags&tag=>
+
+SVDB is available on Singularity:
 
 ```bash
 singularity pull shub://J35P312/SVDB
