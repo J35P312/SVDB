@@ -412,7 +412,7 @@ def _run_tasks(tasks: list, workers: int) -> list:
     w = min(workers, len(tasks))
     if w <= 1:
         return [_expand_and_cluster_worker(t) for t in tasks]
-    logger.info("clustering %d group(s) with %d worker(s)", len(tasks), w)
+    logger.debug("clustering %d group(s) with %d worker(s)", len(tasks), w)
     chunksize = max(1, len(tasks) // (w * 4))
     try:
         ctx = multiprocessing.get_context("spawn")
