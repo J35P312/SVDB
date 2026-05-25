@@ -213,23 +213,20 @@ class TestNoSamplesIntegration:
         assert all("OCC=" in ln and "FRQ=" in ln for ln in data)
 
 
-class TestClusterVariantsNoDuplicateMembership(unittest.TestCase):
-    """Each variant must appear in exactly one output cluster.
+class TestClusterVariantsMultiMembership(unittest.TestCase):
+    """Greedy star intentionally allows a variant to appear in multiple clusters.
 
-    Regression test for the greedy-star duplicate-membership bug: a variant
-    that is a neighbour of two different representatives gets added to both
-    clusters because the inner loop does not check whether the variant has
-    already been claimed.
+    A variant that overlaps two different representatives contributes to both
+    their clusters so that OCC/FRQ reflect every group it genuinely belongs to,
+    rather than being arbitrarily assigned to one.
 
     Scenario
     --------
     Representatives 0 (3 neighbours) and 3 (2 neighbours) both have variant 1
     in their neighbour lists.  Representative 0 is processed first (highest
-    degree) and claims variant 1.  Representative 3 is not in 0's list so it
-    stays unclaimed; when it is processed it adds variant 1 a second time.
-
-    This test FAILS with the current (buggy) cluster_variants and will PASS
-    once the implementation skips already-claimed neighbours.
+    degree) and claims variant 1 (marking it non-representative).  Representative
+    3 is not in 0's list so it remains active; when processed it also adds
+    variant 1 — intentional multi-cluster membership.
     """
 
     def _make_inputs(self):
@@ -247,7 +244,7 @@ class TestClusterVariantsNoDuplicateMembership(unittest.TestCase):
         }
         return variant_dictionary, similarity_matrix
 
-    def test_no_variant_in_two_clusters(self):
+    def test_variant_can_appear_in_multiple_clusters(self):
         variant_dictionary, similarity_matrix = self._make_inputs()
         clusters = cluster_variants(variant_dictionary, similarity_matrix)
 
@@ -256,10 +253,10 @@ class TestClusterVariantsNoDuplicateMembership(unittest.TestCase):
             for var_idx in cluster[1]:
                 membership.setdefault(var_idx, []).append(cluster_idx)
 
-        duplicates = {k: v for k, v in membership.items() if len(v) > 1}
-        self.assertFalse(
-            duplicates,
-            f"variants appear in multiple clusters (bug): {duplicates}",
+        multi = {k: v for k, v in membership.items() if len(v) > 1}
+        self.assertTrue(
+            multi,
+            "expected variant 1 to appear in both clusters (multi-membership), but got exclusive assignment",
         )
 
 

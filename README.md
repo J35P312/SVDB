@@ -161,9 +161,11 @@ When the database was built with insertion sequence data (i.e. the INS table is 
     --cluster_method {star,union_find}
                                 second-pass clustering algorithm (default: star):
                                   star        greedy; highest-degree variant claims neighbours.
-                                              No transitivity — faster, more smaller clusters.
+                                              No transitivity. A variant overlapping multiple
+                                              representatives appears in each cluster — OCC
+                                              reflects all groups it genuinely belongs to.
                                   union_find  transitive closure; A-B + B-C → {A,B,C}.
-                                              Fewer, larger clusters with higher OCC counts.
+                                              Exclusive membership; fewer, larger clusters.
 
   performance:
     --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN

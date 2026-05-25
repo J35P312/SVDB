@@ -61,17 +61,29 @@ collapsed by one of two algorithms:
 
 ```text
 Sort variants by degree (overlapping neighbours) descending.
-While unclaimed variants remain:
-    pick the highest-degree unclaimed variant as representative
-    claim all its unclaimed neighbours
+For each variant, highest-degree first:
+    if already marked as non-representative: skip
+    otherwise: become representative
+        for each neighbour:
+            mark neighbour as non-representative
+            add neighbour to this cluster
 ```
 
-**Properties**: fast; no transitivity. If A overlaps B and B overlaps C but A
-does not overlap C, star keeps them in separate clusters. Produces more,
-smaller clusters.
+Marking a variant as non-representative only prevents it from *starting* a
+new cluster — it does not exclude it from being collected by other active
+representatives whose neighbour list includes it.  A variant that overlaps
+two separate representatives therefore contributes to both clusters.
 
-**Use when**: you want conservative merging — every cluster member directly
-overlaps the representative.
+**Properties**: fast; no transitivity (A-B and B-C do not force A and C into
+the same cluster). A variant in an ambiguous region between two groups
+appears in each — OCC and FRQ reflect every group it genuinely overlaps
+rather than being forced into one by an arbitrary assignment.
+On a 100-sample SV dataset ~7 % of variants appear in more than one cluster;
+the maximum observed is 8 clusters (empirically bounded by local density).
+
+**Use when**: you want OCC to accurately represent all overlapping groups —
+typical for population frequency databases.  Use `union_find` if you need
+hard exclusive membership (e.g. downstream tools that assume disjoint clusters).
 
 ### Union-Find (`--cluster_method union_find`)
 
@@ -85,11 +97,12 @@ Collect connected components; representative = highest-degree member.
 ```
 
 **Properties**: A-B and B-C always merge {A, B, C} even if A and C do not
-overlap directly. Prevents duplicate cluster membership by construction.
+overlap directly. Each variant belongs to exactly one cluster.
 Produces fewer, larger clusters with higher OCC counts.
 
-**Use when**: maximal merging across a cohort; population-level databases where
-transitive relationships are expected.
+**Use when**: you need hard exclusive membership — e.g. downstream tools that
+assume disjoint clusters, or when you prefer larger merged groups over
+accurate per-group frequencies.
 
 ---
 

@@ -279,7 +279,10 @@ def cluster_variants(variant_dictionary, similarity_matrix):
     """Greedy star clustering (default).
 
     Highest-degree variant becomes representative and claims its neighbours.
+    A variant that overlaps multiple representatives contributes to each of
+    their clusters — intentional, so OCC/FRQ reflect all groups it belongs to.
     No transitivity: A-B and B-C do not force A and C into the same cluster.
+    Use --cluster_method union_find for exclusive (hard) cluster membership.
     """
     cluster_sizes = [[i, len(similarity_matrix[i])] for i in range(len(variant_dictionary))]
 
@@ -290,9 +293,8 @@ def cluster_variants(variant_dictionary, similarity_matrix):
 
         cluster_dictionary = {}
         for var in similarity_matrix[i]:
-            if similarity_matrix[var][0] != -1:   # skip already-claimed
-                similarity_matrix[var][0] = -1
-                cluster_dictionary[var] = variant_dictionary[var]
+            similarity_matrix[var][0] = -1
+            cluster_dictionary[var] = variant_dictionary[var]
         variant = variant_dictionary[i]
 
         clusters.append([variant, cluster_dictionary])

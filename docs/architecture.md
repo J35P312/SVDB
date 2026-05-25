@@ -160,7 +160,7 @@ flowchart TD
     COARSE -->|"yes"| CTR["Centroid representative\nmost-common ins_seq/len\none VCF line per group"]
     COARSE -->|"no (default)"| EC["Pass 2: expand_chain\npairwise overlap gates\n→ similarity_matrix"]
     EC --> CM{"--cluster_method"}
-    CM -->|"star (default)"| STAR["Greedy star\nhighest-degree claims neighbours\nno transitivity"]
+    CM -->|"star (default)"| STAR["Greedy star\nhighest-degree claims neighbours\nno transitivity; multi-membership allowed"]
     CM -->|"union_find"| UF["Union-Find\ntransitive closure\nA-B + B-C → {A,B,C}"]
     STAR --> OUT[VCF lines\none per cluster]
     UF --> Out2[VCF lines\none per cluster]
@@ -190,8 +190,10 @@ The sequence gate is irreducibly serial; the earlier gates eliminate the vast
 majority of candidates before it runs.
 
 **Clustering** (`--cluster_method`): operates on the similarity graph output
-of `expand_chain`. `star` (default): greedy, no transitivity. `union_find`:
-transitive closure, fewer larger clusters.
+of `expand_chain`. `star` (default): greedy, no transitivity; a variant that
+overlaps multiple representatives appears in each cluster so OCC reflects all
+groups it genuinely belongs to. `union_find`: transitive closure, exclusive
+membership, fewer larger clusters.
 
 **`--coarse`**: skips Pass 2 entirely; centroid + most-common ins_seq/len from
 the DBSCAN group directly. Controlled by `--epsilon`/`--min_pts`.
