@@ -126,7 +126,8 @@ When the database was built with insertion sequence data (i.e. the INS table is 
   output:
     --prefix PREFIX             prefix for the output file (default: same as input)
     --no_merge                  skip merging; print all variants as-is
-    --strip_chr                 strip the 'chr' prefix from chromosome names (e.g. 'chr1' -> '1')
+    --strip_chr                 strip the 'chr' prefix from chromosome names in the output
+                                (e.g. 'chr1' -> '1'); names are stored as-is in the db
     --samples {on,off}          include per-sample genotype columns (default: on);
                                 use 'off' for sites-only output (FORMAT/GT omitted, OCC/FRQ kept)
 
