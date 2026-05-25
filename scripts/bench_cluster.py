@@ -3,18 +3,20 @@ Compare cluster_variants implementations on a real DB.
 
 Algorithms measured
 -------------------
-greedy_star       Current production algorithm.
-                  Sort variants by neighbour count (descending). The highest-degree
-                  variant becomes the cluster representative and claims all its
-                  neighbours. Claimed variants are skipped in subsequent iterations.
-                  BUG: does not check whether a neighbour is already claimed before
-                  adding it, so a variant can appear in multiple output clusters.
-                  No transitivity: if A overlaps B and B overlaps C but not A, A and C
-                  end up in separate clusters.
+greedy_star            Current production algorithm.
+                       Sort variants by neighbour count (descending). The highest-degree
+                       variant becomes the cluster representative and claims all its
+                       neighbours. A variant that overlaps multiple representatives
+                       appears in each of their clusters (intentional multi-membership):
+                       OCC reflects every group the variant genuinely belongs to.
+                       No transitivity: if A overlaps B and B overlaps C but not A,
+                       A and C end up in separate clusters.
 
-greedy_star_fixed Same greedy star algorithm with the membership bug fixed.
-                  Skips already-claimed neighbours in the inner loop, ensuring each
-                  variant appears in exactly one cluster.  No transitivity.
+greedy_star_exclusive  Same greedy star with exclusive membership enforced.
+                       Skips already-claimed neighbours in the inner loop, so each
+                       variant appears in exactly one cluster.  No transitivity.
+                       Produces more OCC=1 singletons; use when downstream tools
+                       require disjoint clusters.
 
 union_find        Union-Find (disjoint-set) on the overlap graph.
                   Every edge (i,j) in the similarity matrix is unioned, giving full
@@ -31,11 +33,11 @@ union_find_mst    Union-Find + MST-based pruning.
 
 Usage
 -----
-    python scripts/bench_cluster.py <db_path>
-    python scripts/bench_cluster.py <db_path> --skip-existing   # reuse already-run VCFs
-    python scripts/bench_cluster.py <db_path> --analyze-only    # no export runs at all
+    python scripts/bench_cluster.py <db_path> --bench-dir /path/to/output/
+    python scripts/bench_cluster.py <db_path> --bench-dir /path/to/output/ --skip-existing   # reuse already-run VCFs
+    python scripts/bench_cluster.py <db_path> --bench-dir /path/to/output/ --analyze-only    # no export runs at all
 
-All outputs go to /Users/kselav/Documents/repos/svdb_bench/.
+All outputs go to --bench-dir (default: current directory).
 """
 
 import argparse
@@ -53,7 +55,7 @@ import svdb.database as database
 from svdb.export_module import db_header, export
 from svdb.ins_similarity import resolve_ins_seq_threshold
 
-BENCH_DIR = "/path/to/bench_dir"  # UPDATE THIS
+BENCH_DIR = None
 PRUNE_SPREAD_THRESHOLD = 2500
 
 
@@ -61,7 +63,8 @@ PRUNE_SPREAD_THRESHOLD = 2500
 
 def cluster_greedy_star(variant_dictionary, similarity_matrix):
     """Production algorithm — greedy star, highest-degree-first, no transitivity.
-    BUG: adds neighbours without checking if already claimed → duplicate membership."""
+    Intentional multi-membership: a variant overlapping multiple representatives
+    appears in each cluster so OCC reflects all groups it genuinely belongs to."""
     cluster_sizes = [[i, len(similarity_matrix[i])] for i in range(len(variant_dictionary))]
     clusters = []
     for i, _ in sorted(cluster_sizes, key=lambda x: x[1], reverse=True):
@@ -75,11 +78,11 @@ def cluster_greedy_star(variant_dictionary, similarity_matrix):
     return clusters
 
 
-def cluster_greedy_star_fixed(variant_dictionary, similarity_matrix):
-    """Greedy star with the duplicate-membership bug fixed.
+def cluster_greedy_star_exclusive(variant_dictionary, similarity_matrix):
+    """Greedy star with exclusive membership enforced.
     Skips neighbours that are already claimed, so each variant appears in
-    exactly one cluster. No transitivity — same clustering semantics as
-    greedy_star, just correct."""
+    exactly one cluster. No transitivity — same greedy-star semantics as
+    the production algorithm, but without multi-membership."""
     cluster_sizes = [[i, len(similarity_matrix[i])] for i in range(len(variant_dictionary))]
     clusters = []
     for i, _ in sorted(cluster_sizes, key=lambda x: x[1], reverse=True):
@@ -400,10 +403,10 @@ def investigate_natural_duplicates(db_path):
 IMPLS = [
     ("greedy_star",
      cluster_greedy_star,
-     "greedy star — highest-degree-first, no transitivity [CURRENT DEFAULT, has membership bug]"),
-    ("greedy_star_fixed",
-     cluster_greedy_star_fixed,
-     "greedy star — bug fixed: skips already-claimed neighbours, no transitivity"),
+     "greedy star — highest-degree-first, multi-membership [CURRENT DEFAULT]"),
+    ("greedy_star_exclusive",
+     cluster_greedy_star_exclusive,
+     "greedy star — exclusive membership: skips already-claimed neighbours, no transitivity"),
     ("union_find",
      cluster_union_find,
      "Union-Find transitive closure, no size constraint"),
@@ -418,6 +421,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("db_path")
+    parser.add_argument("--bench-dir", default=".",
+                        help="directory for output VCFs (default: current directory)")
     parser.add_argument("--skip-existing", action="store_true",
                         help="skip export for algorithms whose output VCF already exists")
     parser.add_argument("--analyze-only", action="store_true",
@@ -452,7 +457,7 @@ def main():
     timings, vcf_paths = {}, {}
 
     for name, fn, desc in impls:
-        out = os.path.join(BENCH_DIR, f"bench_cluster_{name}")
+        out = os.path.join(args.bench_dir, f"bench_cluster_{name}")
         vcf_path = out + ".vcf"
 
         if args.analyze_only or (args.skip_existing and os.path.exists(vcf_path)):
