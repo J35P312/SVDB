@@ -164,7 +164,10 @@ def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False, no_samples=False):
         sample_set), round(len(sample_set) / float(len(sample_IDs)), 4), CIPOS_start, CIPOS_end, CIEND_start, CIEND_end)
     variant_field = "VARIANTS="
     for variant in cluster[1]:
-        variant_field += "|{}:{}:{}".format(cluster[1][variant]["sample_id"], cluster[1][variant]["posA"], cluster[1][variant]["posB"])
+        if no_samples:
+            variant_field += "|{}:{}".format(cluster[1][variant]["posA"], cluster[1][variant]["posB"])
+        else:
+            variant_field += "|{}:{}:{}".format(cluster[1][variant]["sample_id"], cluster[1][variant]["posA"], cluster[1][variant]["posB"])
     info_field += variant_field
     vcf_line.append(".")
     vcf_line.append("PASS")

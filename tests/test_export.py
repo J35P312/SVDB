@@ -137,6 +137,20 @@ class TestNoSamplesFlag(unittest.TestCase):
         assert fields[8] == "GT"
         assert len(fields) == 11  # 8 fixed + FORMAT + 2 sample GT cols
 
+    def test_vcf_line_no_samples_variants_has_no_sample_ids(self):
+        line = make_vcf_line(self._cluster(), "id1", ["s1", "s2"], no_samples=True)
+        info = line.split("\t")[7]
+        variants_field = next(f for f in info.split(";") if f.startswith("VARIANTS="))
+        assert "s1" not in variants_field
+        assert "s2" not in variants_field
+
+    def test_vcf_line_with_samples_variants_includes_sample_ids(self):
+        line = make_vcf_line(self._cluster(), "id1", ["s1", "s2"], no_samples=False)
+        info = line.split("\t")[7]
+        variants_field = next(f for f in info.split(";") if f.startswith("VARIANTS="))
+        assert "s1" in variants_field
+        assert "s2" in variants_field
+
     def test_header_no_samples_omits_format_line(self):
         hdr = db_header(args_no_samples)
         assert "##FORMAT" not in hdr
@@ -171,6 +185,20 @@ class TestNoSamplesIntegration:
         vcf = (tmp_path / "out.vcf").read_text()
         for line in _data_lines(vcf):
             assert len(line.split("\t")) == 8, f"Expected 8 fields, got: {line}"
+
+    def test_variants_field_has_no_sample_ids(self, tmp_path):
+        prefix = tmp_path / "pop"
+        subprocess.run(SVDB + ["--build", "--files", str(MANTA_CHR1), str(HG002_CHR1),
+                               "--prefix", str(prefix)], check=True, capture_output=True)
+        subprocess.run(SVDB + ["--export", "--db", str(tmp_path / "pop.db"),
+                               "--prefix", str(tmp_path / "out"),
+                               "--samples", "off"], check=True, capture_output=True)
+        vcf = (tmp_path / "out.vcf").read_text()
+        for line in _data_lines(vcf):
+            info = line.split("\t")[7]
+            variants = next((f for f in info.split(";") if f.startswith("VARIANTS=")), "")
+            assert "manta_chr1" not in variants
+            assert "hg002_chr1" not in variants
 
     def test_occ_and_frq_still_in_info(self, tmp_path):
         prefix = tmp_path / "pop"
