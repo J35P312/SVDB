@@ -123,6 +123,47 @@ class TestExport:
 
 
 # ---------------------------------------------------------------------------
+# Export — strip_chr
+# ---------------------------------------------------------------------------
+
+_CHR_VCF_CONTENT = """\
+##fileformat=VCFv4.1
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample1
+chr1\t1000\tsv1\tN\t<DEL>\t.\tPASS\tSVTYPE=DEL;END=5000\tGT\t0/1
+"""
+
+
+class TestExportStripChr:
+    @pytest.fixture
+    def chr_db(self, tmp_path):
+        vcf = tmp_path / "chr_sample.vcf"
+        vcf.write_text(_CHR_VCF_CONTENT)
+        prefix = tmp_path / "svdb"
+        run("--build", "--files", str(vcf), "--prefix", str(prefix))
+        return tmp_path / "svdb.db"
+
+    def test_chr_prefix_preserved_without_flag(self, chr_db, tmp_path):
+        """Without --strip_chr, exported CHROM column keeps the chr prefix."""
+        prefix = tmp_path / "out"
+        r = run("--export", "--db", str(chr_db), "--prefix", str(prefix))
+        assert r.returncode == 0
+        lines = vcf_data_lines((tmp_path / "out.vcf").read_text())
+        assert all(line.startswith("chr") for line in lines)
+
+    def test_strip_chr_removes_prefix(self, chr_db, tmp_path):
+        """With --strip_chr, exported CHROM column has no chr prefix."""
+        prefix = tmp_path / "out"
+        r = run("--export", "--db", str(chr_db), "--strip_chr", "--prefix", str(prefix))
+        assert r.returncode == 0
+        lines = vcf_data_lines((tmp_path / "out.vcf").read_text())
+        assert len(lines) > 0
+        assert all(not line.startswith("chr") for line in lines)
+
+
+# ---------------------------------------------------------------------------
 # Query — VCF db
 # ---------------------------------------------------------------------------
 
