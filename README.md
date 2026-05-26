@@ -252,7 +252,8 @@ Use --priority to override the order explicitly.
     --pass_only                 merge only variants labeled PASS
     --no_intra                  skip merging of variants within the same vcf
     --same_order                assume sample columns are in the same order across all input files
-    --notag                     do not add VARID and set entries to the INFO field
+    --no_tag                    do not add VARID and set entries to the INFO field
+                                (--notag is a deprecated alias; emits a warning)
 
   algorithm — SV matching:
     --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2000)

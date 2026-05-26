@@ -383,10 +383,10 @@ def merge(variants, samples, sample_order, priority_order, args):
                 files[source_i.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
             line = sort_format_field(
                 line, samples, sample_order, priority_order, files, args)
-            if merge and not args.notag:
+            if merge and not args.no_tag:
                 line[7] += ";VARID=" + "|".join(merge)
                 line[2] += ":{}|".format(source_i.split(".vcf")[0].split("/")[-1]) + "|".join(merge)
-            if not args.notag:
+            if not args.no_tag:
                 set_tag = determine_set_tag(priority_order, files)
                 line[7] += f";set={set_tag}"
                 line[7] += f";FOUNDBY={len(set(filters_tag.keys()))}"
@@ -412,7 +412,7 @@ def merge(variants, samples, sample_order, priority_order, args):
             for tag in samples_tag:
                 line[7]+=";{}_INFO={}".format(tag,",".join(info_tag[tag]))
 
-            if not args.notag:
+            if not args.no_tag:
                 line[7]+=";svdb_origin={}".format("|".join(callers))
 
             sup_vec=[]

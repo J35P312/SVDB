@@ -290,7 +290,9 @@ def main():
         parser.add_argument(
             '--merge', help="merge structural variants", required=False, action="store_true")
         parser.add_argument(
-            '--notag', help="do not add the VARID and set entries to the INFO field", required=False, action="store_true")
+            '--no_tag', help="do not add the VARID and set entries to the INFO field", required=False, action="store_true")
+        parser.add_argument(
+            '--notag', help=argparse.SUPPRESS, required=False, action="store_true")
         parser.add_argument('--vcf', nargs='*', type=str,
                             help="input vcf files to merge; use --priority to set caller precedence", required=True)
         parser.add_argument(
@@ -313,6 +315,9 @@ def main():
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
+        if args.notag:
+            logger.warning("--notag is deprecated; use --no_tag instead")
+            args.no_tag = True
         result = merge_vcf_module.main(args)
         if result is not None and result < 0:
             sys.exit(1)

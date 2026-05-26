@@ -116,7 +116,7 @@ def build_header(vcf_list, vcf_dictionary, args, command_line):
     # subheaders
     for entry in sorted(subheader):
         lines_out.append(subheader[entry].strip())
-    if not args.notag:
+    if not args.no_tag:
         lines_out.append("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
         lines_out.append("##INFO=<ID=FOUNDBY,Number=1,Type=Integer,Description=\"The number of files containing the variant\">")
         lines_out.append("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
