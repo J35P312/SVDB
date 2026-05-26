@@ -156,8 +156,8 @@ When the database was built with insertion sequence data (i.e. the INS table is 
                                 (--DBSCAN is a deprecated alias; emits a warning)
     --epsilon EPSILON           DBSCAN-style spatial grouping radius in bp (default: 500)
     --min_pts MIN_PTS           DBSCAN-style min_pts: minimum variants within --epsilon to seed
-                                a cluster; isolated variants become singletons
-                                (default: 2, meaning any pair within --epsilon forms a cluster)
+                                a cluster; isolated variants become singletons; must be a whole
+                                number ≥ 1 (default: 2, meaning any pair within --epsilon forms a cluster)
     --cluster_method {star,union_find}
                                 second-pass clustering algorithm (default: star):
                                   star        greedy; highest-degree variant claims neighbours.

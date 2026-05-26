@@ -20,7 +20,10 @@ def _fraction(flag: str):
 
 def _positive_int(flag: str):
     def _parse(value: str) -> int:
-        n = int(value)
+        try:
+            n = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{flag} must be a whole number ≥ 1, got {value!r}")
         if n < 1:
             raise argparse.ArgumentTypeError(f"{flag} must be ≥ 1, got {n}")
         return n

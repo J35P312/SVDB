@@ -323,6 +323,10 @@ class TestArgValidators(unittest.TestCase):
         with self.assertRaises(argparse.ArgumentTypeError):
             _positive_int("--min_pts")("-1")
 
+    def test_positive_int_float_string_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _positive_int("--min_pts")("1.2")
+
 
 class TestCLIArgValidation(unittest.TestCase):
     """Verify that out-of-range values are rejected by the real argparse wiring,
