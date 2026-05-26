@@ -1,0 +1,17 @@
+##fileformat=VCFv4.2
+##source=Sniffles2_2.6.2
+##command="/usr/share/millerlab/sniffles-2.6.2/bin/sniffles --input /waldo/1KGP_alignments/align-minimap2-2.24-hg38/100_PLUS/HG02571-ONT-hg38-R9-LSK110_dorado050_sup_5mCG/HG02571-ONT-hg38-R9-LSK110_dorado050_sup_5mCG.phased.bam --reference /data/dat/hg38/hg38.no_alt.fa --output-rnames --vcf /waldo/1KGP_alignments/align-minimap2-2.24-hg38/sniffles_v2.6.2_500/HG02571-ONT-hg38-R9-LSK110_dorado050_sup_5mCG.phased_sniffles_v2.6.2.phased.vcf --threads 30 --allow-overwrite --tandem-repeats /data/dat/annotationData/human_GRCh38_no_alt_analysis_set.trf.bed"
+##fileDate="2025/08/26 05:49:32"
+##ALT=<ID=INS,Description="Insertion">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##ALT=<ID=INV,Description="Inversion">
+##ALT=<ID=BND,Description="Breakend; Translocation">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=PRECISE,Number=0,Type=Flag,Description="Structural variation with precise breakpoints">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Structural variation with imprecise breakpoints">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length of structural variation">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variation">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of structural variation">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG02571.XX.GWD.AFR
+chrX	128937049	Sniffles2.INS.4BADSBF	g	gTGTGTATATGTGTGTATATATACATGTATATATACGTGTGTATATGTGTATATATGTGTGTATATGTGTGTATATATACACACATATATGTGTGTGTATATACACACACATATGTGTGTGTATATGTGTGTATATGTGTGTATATATACACACATGTATGTGTGTATATGTGTGTGTATGTGTGTATATATACACACATGTATGTGTGTATATATGTGTGTGTATATGTGTGTATATATACACACATATATGTGTGTGTATATGTGTGTGTATATGTGTGTATATGTGTGTGTATATGTGTGTATATATACACACATATATGTGTGTATATATGTGTGTATACACACATATATGTGTGTATATATACACACATATATGTGTGTATATATGTGTGTATATATACACACATATATGTGTGTATATATGTGTGTATATGTGTGTGTGTATATATACACACATATATGTGTATATATGTGTGTATATGTGTGTGTATATACACACATATATGTGTATATATGTGCGTGTGTATGTGTGTGTATATACACACATATAATGTATGTGTGTGTATGTGTGTATATACACACATATGTGTATATATGTGC	60	PASS	IMPRECISE;SVTYPE=INS;SVLEN=602;END=128937049	GT	1/1

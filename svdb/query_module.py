@@ -12,6 +12,32 @@ logger = logging.getLogger(__name__)
 _INS_SEQ_HARD_CAP = 25
 
 
+def _parse_variants_svlens(variants_val: str) -> "tuple[int, int] | None":
+    """Extract per-member SVLENs from a VARIANTS field value; return (min, max) or None.
+
+    Handles both samples-on (sample:posA:posB[:svlen]) and
+    samples-off (posA:posB[:svlen]) formats written by export_module.
+    Returns None when no SVLEN data is present (old-format VCFs).
+    """
+    svlens = []
+    for member in variants_val.split("|"):
+        if not member:
+            continue
+        parts = member.split(":")
+        n = len(parts)
+        try:
+            if n == 4:
+                svlens.append(int(parts[3]))
+            elif n == 3:
+                int(parts[0])  # numeric posA → samples-off with svlen; non-numeric → old samples-on
+                svlens.append(int(parts[2]))
+            else:
+                return None
+        except ValueError:
+            return None
+    return (min(svlens), max(svlens)) if svlens else None
+
+
 def _read_query_vcf(args, writer):
     """Read the query VCF, rewrite the header to writer, return collected variant queries."""
     queries = []
@@ -117,7 +143,9 @@ def _load_vcf_db(args):
 
             # Store SVLEN and sequence for insertion entries (VCF format only, not BEDPE)
             if not args.bedpedb and "INS" in event_type:
-                svlen = v.svlen
+                variants_val = v.info.get("VARIANTS", "") or ""
+                svlen_range = _parse_variants_svlens(variants_val)
+                svlen = svlen_range if svlen_range is not None else v.svlen
                 seq = v.ins_seq
             else:
                 svlen = None
@@ -287,7 +315,12 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             if match and is_ins and chrA == chrB:
                 db_svlen = DBvariants[chrA][chrB][var]["svlens"][candidate]
                 if db_svlen is not None and query_svlen is not None:
-                    if not overlap_module.insertion_svlen_match(query_svlen, db_svlen, ins_svlen_ratio):
+                    if isinstance(db_svlen, tuple):
+                        min_s, max_s = db_svlen
+                        if query_svlen > 0 and min_s > 0:
+                            if min(query_svlen, max_s) / max(query_svlen, min_s) < ins_svlen_ratio:
+                                match = False
+                    elif not overlap_module.insertion_svlen_match(query_svlen, db_svlen, ins_svlen_ratio):
                         match = False
 
             # Sequence similarity gate (within hard cap; skip if no_ins_seq or no sequences)
