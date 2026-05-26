@@ -171,16 +171,11 @@ def vcf_line(cluster, id_tag, sample_IDs, strip_chr=False, no_samples=False):
                 member_svlen = len(m["ins_seq"])
             elif m.get("ins_len"):
                 member_svlen = m["ins_len"]
+        svlen_suffix = ":L{}".format(member_svlen) if member_svlen is not None else ""
         if no_samples:
-            if member_svlen is not None:
-                variant_field += "|{}:{}:{}".format(m["posA"], m["posB"], member_svlen)
-            else:
-                variant_field += "|{}:{}".format(m["posA"], m["posB"])
+            variant_field += "|{}:{}{}".format(m["posA"], m["posB"], svlen_suffix)
         else:
-            if member_svlen is not None:
-                variant_field += "|{}:{}:{}:{}".format(m["sample_id"], m["posA"], m["posB"], member_svlen)
-            else:
-                variant_field += "|{}:{}:{}".format(m["sample_id"], m["posA"], m["posB"])
+            variant_field += "|{}:{}:{}{}".format(m["sample_id"], m["posA"], m["posB"], svlen_suffix)
     info_field += variant_field
     vcf_line.append(".")
     vcf_line.append("PASS")

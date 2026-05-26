@@ -15,25 +15,19 @@ _INS_SEQ_HARD_CAP = 25
 def _parse_variants_svlens(variants_val: str) -> "tuple[int, int] | None":
     """Extract per-member SVLENs from a VARIANTS field value; return (min, max) or None.
 
-    Handles both samples-on (sample:posA:posB[:svlen]) and
-    samples-off (posA:posB[:svlen]) formats written by export_module.
-    Returns None when no SVLEN data is present (old-format VCFs).
+    New-format entries end with :L<svlen> (e.g. sample:posA:posB:L564 or
+    posA:posB:L564).  The L prefix is unambiguous: coordinates are always
+    numeric, sample IDs never start with L followed by digits in that position.
+    Returns None for any entry without the L suffix (old-format VCFs).
     """
     svlens = []
     for member in variants_val.split("|"):
         if not member:
             continue
-        parts = member.split(":")
-        n = len(parts)
-        try:
-            if n == 4:
-                svlens.append(int(parts[3]))
-            elif n == 3:
-                int(parts[0])  # numeric posA → samples-off with svlen; non-numeric → old samples-on
-                svlens.append(int(parts[2]))
-            else:
-                return None
-        except ValueError:
+        last = member.rsplit(":", 1)[-1]
+        if last.startswith("L") and last[1:].isdigit():
+            svlens.append(int(last[1:]))
+        else:
             return None
     return (min(svlens), max(svlens)) if svlens else None
 

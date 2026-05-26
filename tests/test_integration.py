@@ -269,7 +269,7 @@ class TestQueryInsVcfRoundTrip:
         )
 
 
-class TestQueryTinyRoundTrip:
+class TestQueryInsVcfRoundTripFixture:
     """Real-world regression test using 9 Sniffles2 VCFs at chrX:128937049.
 
     All 9 samples share an INS at this locus with SVLENs ranging from 496–602 bp.
