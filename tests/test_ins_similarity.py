@@ -5,9 +5,12 @@ both simple synthetic sequences and sequences extracted directly from the
 ins_similarity fixture VCFs.
 """
 import argparse
+import unittest
+import unittest.mock
 import pytest
 from pathlib import Path
 
+from svdb.__main__ import _fraction, _positive_int
 from svdb.ins_similarity import (
     apply_ins_profile,
     cap_seq,
@@ -289,3 +292,85 @@ class TestApplyInsProfile:
         apply_ins_profile(args)
         assert args.ins_seq_similarity == 0.90
         assert args.no_ins_seq is True  # profile still sets this
+
+
+class TestArgValidators(unittest.TestCase):
+
+    def test_fraction_valid_boundary_values(self):
+        f = _fraction("--overlap")
+        assert f("0.0") == 0.0
+        assert f("1.0") == 1.0
+        assert f("0.75") == 0.75
+
+    def test_fraction_above_one_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _fraction("--overlap")("1.2")
+
+    def test_fraction_negative_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _fraction("--ins_seq_similarity")("-0.1")
+
+    def test_positive_int_valid(self):
+        f = _positive_int("--min_pts")
+        assert f("1") == 1
+        assert f("5") == 5
+
+    def test_positive_int_zero_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _positive_int("--min_pts")("0")
+
+    def test_positive_int_negative_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _positive_int("--min_pts")("-1")
+
+
+class TestCLIArgValidation(unittest.TestCase):
+    """Verify that out-of-range values are rejected by the real argparse wiring,
+    not just by the validator functions in isolation."""
+
+    def _assert_cli_error(self, argv, expected_fragment):
+        """Run svdb with argv; assert it exits non-zero and stderr contains expected_fragment."""
+        from svdb.__main__ import main
+        import io
+        with unittest.mock.patch("sys.argv", argv), \
+             unittest.mock.patch("sys.stderr", new_callable=io.StringIO) as mock_err, \
+             self.assertRaises(SystemExit) as cm:
+            main()
+        self.assertNotEqual(cm.exception.code, 0)
+        self.assertIn(expected_fragment, mock_err.getvalue())
+
+    def test_merge_overlap_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--merge", "--overlap", "1.5", "--vcf", "/dev/null"],
+            "--overlap must be in [0.0, 1.0]",
+        )
+
+    def test_merge_ins_svlen_ratio_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--merge", "--ins_svlen_ratio", "1.1", "--vcf", "/dev/null"],
+            "--ins_svlen_ratio must be in [0.0, 1.0]",
+        )
+
+    def test_merge_ins_seq_similarity_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--merge", "--ins_seq_similarity", "1.2", "--vcf", "/dev/null"],
+            "--ins_seq_similarity must be in [0.0, 1.0]",
+        )
+
+    def test_export_overlap_negative(self):
+        self._assert_cli_error(
+            ["svdb", "--export", "--db", "x.db", "--overlap", "-0.1"],
+            "--overlap must be in [0.0, 1.0]",
+        )
+
+    def test_export_min_pts_zero(self):
+        self._assert_cli_error(
+            ["svdb", "--export", "--db", "x.db", "--min_pts", "0"],
+            "--min_pts must be ≥ 1",
+        )
+
+    def test_query_max_frq_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--query", "--query_vcf", "x.vcf", "--db", "x.vcf", "--max_frq", "1.5"],
+            "--max_frq must be in [0.0, 1.0]",
+        )

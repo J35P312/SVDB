@@ -9,6 +9,24 @@ from . import build_module, export_module, merge_vcf_module, query_module
 logger = logging.getLogger(__name__)
 
 
+def _fraction(flag: str):
+    def _parse(value: str) -> float:
+        f = float(value)
+        if not 0.0 <= f <= 1.0:
+            raise argparse.ArgumentTypeError(f"{flag} must be in [0.0, 1.0], got {f}")
+        return f
+    return _parse
+
+
+def _positive_int(flag: str):
+    def _parse(value: str) -> int:
+        n = int(value)
+        if n < 1:
+            raise argparse.ArgumentTypeError(f"{flag} must be ≥ 1, got {n}")
+        return n
+    return _parse
+
+
 def _setup_logging(debug: bool) -> None:
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
@@ -25,11 +43,11 @@ def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
         help="maximum distance to match two insertions "
              "(default: 25; profile cohort/position_only: 50)")
     parser.add_argument(
-        '--ins_svlen_ratio', type=float, default=None,
+        '--ins_svlen_ratio', type=_fraction('--ins_svlen_ratio'), default=None,
         help="minimum SVLEN ratio (min/max) for insertions with known length "
              "(default: 0.90; profile cohort: 0.80)")
     parser.add_argument(
-        '--ins_seq_similarity', type=float, default=None,
+        '--ins_seq_similarity', type=_fraction('--ins_seq_similarity'), default=None,
         help="minimum Levenshtein sequence similarity (0–1); explicit value "
              "overrides --data_profile for this parameter (effective default: 0.75)")
     parser.add_argument(
@@ -124,14 +142,14 @@ def main():
                             help="output tag for allele count (default: OCC); required when querying multiple databases")
         parser.add_argument('--out_frq', type=str, default="FRQ",
                             help="output tag for allele frequency (default: FRQ); required when querying multiple databases")
-        parser.add_argument('--max_frq', type=float, default=1,
+        parser.add_argument('--max_frq', type=_fraction('--max_frq'), default=1,
                             help='only include variants with frequency at or below this value (default: 1, i.e. all variants)')
         parser.add_argument('--prefix', type=str, default=None,
                             help="prefix for the output file (default: print to stdout); required when querying multiple databases")
         parser.add_argument('--bnd_distance', type=int, default=10000,
                             help="maximum distance between two similar breakpoints (default: 10000)")
         _add_ins_flags(parser)
-        parser.add_argument('--overlap', type=float, default=0.6,
+        parser.add_argument('--overlap', type=_fraction('--overlap'), default=0.6,
                             help="minimum reciprocal overlap required to match two events "
                                  "(0 = anything touching; 1 = identical) (default: 0.6)")
         parser.add_argument('--memory',
@@ -212,7 +230,7 @@ def main():
         parser.add_argument('--bnd_distance', type=int, default=2500,
                             help="maximum distance between two similar precise breakpoints (default: 2500)")
         _add_ins_flags(parser)
-        parser.add_argument('--overlap', type=float, default=0.8,
+        parser.add_argument('--overlap', type=_fraction('--overlap'), default=0.8,
                             help="minimum reciprocal overlap required to merge two events "
                                  "(0 = anything touching; 1 = identical) (default: 0.8)")
         parser.add_argument(
@@ -226,7 +244,7 @@ def main():
                             help="used together with --coarse; spatial grouping radius in bp (DBSCAN-style "
                                  "epsilon): variants within this distance of each other are candidates "
                                  "for the same cluster (default: 500)", required=False)
-        parser.add_argument('--min_pts', type=int, default=2,
+        parser.add_argument('--min_pts', type=_positive_int('--min_pts'), default=2,
                             help="used together with --coarse; DBSCAN-style min_pts: minimum number of "
                                  "consecutively-positioned variants that must all fall within --epsilon "
                                  "to seed a cluster — isolated variants become singletons "
@@ -277,7 +295,7 @@ def main():
         parser.add_argument('--bnd_distance', type=int, default=2000,
                             help="maximum distance between two similar precise breakpoints (default: 2000)")
         _add_ins_flags(parser)
-        parser.add_argument('--overlap', type=float, default=0.95,
+        parser.add_argument('--overlap', type=_fraction('--overlap'), default=0.95,
                             help="minimum reciprocal overlap required to merge two events "
                                  "(0 = anything touching; 1 = identical) (default: 0.95)")
         parser.add_argument(

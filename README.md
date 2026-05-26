@@ -133,8 +133,8 @@ When the database was built with insertion sequence data (i.e. the INS table is 
 
   algorithm — SV matching:
     --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2500)
-    --overlap OVERLAP           minimum reciprocal overlap to merge two events
-                                (0 = anything touching; 1 = identical) (default: 0.8)
+    --overlap OVERLAP           minimum reciprocal overlap to merge two events;
+                                must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.8)
 
   algorithm — insertion matching (requires INS table):
     --data_profile {sample,cohort,position_only}
@@ -145,10 +145,10 @@ When the database was built with insertion sequence data (i.e. the INS table is 
     --ins_distance INS_DISTANCE maximum distance to cluster two insertions
                                 (default: 25; profile cohort/position_only: 50)
     --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertion clustering
-                                (default: 0.90; profile cohort: 0.80)
+                                must be in [0.0, 1.0] (default: 0.90; profile cohort: 0.80)
     --ins_seq_similarity THRESHOLD
-                                minimum Levenshtein sequence similarity (0-1); explicit value
-                                overrides --data_profile (effective default: 0.75)
+                                minimum Levenshtein sequence similarity; must be in [0.0, 1.0];
+                                explicit value overrides --data_profile (effective default: 0.75)
 
   algorithm — clustering:
     --coarse                    skip second-pass refinement; use centroid from DBSCAN spatial
@@ -204,8 +204,8 @@ The query module is used to query one or more structural variant databases. Typi
 
   algorithm — SV matching:
     --bnd_distance BND_DISTANCE maximum distance between two similar breakpoints (default: 10000)
-    --overlap OVERLAP           minimum reciprocal overlap to match two events
-                                (0 = anything touching; 1 = identical) (default: 0.6)
+    --overlap OVERLAP           minimum reciprocal overlap to match two events;
+                                must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.6)
     --max_frq MAX_FRQ           only report variants with frequency at or below this value
                                 (default: 1, i.e. all variants)
     --no_var                    count overlapping variants of different type as hits in the db
@@ -219,10 +219,10 @@ The query module is used to query one or more structural variant databases. Typi
     --ins_distance INS_DISTANCE maximum distance to match two insertions
                                 (default: 25; profile cohort/position_only: 50)
     --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertions with known length
-                                (default: 0.90; profile cohort: 0.80)
+                                must be in [0.0, 1.0] (default: 0.90; profile cohort: 0.80)
     --ins_seq_similarity THRESHOLD
-                                minimum Levenshtein sequence similarity (0-1); explicit value
-                                overrides --data_profile (effective default: 0.75)
+                                minimum Levenshtein sequence similarity; must be in [0.0, 1.0];
+                                explicit value overrides --data_profile (effective default: 0.75)
 
   performance:
     --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
@@ -256,8 +256,8 @@ Use --priority to override the order explicitly.
 
   algorithm — SV matching:
     --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2000)
-    --overlap OVERLAP           minimum reciprocal overlap to merge two events
-                                (0 = anything touching; 1 = identical) (default: 0.95)
+    --overlap OVERLAP           minimum reciprocal overlap to merge two events;
+                                must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.95)
     --no_var                    variants of different type will be merged
 
   algorithm — insertion matching:
@@ -269,10 +269,10 @@ Use --priority to override the order explicitly.
     --ins_distance INS_DISTANCE maximum distance to merge two insertions
                                 (default: 25; profile cohort/position_only: 50)
     --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertions with known length
-                                (default: 0.90; profile cohort: 0.80)
+                                must be in [0.0, 1.0] (default: 0.90; profile cohort: 0.80)
     --ins_seq_similarity THRESHOLD
-                                minimum Levenshtein sequence similarity (0-1); explicit value
-                                overrides --data_profile (effective default: 0.75)
+                                minimum Levenshtein sequence similarity; must be in [0.0, 1.0];
+                                explicit value overrides --data_profile (effective default: 0.75)
 
   performance:
     --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
