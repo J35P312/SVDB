@@ -354,11 +354,17 @@ def cluster_variants_union_find(variant_dictionary, similarity_matrix):
 
 
 def _pick_ins_seq(variant_dict):
-    """Return the most common non-null ins_seq across the cluster, or None."""
-    seqs = [v.get("ins_seq") for v in variant_dict.values() if v.get("ins_seq")]
-    if not seqs:
+    """Return the most common non-null ins_seq across the cluster, or None.
+
+    Returns None if any member lacks a sequence (symbolic allele or sequence
+    capped at --max_ins_seq_len).  A mixed cluster cannot be faithfully
+    represented by one sequence, so the caller outputs symbolic <INS> instead.
+    """
+    seqs = [v.get("ins_seq") for v in variant_dict.values()]
+    non_null = [s for s in seqs if s is not None]
+    if not non_null or len(non_null) < len(seqs):
         return None
-    return Counter(seqs).most_common(1)[0][0]
+    return Counter(non_null).most_common(1)[0][0]
 
 
 def _pick_ins_len(variant_dict):
@@ -516,9 +522,9 @@ def export(args, sample_IDs):
               and getattr(args, "max_ins_seq_len", None) is None
               and not getattr(args, "no_ins_seq", False)):
             logger.info(
-                "No --max_ins_seq_len set; sequence similarity will run on all insertion lengths. "
-                "For large databases, --max_ins_seq_len 500 or --max_ins_seq_len 1000 "
-                "is recommended to significantly reduce export time."
+                "--max_ins_seq_len 0: no sequence length cap; "
+                "sequence similarity will run on all insertion lengths. "
+                "For large databases this may be slow; consider --max_ins_seq_len 1000."
             )
 
         i = 0

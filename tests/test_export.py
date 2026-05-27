@@ -10,6 +10,7 @@ from svdb.export_module import (
     _expand_and_cluster_worker, _resolve_workers,
     db_header, make_representing_variant, build_genotype_columns,
     vcf_line as make_vcf_line,
+    _pick_ins_seq,
 )
 
 #mock argeparse arguments
@@ -475,3 +476,72 @@ class TestWorkersIntegration:
         assert len(serial) == len(parallel), (
             f"serial={len(serial)} lines, parallel={len(parallel)} lines"
         )
+
+
+class TestPickInsSeq:
+    """_pick_ins_seq: most-common sequence or None for missing/mixed clusters."""
+
+    def _cluster(self, entries):
+        """Build a variant_dict {i: {"ins_seq": ...}} from a list of seq-or-None values."""
+        return {i: {"ins_seq": s} for i, s in enumerate(entries)}
+
+    def test_all_same_sequence_returns_it(self):
+        d = self._cluster(["ACGT", "ACGT", "ACGT"])
+        assert _pick_ins_seq(d) == "ACGT"
+
+    def test_most_common_sequence_wins(self):
+        d = self._cluster(["ACGT", "TTTT", "ACGT"])
+        assert _pick_ins_seq(d) == "ACGT"
+
+    def test_all_none_returns_none(self):
+        d = self._cluster([None, None])
+        assert _pick_ins_seq(d) is None
+
+    def test_mixed_some_none_returns_none(self):
+        d = self._cluster(["ACGT", None, "ACGT"])
+        assert _pick_ins_seq(d) is None
+
+    def test_single_member_with_sequence(self):
+        d = self._cluster(["TTTT"])
+        assert _pick_ins_seq(d) == "TTTT"
+
+    def test_single_member_none_returns_none(self):
+        d = self._cluster([None])
+        assert _pick_ins_seq(d) is None
+
+    def test_mixed_cluster_vcf_line_outputs_symbolic_ins(self, tmp_path):
+        """vcf_line emits <INS> ALT when cluster has mixed ins_seq membership."""
+        import subprocess as _subprocess
+        seq = "ACGTACGT" * 10  # 80 bp, under default 1000 cap
+        vcf_with = tmp_path / "with_seq.vcf"
+        vcf_sym = tmp_path / "symbolic.vcf"
+        vcf_with.write_text("\n".join([
+            "##fileformat=VCFv4.1",
+            '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type">',
+            '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length">',
+            '##INFO=<ID=END,Number=1,Type=Integer,Description="End">',
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+            f"1\t1000\ti0\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1000",
+        ]) + "\n")
+        vcf_sym.write_text("\n".join([
+            "##fileformat=VCFv4.1",
+            '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type">',
+            '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length">',
+            '##INFO=<ID=END,Number=1,Type=Integer,Description="End">',
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",
+            f"1\t1005\ti1\tN\t<INS>\t.\tPASS\tSVTYPE=INS;SVLEN={len(seq)};END=1005",
+        ]) + "\n")
+        _subprocess.run(
+            SVDB + ["--build", "--files", str(vcf_with), str(vcf_sym),
+                    "--prefix", str(tmp_path / "svdb")],
+            check=True, capture_output=True,
+        )
+        _subprocess.run(
+            SVDB + ["--export", "--db", str(tmp_path / "svdb.db"),
+                    "--prefix", str(tmp_path / "out")],
+            check=True, capture_output=True,
+        )
+        lines = _data_lines((tmp_path / "out.vcf").read_text())
+        assert lines, "exported VCF has no data lines"
+        alt_col = lines[0].split("\t")[4]
+        assert alt_col == "<INS>", f"expected symbolic <INS>, got {alt_col!r}"
