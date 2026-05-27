@@ -306,6 +306,15 @@ mypy svdb/ --ignore-missing-imports
 
 Configuration lives in `pyproject.toml` (build system, ruff, pytest settings). The legacy `setup.py` is retained only for optional Cython compilation of `merge_vcf_module_cython`.
 
+Run a dependency security audit with GuardDog (not in CI — can be run locally before, for example,  bumping deps):
+
+```bash
+pip install guarddog
+grep -hv '^[[:space:]]*#\|^[[:space:]]*$' requirements.txt requirements-dev.txt \
+  | sed 's/[=><].*//' | tr -d ' ' \
+  | while read pkg; do guarddog pypi scan "$pkg"; done
+```
+
 See [docs/architecture.md](docs/architecture.md) for a module overview and data flow diagrams.
 
 ## Profiling
