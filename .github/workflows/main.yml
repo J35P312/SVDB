@@ -84,15 +84,16 @@ jobs:
           fetch-depth: 0
 
       - name: Semgrep static analysis
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: p/python-security
+        run: |
+          pip install semgrep
+          semgrep scan --config p/python-security --error .
 
       - name: GuardDog dependency scan
         continue-on-error: true
         run: |
           pip install guarddog
-          guarddog verify .
+          guarddog pypi scan --input-file requirements.txt
+          guarddog pypi scan --input-file requirements-dev.txt
 
       - name: Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
