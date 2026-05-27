@@ -114,7 +114,7 @@ Export uses a two-pass clustering approach: DBSCAN-inspired spatial grouping (fi
 (`--cluster_method`). `--coarse` skips the second pass. See [docs/algorithms.md](docs/algorithms.md)
 for a detailed description of all three algorithms.
 
-When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
+When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If any cluster member lacks a sequence — because its insertion was longer than `--max_ins_seq_len` at build time, or because it was called as a symbolic `<INS>` allele — the entire cluster is exported as `<INS>` with SVLEN taken from the most common stored length across members; a mixed cluster cannot be faithfully represented by a single sequence. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
 
 ```text
     svdb --export --help
@@ -169,7 +169,7 @@ When the database was built with insertion sequence data (i.e. the INS table is 
 
   performance:
     --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
-                                (default: 500); increase for databases with long insertions
+                                (default: 1000); use 0 for no cap (all sequences compared)
     --memory                    load the db into memory: higher memory use, lower export time
     --workers N                 parallel worker processes (default: 0 = all logical CPUs; 1 = serial)
 ```
@@ -226,7 +226,7 @@ The query module is used to query one or more structural variant databases. Typi
 
   performance:
     --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
-                                (default: 500); increase for databases with long insertions
+                                (default: 1000); use 0 for no cap (all sequences compared)
     --memory                    load the db into memory: higher memory use, lower query time
                                 (sqdb only)
 ```
@@ -277,7 +277,7 @@ Use --priority to override the order explicitly.
 
   performance:
     --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
-                                (default: 500); increase for databases with long insertions
+                                (default: 1000); use 0 for no cap (all sequences compared)
 ```
 
 ## For developers

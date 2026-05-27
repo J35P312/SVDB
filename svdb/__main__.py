@@ -30,6 +30,21 @@ def _positive_int(flag: str):
     return _parse
 
 
+def _max_ins_seq_len(value: str):
+    """Parse --max_ins_seq_len: positive integer, or 0 meaning unlimited (None)."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"--max_ins_seq_len must be a positive integer or 0 (unlimited), got {value!r}"
+        )
+    if n < 0:
+        raise argparse.ArgumentTypeError(
+            f"--max_ins_seq_len must be ≥ 0 (0 = unlimited), got {n}"
+        )
+    return None if n == 0 else n
+
+
 def _setup_logging(debug: bool) -> None:
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
@@ -61,10 +76,10 @@ def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
              "position_only: no sequence gate, match on position+SVLEN only (dist=50, ratio=0.90). "
              "Individual --ins_* flags override profile values.")
     parser.add_argument(
-        '--max_ins_seq_len', type=int, default=500,
+        '--max_ins_seq_len', type=_max_ins_seq_len, default=1000,
         help="sequences longer than N bp are excluded from sequence similarity "
-             "and fall back to position+SVLEN (default: 500). "
-             "Use a higher value or None to compare longer sequences.")
+             "and fall back to position+SVLEN (default: 1000); "
+             "use 0 for no cap (compare all sequences regardless of length).")
 
 
 def make_query_calls (args, queries, keyword):
