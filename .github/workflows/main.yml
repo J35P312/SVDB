@@ -86,7 +86,7 @@ jobs:
       - name: Semgrep static analysis
         run: |
           pip install semgrep
-          semgrep scan --config p/python-security --error .
+          semgrep scan --config p/python --error .
 
       - name: GuardDog dependency scan
         continue-on-error: true
