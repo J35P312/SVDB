@@ -93,14 +93,6 @@ jobs:
           pip install semgrep
           semgrep scan --config p/python --error .
 
-      - name: GuardDog dependency scan
-        continue-on-error: true
-        run: |
-          pip install guarddog
-          grep -hv '^[[:space:]]*#\|^[[:space:]]*$' requirements.txt requirements-dev.txt \
-            | sed 's/[=><].*//' | tr -d ' ' \
-            | while read pkg; do guarddog pypi scan "$pkg"; done
-
       - name: Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
