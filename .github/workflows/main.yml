@@ -96,8 +96,9 @@ jobs:
         continue-on-error: true
         run: |
           pip install guarddog
-          guarddog pypi scan --input-file requirements.txt
-          guarddog pypi scan --input-file requirements-dev.txt
+          grep -hv '^[[:space:]]*#\|^[[:space:]]*$' requirements.txt requirements-dev.txt \
+            | sed 's/[=><].*//' | tr -d ' ' \
+            | while read pkg; do guarddog pypi scan "$pkg"; done
 
       - name: Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
@@ -113,7 +114,7 @@ jobs:
             exit 1
           fi
 
-      - name: Detect Trojan Source attacks (CVE-2021-42574)
+      - name: Scan for dangerous Unicode sequences (Bidi controls)
         run: |
           if grep -rP "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
                --include="*.py" --include="*.yml" --include="*.yaml" --include="*.toml" \
