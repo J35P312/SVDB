@@ -132,6 +132,9 @@ Existing SQLite (.db) → upgrade_db
 ```text
 query VCF → _read_query_vcf → variant list
 DB (VCF/BEDPE)  → _load_vcf_db → queryVCFDB
+                   _parse_variants_svlens: VARIANTS field `:L{svlen}` suffix parsed
+                   once at load → (min, max) SVLEN tuple per cluster entry;
+                   range-based gate: min(q, max_s)/max(q, min_s) >= ins_svlen_ratio
                    ins_similarity.sequence_gate + insertion_svlen_match → OCC/FRQ
 DB (SQLite)     → SQDB
                    LEFT JOIN INS (when INS table present)
@@ -200,8 +203,10 @@ the DBSCAN group directly. Controlled by `--epsilon`/`--min_pts`.
 
 **ALT field per cluster**:
 
-- `N<ins_seq>` — ins_seq present (most-common non-null across members)
-- `<INS>` — ins_len present but sequence absent (capped or missing)
+- `N<ins_seq>` — all members have a sequence; most-common non-null `ins_seq` used
+- `<INS>` — any member lacks a sequence (capped at `--max_ins_seq_len`, symbolic allele,
+            or mixed cluster); `SVLEN` taken from most-common stored length across members.
+            A mixed cluster cannot be faithfully represented by one sequence.
 - `<SVTYPE>` — all other types
 
 **Parallelism**: DBSCAN groups dispatched via `multiprocessing.Pool` (spawn,
