@@ -50,12 +50,6 @@ pip install .
 
 SVDB is available as a container on [BioContainers](https://quay.io/repository/biocontainers/svdb?tab=tags&tag=).
 
-SVDB is available on Singularity:
-
-```bash
-singularity pull shub://J35P312/SVDB
-```
-
 ## Global options
 
 These flags apply to all subcommands and must be placed before the subcommand name:
@@ -185,12 +179,13 @@ The query module is used to query one or more structural variant databases. Typi
          --prefix test --in_occ default,Obs --in_frq FRQ,default \
          --out_frq db1_AF,db2_Frq --out_occ db1_AC,db2_Obs
 
-  input (required):
-    --query_vcf VCF             query vcf file
+  input:
+    --query_vcf VCF   (required) query vcf file
     --db DB                     db vcf, or a comma-separated list (no effect on --bedpedb)
     --sqdb SQDB                 SVDB sqlite db, or a comma-separated list
     --bedpedb BEDPEDB           SV db in chrA-posA-chrB-posB-type-count-frequency format,
                                 or a comma-separated list
+                                (at least one of --db / --sqdb / --bedpedb is required)
 
   output:
     --prefix PREFIX             prefix for the output file (default: print to stdout);
