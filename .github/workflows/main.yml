@@ -109,3 +109,12 @@ jobs:
             exit 1
           fi
 
+      - name: Detect Trojan Source attacks (CVE-2021-42574)
+        run: |
+          if grep -rP "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
+               --include="*.py" --include="*.yml" --include="*.yaml" --include="*.toml" \
+               --exclude-dir=".git" .; then
+            echo "::error::Dangerous bidirectional Unicode control sequences detected"
+            exit 1
+          fi
+
