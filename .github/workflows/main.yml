@@ -80,6 +80,7 @@ jobs:
 
     name: Security checks
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     steps:
 
