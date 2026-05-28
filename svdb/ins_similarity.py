@@ -13,27 +13,70 @@ Public API used by merge, query, and export pipelines:
       True = allow merge; False = reject.  Returns True when either sequence is
       empty (symbolic ALT or absent), deferring to position+SVLEN.
 
+  cap_seq(seq, max_len) -> str
+      Cap insertion sequence to max_len before comparison; returns "" if over
+      the cap, which causes sequence_gate to defer to position+SVLEN.
+
   parse_svlen(info_str) -> Optional[int]
       Extract |SVLEN| from a VCF INFO string.
 
-  resolve_ins_seq_threshold(args) -> float
-      Resolve effective sequence similarity threshold from args, applying
-      --data_profile presets and emitting a warning on conflict.
+  apply_ins_profile(args) -> None
+      Resolve all INS matching parameters onto args, applying --data_profile
+      presets.  Profile sets the base; explicit flags override per-parameter.
+      All args.ins_* attributes are guaranteed non-None after this call.
 """
 
 import logging
 import re
-from typing import Optional
+import zlib
+from typing import Optional, Union
 
 from rapidfuzz.distance import Levenshtein
 
 logger = logging.getLogger(__name__)
 
-_DATA_PROFILE_THRESHOLDS = {
-    "sample": 0.85,
-    "cohort": 0.75,
+# Effective defaults when no profile and no explicit flag is set.
+_INS_DEFAULTS: dict = {
+    "ins_distance": 25,
+    "ins_svlen_ratio": 0.90,
+    "ins_seq_similarity": 0.75,
+    "no_ins_seq": False,
 }
-_DEFAULT_INS_SEQ_SIMILARITY = 0.75
+
+# Full presets.  Profile values are overridden by any individually specified flag.
+_PROFILES: dict = {
+    "sample": {
+        "ins_distance": 25,
+        "ins_svlen_ratio": 0.90,
+        "ins_seq_similarity": 0.85,
+        "no_ins_seq": False,
+    },
+    "cohort": {
+        "ins_distance": 50,
+        "ins_svlen_ratio": 0.80,
+        "ins_seq_similarity": 0.75,
+        "no_ins_seq": False,
+    },
+    "position_only": {
+        "ins_distance": 50,
+        "ins_svlen_ratio": 0.90,
+        "ins_seq_similarity": 0.75,  # unused when no_ins_seq=True
+        "no_ins_seq": True,
+    },
+}
+
+
+def decompress_ins_seq(raw: Union[bytes, str, None]) -> Optional[str]:
+    """Recover a stored ins_seq value to a plain string.
+
+    New databases store ins_seq as a zlib-compressed BLOB (bytes); legacy
+    databases store it as TEXT (str).  Returns None when raw is None.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, bytes):
+        return zlib.decompress(raw).decode()
+    return raw
 
 
 def extract_ins_sequence(ref: str, alt: str) -> str:
@@ -54,13 +97,15 @@ def extract_ins_sequence(ref: str, alt: str) -> str:
     return alt
 
 
-def levenshtein_similarity(seq_a: str, seq_b: str) -> float:
+def levenshtein_similarity(seq_a: str, seq_b: str, score_cutoff: float = 0.0) -> float:
     """Normalised Levenshtein similarity in [0, 1].
 
     Uses rapidfuzz for efficiency (~14–33 µs/pair on typical insertion lengths).
     Two empty strings are considered identical (returns 1.0).
+    score_cutoff enables early termination: returns 0.0 immediately when the
+    similarity cannot reach the cutoff, avoiding the full O(n*m) computation.
     """
-    return Levenshtein.normalized_similarity(seq_a, seq_b)
+    return Levenshtein.normalized_similarity(seq_a, seq_b, score_cutoff=score_cutoff)
 
 
 def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
@@ -72,7 +117,18 @@ def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
     """
     if not seq_a or not seq_b:
         return True
-    return levenshtein_similarity(seq_a, seq_b) >= threshold
+    return levenshtein_similarity(seq_a, seq_b, score_cutoff=threshold) >= threshold
+
+
+def cap_seq(seq: Optional[str], max_len: Optional[int]) -> str:
+    """Return seq unchanged if within max_len; return "" if it exceeds the cap.
+
+    An empty return causes sequence_gate to skip similarity and defer to
+    position+SVLEN matching — consistent with symbolic ALT behaviour.
+    """
+    if seq and max_len is not None and len(seq) > max_len:
+        return ""
+    return seq or ""
 
 
 def parse_svlen(info_str: str) -> Optional[int]:
@@ -83,25 +139,20 @@ def parse_svlen(info_str: str) -> Optional[int]:
     return None
 
 
-def resolve_ins_seq_threshold(args) -> float:
-    """Return the effective insertion sequence similarity threshold.
+def apply_ins_profile(args) -> None:
+    """Resolve INS matching parameters from --data_profile and explicit flags.
 
-    --data_profile takes precedence over an explicit --ins_seq_similarity.
-    If both are supplied, emits a warning and uses the profile threshold.
+    --data_profile sets the base for all INS parameters; any individually
+    specified --ins_* flag overrides the profile for that parameter only.
+    All args.ins_* attributes are guaranteed non-None after this call.
     """
-    profile = getattr(args, "data_profile", None)
-    explicit = getattr(args, "ins_seq_similarity", None)
+    profile_name = getattr(args, "data_profile", None)
+    profile = _PROFILES.get(profile_name, {})
 
-    if profile is not None and explicit is not None:
-        resolved = _DATA_PROFILE_THRESHOLDS[profile]
-        logger.warning(
-            "Both --data_profile %s and --ins_seq_similarity %.2f were specified. "
-            "--data_profile takes precedence; using threshold %.2f.",
-            profile, explicit, resolved,
-        )
-        return resolved
-    if profile is not None:
-        return _DATA_PROFILE_THRESHOLDS[profile]
-    if explicit is not None:
-        return explicit
-    return _DEFAULT_INS_SEQ_SIMILARITY
+    # no_ins_seq: always derived from profile (position_only sets it to True)
+    args.no_ins_seq = profile.get("no_ins_seq", False)
+
+    # Numeric params: None = not explicitly set → use profile value then default
+    for key in ("ins_distance", "ins_svlen_ratio", "ins_seq_similarity"):
+        if getattr(args, key, None) is None:
+            setattr(args, key, profile.get(key, _INS_DEFAULTS[key]))

@@ -162,36 +162,6 @@ class TestDataProfileCohort:
 
 
 # ---------------------------------------------------------------------------
-# --no_ins_seq: disable sequence gate entirely
-# ---------------------------------------------------------------------------
-
-class TestNoInsSeq:
-
-    def test_low_sim_merges_when_seq_disabled(self):
-        # sim≈0.700 would normally be rejected; with --no_ins_seq it merges on pos+SVLEN
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
-                      fixture("grch37_neg_c_sim0.672", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 1
-
-    def test_adversarial_neg_c_merges_when_seq_disabled(self):
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("grch37_neg_c_sim0.837", "caller_a"),
-                      fixture("grch37_neg_c_sim0.837", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 1
-
-    def test_low_svlen_ratio_still_rejected_with_seq_disabled(self):
-        # SVLEN gate is independent of sequence gate
-        r = run_merge("--no_ins_seq",
-                      "--vcf", fixture("low_svlen_ratio", "caller_a"),
-                      fixture("low_svlen_ratio", "caller_b"))
-        assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 2
-
-
-# ---------------------------------------------------------------------------
 # --ins_svlen_ratio custom value
 # ---------------------------------------------------------------------------
 
@@ -199,8 +169,8 @@ class TestInsSvlenRatio:
 
     def test_loose_svlen_ratio_merges_low_ratio_pair(self):
         # SVLEN=100/220, ratio=0.455. With --ins_svlen_ratio 0.40 the SVLEN gate passes.
-        # Disable sequence check to isolate SVLEN gate behaviour.
-        r = run_merge("--ins_svlen_ratio", "0.40", "--no_ins_seq",
+        # Use position_only to isolate SVLEN gate behaviour without sequence comparison.
+        r = run_merge("--ins_svlen_ratio", "0.40", "--data_profile", "position_only",
                       "--vcf", fixture("low_svlen_ratio", "caller_a"),
                       fixture("low_svlen_ratio", "caller_b"))
         assert r.returncode == 0
@@ -239,19 +209,63 @@ class TestPositionWindow:
 
 
 # ---------------------------------------------------------------------------
-# --data_profile + explicit --ins_seq_similarity conflict: profile wins
+# --data_profile + explicit flags: explicit wins per-parameter
 # ---------------------------------------------------------------------------
 
-class TestProfileOverridesThreshold:
+class TestProfileAndExplicitInteraction:
 
-    def test_profile_wins_over_explicit_threshold_with_warning(self):
-        # When both are specified, --data_profile overrides --ins_seq_similarity.
-        # sample profile → threshold=0.85 → sim≈0.789 < 0.85 → rejected.
-        # If user's explicit 0.50 were used instead, it would pass.
+    def test_max_ins_seq_len_bypasses_sequence_gate(self):
+        # grch37_neg_c_sim0.672: extracted sequences ~70/67 bp, sim≈0.672 < 0.75 → normally 2 lines.
+        # With --max_ins_seq_len 50 both are capped to "" → gate skipped → merge → 1 line.
+        r = run_merge("--max_ins_seq_len", "50",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_max_ins_seq_len_above_seq_length_does_not_merge(self):
+        # Cap above actual sequence length (~70 bp) → sequences still compared → 2 lines.
+        r = run_merge("--max_ins_seq_len", "200",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 2
+
+    def test_explicit_threshold_overrides_profile(self):
+        # Explicit --ins_seq_similarity wins over --data_profile for that parameter.
+        # sample profile sets sim=0.85, which would reject this pair (sim≈0.789).
+        # Explicit 0.50 overrides → sim≈0.789 > 0.50 → merged.
         r = run_merge("--data_profile", "sample",
                       "--ins_seq_similarity", "0.50",
                       "--vcf", fixture("grch37_pos25_sim0.789", "caller_a"),
                       fixture("grch37_pos25_sim0.789", "caller_b"))
         assert r.returncode == 0
-        assert len(data_lines(r.stdout)) == 2  # profile threshold 0.85 wins
-        assert "Warning" in r.stderr or "warning" in r.stderr.lower()
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_position_only_profile_skips_sequence_gate(self):
+        # position_only: sequence gate disabled, match on pos+SVLEN only.
+        # sim≈0.700 would normally reject; position_only bypasses that gate.
+        r = run_merge("--data_profile", "position_only",
+                      "--vcf", fixture("grch37_neg_c_sim0.672", "caller_a"),
+                      fixture("grch37_neg_c_sim0.672", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_position_only_adversarial_neg_c_merges(self):
+        # sim≈0.837 would pass the default threshold but this confirms
+        # position_only merges regardless of sequence content.
+        r = run_merge("--data_profile", "position_only",
+                      "--vcf", fixture("grch37_neg_c_sim0.837", "caller_a"),
+                      fixture("grch37_neg_c_sim0.837", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 1
+
+    def test_position_only_svlen_gate_still_rejects(self):
+        # SVLEN gate is independent of the sequence gate: even with position_only,
+        # a pair whose SVLEN ratio falls below the default threshold (0.90) is rejected.
+        r = run_merge("--data_profile", "position_only",
+                      "--vcf", fixture("low_svlen_ratio", "caller_a"),
+                      fixture("low_svlen_ratio", "caller_b"))
+        assert r.returncode == 0
+        assert len(data_lines(r.stdout)) == 2
+

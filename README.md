@@ -1,24 +1,22 @@
 # SVDB
+
 SVDB is a toolkit for constructing and querying structural variant databases. The databases are constructed using the output vcf files from structural variant callers such as TIDDIT, Manta, Fermikit or Delly.
-SVDB may also be used to merge SV  vcf files from multiple callers or individuals.
+SVDB may also be used to merge SV vcf files from multiple callers or individuals.
 
+## Supported public databases
 
-# Supported public databases
-SVDB query supports public databases such as thousand genomes SV map and Gnomad SV, as well as most multisample SV vcf files
+SVDB query supports public databases such as thousand genomes SV map and Gnomad SV, as well as most multisample SV vcf files.
 
 The thousand genomes SV database:
-
-ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/
+<ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/integrated_sv_map/>
 
 The swegen SVDB:
-
-https://swefreq.nbis.se/
+<https://swefreq.nbis.se/>
 
 The GNOMAD SV database:
+<https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz>
 
-https://storage.googleapis.com/gnomad-public/papers/2019-sv/gnomad_v2_sv.sites.vcf.gz
-
-external databases are run like this:
+External databases are run like this:
 
 ```bash
 svdb --query \
@@ -30,224 +28,254 @@ svdb --query \
      --db /home/jesper/Downloads/gnomad_sv/gnomad_v2_sv.sites.vcf
 ```
 
-here the `AF` and `AN` are the allele frequency tags of the database, the `AF` is a float, and `AN` is an integer. These tags will be added to the annotated output vcf, and named `GNOMAD_AC`, `GNOMAD_AF`.
+Here the `AF` and `AN` are the allele frequency tags of the database, the `AF` is a float, and `AN` is an integer. These tags will be added to the annotated output vcf, and named `GNOMAD_AC`, `GNOMAD_AF`.
 
-# Install:
+## Install
+
 Dependencies: SVDB requires Python 3.9+ and numpy.
-SVDB is installed using the following command
 
-	git clone https://github.com/J35P312/SVDB.git
-	cd SVDB
-	pip install .
+Install from PyPI:
 
-SVDB is available on singularity:
+```bash
+pip install svdb
+```
 
-	singularity pull shub://J35P312/SVDB
+Install from source:
 
-# Modules:
+```bash
+git clone https://github.com/J35P312/SVDB.git
+cd SVDB
+pip install .
+```
+
+SVDB is available as a container on [BioContainers](https://quay.io/repository/biocontainers/svdb?tab=tags&tag=).
+
+## Global options
+
+These flags apply to all subcommands and must be placed before the subcommand name:
+
+```text
+    --debug     enable debug logging to stderr
+                e.g. svdb --debug --build --files sample.vcf
+```
+
+## Modules
+
 SVDB consists of modules that are used to build, query, export, and analyse structural variant databases. These are the modules:
 
 ## Build
+
 This module is used to construct structural variant databases from vcf files. The database may then be queried to compute the frequency of structural variants, or exported into a vcf file. These are the commands used to construct a structural variation database:
 
-    print a help message
-        svdb  --build --help
-    Construct a database from a set of vcf files:
-        svdb --build --files sample1.vcf sample2.vcf sample3.vcf
-    Construct a database from vcf files stored in a folder:
-        svdb --build --folder SV_analysis_folder/
-    Upgrade an existing database schema to the current SVDB version:
-        svdb --build --upgrade --prefix existing_db
-    Upgrade schema and backfill insertion data from the original VCFs:
-        svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db
+Sample names are taken from the VCF header's sample column (the named `FORMAT` columns).
+For VCFs with no sample columns (INFO-only format), the filename stem is used instead.
 
-    optional arguments:
-        -h, --help                      show this help message and exit
+```text
+    svdb --build --help
+    svdb --build --files sample1.vcf sample2.vcf sample3.vcf
+    svdb --build --folder SV_analysis_folder/
+    svdb --build --upgrade --files sample1.vcf sample2.vcf --prefix existing_db   # add INS table + backfill insertion sequences from original VCFs
 
-        --files [FILES [FILES ...]]      create a db using the specified vcf files (cannot be
-                                        used with --folder)
+  input (one of required):
+    --files [FILES ...]             vcf files to build the db from (cannot be used with --folder)
+    --folder FOLDER                 use all vcf files in the given folder
 
-        --folder FOLDER                 create a db using all the vcf files in the folders
+  output:
+    --prefix PREFIX                 prefix for the output file (default: SVDB)
+    --pass_only                     only include variants with PASS or . in the FILTER field
+                                    (--passonly is a deprecated alias; emits a warning)
 
-        --prefix PREFIX                 the prefix of the output file, default = SVDB
+  upgrade existing db:
+    --upgrade                       create the INS table and backfill insertion sequences from the
+                                    provided VCFs; schema-only, no existing SVDB rows are changed.
+                                    Exits with INFO if the INS table already exists.
+                                    Warns (WARNING) for DB samples with no matching VCF provided;
+                                    logs (INFO) VCF samples that have no entries in the database.
+                                    Requires --files or --folder.
 
-        --upgrade                       create the INS sequence/length table in an existing
-                                        database (safe to run on any database; exits with INFO
-                                        if already up to date). Optionally combine with --files
-                                        or --folder to backfill insertion data from the original
-                                        VCFs without rebuilding the full database.
-
-        --passonly                      only include variants with PASS or . in the FILTER field
-
-        --debug                         enable debug logging to stderr
-
+  storage:
+    --max_ins_seq_len N             cap on stored insertion sequence length (bp); sequences
+                                    longer than N are stored with NULL sequence but retain
+                                    SVLEN for length-ratio matching (default: no limit)
+```
 
 ## Export
-This module is used to export the variants of the SVDB sqlite database. The variants of the sqlite svdb database is clustered using one out of three algorithms, overlap or DBSCAN.
 
-When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
- 
-    print a help message
-        svdb  --export --help  
-    Export the variants of the database database.db:
-        svdb --export --db database.db
+This module is used to export the variants of the SVDB sqlite database.
 
-    optional arguments:
-        --no_merge                  skip the merging of variants, print all variants in the db to a vcf file
+Export uses a two-pass clustering approach: DBSCAN-inspired spatial grouping (first pass, controlled by
+`--epsilon`/`--min_pts`) followed by overlap/SVLEN/sequence refinement and representative selection
+(`--cluster_method`). `--coarse` skips the second pass. See [docs/algorithms.md](docs/algorithms.md)
+for a detailed description of all three algorithms.
 
-        --bnd_distance BND_DISTANCE the maximum distance between two similar precise breakpoints (default = 2500)
+When the database was built with insertion sequence data (i.e. the INS table is present), insertions are exported with the actual insertion sequence in the ALT column instead of the symbolic `<INS>` allele. For clusters containing multiple samples, the most common sequence across the cluster is used as the representative ALT allele. If any cluster member lacks a sequence — because its insertion was longer than `--max_ins_seq_len` at build time, or because it was called as a symbolic `<INS>` allele — the entire cluster is exported as `<INS>` with SVLEN taken from the most common stored length across members; a mixed cluster cannot be faithfully represented by a single sequence. If the INS table is absent (older database), a warning is emitted and insertions are exported as `<INS>`; run `svdb --build --upgrade --files <original_vcfs> --prefix <existing_db>` to create the INS table and backfill insertion data from the original VCFs.
 
-        --ins_distance INS_DISTANCE the maximum distance to cluster two insertions (default = 25)
+```text
+    svdb --export --help
+    svdb --export --db database.db
 
-        --ins_svlen_ratio RATIO      minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90);
-                                    requires INS table
+  input (required):
+    --db DB                     the SQLite database to export
 
-        --ins_seq_similarity THRESHOLD
-                                    minimum Levenshtein sequence similarity (0–1) for insertion clustering
-                                    (default = 0.75); overridden by --data_profile; requires INS table
+  output:
+    --prefix PREFIX             prefix for the output file (default: same as input)
+    --no_merge                  skip merging; print all variants as-is
+    --strip_chr                 strip the 'chr' prefix from chromosome names in the output
+                                (e.g. 'chr1' -> '1'); names are stored as-is in the db
+    --samples {on,off}          include per-sample genotype columns (default: on);
+                                use 'off' for sites-only output (FORMAT/GT omitted, OCC/FRQ kept)
 
-        --data_profile {sample,cohort}
-                                    set a sequence similarity preset: sample=0.85, cohort=0.75;
-                                    overrides --ins_seq_similarity; requires INS table
+  algorithm — SV matching:
+    --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2500)
+    --overlap OVERLAP           minimum reciprocal overlap to merge two events;
+                                must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.8)
 
-        --no_ins_seq                disable insertion sequence similarity check for clustering;
-                                    cluster on position and SVLEN only; requires INS table
+  algorithm — insertion matching (requires INS table):
+    --data_profile {sample,cohort,position_only}
+                                preset for all insertion parameters; individual --ins_* flags override:
+                                  sample:        strict  (dist=25, ratio=0.90, sim=0.85) - same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
+                                  position_only: no sequence gate (dist=50, ratio=0.90)
+    --ins_distance INS_DISTANCE maximum distance to cluster two insertions
+                                (default: 25; profile cohort/position_only: 50)
+    --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertion clustering
+                                must be in [0.0, 1.0] (default: 0.90; profile cohort: 0.80)
+    --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity; must be in [0.0, 1.0];
+                                explicit value overrides --data_profile (effective default: 0.75)
 
-        --overlap OVERLAP           the overlap required to merge two events (0 means anything that
-                                    touches will be merged, 1 means that two events must be identical
-                                    to be merged), default = 0.8
+  algorithm — clustering:
+    --coarse                    skip second-pass refinement; use centroid from DBSCAN spatial
+                                clusters directly. Produces fewer, coarser clusters.
+                                (--DBSCAN is a deprecated alias; emits a warning)
+    --epsilon EPSILON           DBSCAN-style spatial grouping radius in bp (default: 500)
+    --min_pts MIN_PTS           DBSCAN-style min_pts: minimum variants within --epsilon to seed
+                                a cluster; isolated variants become singletons; must be a whole
+                                number ≥ 1 (default: 2, meaning any pair within --epsilon forms a cluster)
+    --cluster_method {star,union_find}
+                                second-pass clustering algorithm (default: star):
+                                  star        greedy; highest-degree variant claims neighbours.
+                                              No transitivity. A variant overlapping multiple
+                                              representatives appears in each cluster — OCC
+                                              reflects all groups it genuinely belongs to.
+                                  union_find  transitive closure; A-B + B-C → {A,B,C}.
+                                              Exclusive membership; fewer, larger clusters.
 
-        --DBSCAN                    use dbscan to cluster the variants, overrides the overlap based
-                                    clustering algorithm
-
-        --epsilon EPSILON           used together with --DBSCAN; sets the epsilon parameter (default = 500bp)
-
-        --min_pts MIN_PTS           the min_pts parameter (default = 2)
-
-        --prefix PREFIX             the prefix of the output file, default = same as input
-
-        --memory                    load the database into memory: increases the memory requirements,
-                                    but lowers the time consumption
-
-        --strip_chr                 strip the 'chr' prefix from chromosome names in the output VCF
-                                    (e.g. 'chr1' → '1')
-
-        --debug                     enable debug logging to stderr
+  performance:
+    --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
+                                (default: 1000); use 0 for no cap (all sequences compared)
+    --memory                    load the db into memory: higher memory use, lower export time
+    --workers N                 parallel worker processes (default: 0 = all logical CPUs; 1 = serial)
+```
 
 ## Query
-The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilize the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file(either multisample vcf or SVDB sqlite database):
 
-    print a help message
-       svdb --query --help
-    Query a structural variant database, using a vcf file as query:
+The query module is used to query one or more structural variant databases. Typically a database is constructed using the build module. However, since this module utilizes the genotype field of the structural variant database vcf to compute the frequency of structural variants, a wide range of files could be used as database. The query module requires a query vcf, as well as a database file (either multisample vcf or SVDB sqlite database):
 
-        svdb --query --query_vcf patient1.vcf --db control_db.vcf
+```text
+    svdb --query --help
+    svdb --query --query_vcf patient1.vcf --db control_db.vcf
+    svdb --query --query_vcf patient1.vcf --db control_db1.vcf,control_db2.vcf \
+         --prefix test --in_occ default,Obs --in_frq FRQ,default \
+         --out_frq db1_AF,db2_Frq --out_occ db1_AC,db2_Obs
 
-    Query multiple databases, using a vcf file as query:
-    
-        svdb --query --query_vcf patient1.vcf --db control_db1.vcf,control_db2.vcf --prefix test --in_occ default,Obs --in_frq FRQ,default --out_frq db1_AF,db2_Frq --out_occ db1_AC,db2_Obs
+  input:
+    --query_vcf VCF   (required) query vcf file
+    --db DB                     db vcf, or a comma-separated list (no effect on --bedpedb)
+    --sqdb SQDB                 SVDB sqlite db, or a comma-separated list
+    --bedpedb BEDPEDB           SV db in chrA-posA-chrB-posB-type-count-frequency format,
+                                or a comma-separated list
+                                (at least one of --db / --sqdb / --bedpedb is required)
 
-    optional arguments:
+  output:
+    --prefix PREFIX             prefix for the output file (default: print to stdout);
+                                required when querying multiple databases
+    --out_occ OUT_OCC           output tag for allele count (default: OCC)
+    --out_frq OUT_FRQ           output tag for allele frequency (default: FRQ)
+    --in_occ IN_OCC             allele count tag in the db INFO column (usually OCC or AN);
+                                required when querying multiple databases
+    --in_frq IN_FRQ             allele frequency tag in the db INFO column (usually FRQ or AF);
+                                required when querying multiple databases
 
-        -h, --help              show this help message and exit
-        --db DB                 path to a db vcf, or a comma separated list of vcfs
-        --sqdb SQDB             path to a SVDB sqlite db, or a comma separated list of dbs
-        --bedpedb BEDPEDB       path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a comma separated list of files
-        --in_occ IN_OCC         The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AN or OCC). This parameter is required if multiple databases are queried.
-        --in_frq IN_FRQ         The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ). This parameter is required if multiple databases are queried.
-        --out_occ OUT_OCC       the allele count tag, as annotated by SVDB variant(default=OCC). This parameter is required if multiple databases are queried.
-        --out_frq OUT_FRQ       the tag used to describe the frequency of the variant(default=FRQ). This parameter is required if multiple databases are queried.
-        --prefix PREFIX         the prefix of the output file, default = print to stdout. Required if multiple databases are queried.
-        --bnd_distance BND_DISTANCE  the maximum distance between two similar breakpoints (default = 10000)
-        --overlap OVERLAP       the overlap required to merge two events (0 means anything that
-                                touches will be merged, 1 means that two events must be identical
-                                to be merged), default = 0.6
-        --ins_distance INS_DISTANCE
-                                the maximum distance to match two insertions (default = 25)
-        --ins_svlen_ratio INS_SVLEN_RATIO
-                                minimum SVLEN ratio (min/max) required to match two insertions
-                                with known length (default = 0.90)
-                                Applied with --db; also applied with --sqdb when the database
-                                contains the INS table; no effect with --bedpedb
-        --ins_seq_similarity THRESHOLD
-                                minimum Levenshtein sequence similarity (0–1) required to match
-                                two insertions with known sequence (default = 0.75); overridden
-                                by --data_profile
-                                Applied with --db; also applied with --sqdb when the database
-                                contains the INS table; no effect with --bedpedb
-        --data_profile {sample,cohort}
-                                set a sequence similarity preset: sample=0.85, cohort=0.75;
-                                overrides --ins_seq_similarity
-                                Applied with --db; also applied with --sqdb when the database
-                                contains the INS table; no effect with --bedpedb
-        --no_ins_seq            disable insertion sequence similarity check; match insertions on
-                                position and SVLEN only
-                                Applied with --db; also applied with --sqdb when the database
-                                contains the INS table; no effect with --bedpedb
-        --memory                load the database into memory: increases the memory requirements,
-                                but lowers the time consumption (may only be used with sqdb)
-        --no_var                count overlapping variants of different type as hits in the db
-        --debug                 enable debug logging to stderr
+  algorithm — SV matching:
+    --bnd_distance BND_DISTANCE maximum distance between two similar breakpoints (default: 10000)
+    --overlap OVERLAP           minimum reciprocal overlap to match two events;
+                                must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.6)
+    --max_frq MAX_FRQ           only report variants with frequency at or below this value
+                                (default: 1, i.e. all variants)
+    --no_var                    count overlapping variants of different type as hits in the db
 
-    
+  algorithm — insertion matching (--db and --sqdb with INS table; no effect with --bedpedb):
+    --data_profile {sample,cohort,position_only}
+                                preset for all insertion parameters; individual --ins_* flags override:
+                                  sample:        strict  (dist=25, ratio=0.90, sim=0.85) - same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
+                                  position_only: no sequence gate (dist=50, ratio=0.90)
+    --ins_distance INS_DISTANCE maximum distance to match two insertions
+                                (default: 25; profile cohort/position_only: 50)
+    --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertions with known length
+                                must be in [0.0, 1.0] (default: 0.90; profile cohort: 0.80)
+    --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity; must be in [0.0, 1.0];
+                                explicit value overrides --data_profile (effective default: 0.75)
+
+  performance:
+    --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
+                                (default: 1000); use 0 for no cap (all sequences compared)
+    --memory                    load the db into memory: higher memory use, lower query time
+                                (sqdb only)
+```
+
 ## Merge
+
 The merge module merges variants within one or more vcf files. This could be used to either merge the output of multiple callers, or to merge variants that are called multiple times due to noise or some other error:
 
-    print a help message:
-       python SVDB.py --merge --help
-    merge vcf files:
-        svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf > patient1_merged_callers.vcf
+```text
+    svdb --merge --help
+    svdb --merge --vcf patient1_lumpy.vcf patient1_cnvnator.vcf patient1_TIDDIT.vcf
+    svdb --merge --vcf patient1_lumpy.vcf:one patient1_cnvnator.vcf:2 patient1_TIDDIT.vcf:tiddit \
+         --priority tiddit,2,one
 
-    Similar variants will be merged, and presented according to the order of the input vcf files. I.e If lumpy and cnvnator calls the same variant in the top example,
-    the variant will be printed as the lumpy call. In most cases, the order should be set according to the accuracy or detail of the info field of the different callers.
-    The order could also be set using the --priority flag:
-        svdb --merge --vcf patient1_lumpy.vcf:one patient1_cnvnator.vcf:2 patient1_TIDDIT.vcf:tiddit --priority tiddit,2,one > patient1_merged_callers.vcf
+Variants are merged and output in the order of the input files (first file takes precedence).
+Use --priority to override the order explicitly.
 
-    In this example, tiddit will have the highest order, cnvnator second etc.
+  input (required):
+    --vcf VCF [VCF ...]         input vcf files to merge
 
+  input control:
+    --priority ORDER            prioritise input files; format: --vcf a.vcf:1 b.vcf:2 --priority 2,1
+    --pass_only                 merge only variants labeled PASS
+    --no_intra                  skip merging of variants within the same vcf
+    --same_order                assume sample columns are in the same order across all input files
+    --no_tag                    do not add VARID and set entries to the INFO field
+                                (--notag is a deprecated alias; emits a warning)
 
-    optional arguments:
-        -h, --help                      show this help message and exit
+  algorithm — SV matching:
+    --bnd_distance BND_DISTANCE maximum distance between two similar precise breakpoints (default: 2000)
+    --overlap OVERLAP           minimum reciprocal overlap to merge two events;
+                                must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.95)
+    --no_var                    variants of different type will be merged
 
-        --bnd_distance BND_DISTANCE     the maximum distance between two similar precise breakpoints
-                                        (default = 2000)
+  algorithm — insertion matching:
+    --data_profile {sample,cohort,position_only}
+                                preset for all insertion parameters; individual --ins_* flags override:
+                                  sample:        strict  (dist=25, ratio=0.90, sim=0.85) - same individual / technology
+                                  cohort:        permissive (dist=50, ratio=0.80, sim=0.75) - cross-individual or cross-caller
+                                  position_only: no sequence gate (dist=50, ratio=0.90)
+    --ins_distance INS_DISTANCE maximum distance to merge two insertions
+                                (default: 25; profile cohort/position_only: 50)
+    --ins_svlen_ratio RATIO     minimum SVLEN ratio (min/max) for insertions with known length
+                                must be in [0.0, 1.0] (default: 0.90; profile cohort: 0.80)
+    --ins_seq_similarity THRESHOLD
+                                minimum Levenshtein sequence similarity; must be in [0.0, 1.0];
+                                explicit value overrides --data_profile (effective default: 0.75)
 
-        --overlap OVERLAP               the overlap required to merge two events (0 means
-                                        anything that touches will be merged, 1 means that two
-                                        events must be identical to be merged), default = 0.95
+  performance:
+    --max_ins_seq_len N         sequences longer than N bp fall back to position+SVLEN
+                                (default: 1000); use 0 for no cap (all sequences compared)
+```
 
-        --ins_distance INS_DISTANCE     the maximum distance to merge two insertions (default = 25)
-
-        --ins_svlen_ratio INS_SVLEN_RATIO
-                                        minimum SVLEN ratio (min/max) required to merge two
-                                        insertions with known length (default = 0.90)
-
-        --ins_seq_similarity THRESHOLD  minimum Levenshtein sequence similarity (0–1) required to
-                                        merge two insertions with known sequence (default = 0.75);
-                                        overridden by --data_profile
-
-        --data_profile {sample,cohort}  set a sequence similarity preset: sample=0.85 (same
-                                        individual / same technology), cohort=0.75 (cross-
-                                        individual or cross-technology); overrides
-                                        --ins_seq_similarity
-
-        --no_ins_seq                    disable insertion sequence similarity check; merge
-                                        insertions on position and SVLEN only
-
-        --priority                      prioritise the input vcf files
-
-        --no_intra                      no merging of variants within the same vcf
-
-        --no_var                        variants of different type will be merged
-
-        --pass_only                     merge only variants labeled PASS
-
-        --same_order                    assume that the samples are ordered the same way (skip
-                                        reordering and merging of the sample columns)
-
-        --debug                         enable debug logging to stderr
-
-# For developers
+## For developers
 
 Runtime dependencies are pinned via [pip-tools](https://pip-tools.readthedocs.io/). Edit `requirements.in`, then regenerate:
 
@@ -265,14 +293,27 @@ pip install -r requirements-dev.txt
 
 Run tests (includes ruff linting and mypy type checking):
 
-    pytest
+```bash
+pytest
+```
 
 Run ruff or mypy standalone:
 
-    ruff check svdb/
-    mypy svdb/ --ignore-missing-imports
+```bash
+ruff check svdb/
+mypy svdb/ --ignore-missing-imports
+```
 
 Configuration lives in `pyproject.toml` (build system, ruff, pytest settings). The legacy `setup.py` is retained only for optional Cython compilation of `merge_vcf_module_cython`.
+
+Run a dependency security audit with GuardDog (not in CI — can be run locally before, for example,  bumping deps):
+
+```bash
+pip install guarddog
+grep -hv '^[[:space:]]*#\|^[[:space:]]*$' requirements.txt requirements-dev.txt \
+  | sed 's/[=><].*//' | tr -d ' ' \
+  | while read pkg; do guarddog pypi scan "$pkg"; done
+```
 
 See [docs/architecture.md](docs/architecture.md) for a module overview and data flow diagrams.
 

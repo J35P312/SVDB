@@ -4,11 +4,32 @@ import sys
 import numpy as np
 
 from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
+from .ins_similarity import cap_seq, decompress_ins_seq
 
 logger = logging.getLogger(__name__)
 
 # Sequence gate applies only within this positional hard cap, regardless of ins_distance.
 _INS_SEQ_HARD_CAP = 25
+
+
+def _parse_variants_svlens(variants_val: str) -> "tuple[int, int] | None":
+    """Extract per-member SVLENs from a VARIANTS field value; return (min, max) or None.
+
+    New-format entries end with :L<svlen> (e.g. sample:posA:posB:L564 or
+    posA:posB:L564).  The L prefix is unambiguous: coordinates are always
+    numeric, sample IDs never start with L followed by digits in that position.
+    Returns None for any entry without the L suffix (old-format VCFs).
+    """
+    svlens = []
+    for member in variants_val.split("|"):
+        if not member:
+            continue
+        last = member.rsplit(":", 1)[-1]
+        if last.startswith("L") and last[1:].isdigit():
+            svlens.append(int(last[1:]))
+        else:
+            return None
+    return (min(svlens), max(svlens)) if svlens else None
 
 
 def _read_query_vcf(args, writer):
@@ -116,7 +137,9 @@ def _load_vcf_db(args):
 
             # Store SVLEN and sequence for insertion entries (VCF format only, not BEDPE)
             if not args.bedpedb and "INS" in event_type:
-                svlen = v.svlen
+                variants_val = v.info.get("VARIANTS", "") or ""
+                svlen_range = _parse_variants_svlens(variants_val)
+                svlen = svlen_range if svlen_range is not None else v.svlen
                 seq = v.ins_seq
             else:
                 svlen = None
@@ -184,8 +207,7 @@ def _write_sqdb_results(queries, args, writer, db_size):
 
 
 def main(args, output_file=None):
-    # Resolve insertion sequence similarity threshold before any matching.
-    args.ins_seq_similarity = ins_similarity.resolve_ins_seq_threshold(args)
+    ins_similarity.apply_ins_profile(args)
 
     if args.prefix:
         f = open(output_file, "w")
@@ -238,12 +260,12 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     similarity = []
 
     is_ins = "INS" in variation_type
-    query_seq = query_variant[7] if is_ins else ""
+    query_seq = cap_seq(query_variant[7] if is_ins else "", args.max_ins_seq_len)
     query_svlen = query_variant[8] if is_ins else None
 
-    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
-    ins_seq_threshold = getattr(args, "ins_seq_similarity", 0.75)
-    no_ins_seq = getattr(args, "no_ins_seq", False)
+    ins_svlen_ratio = args.ins_svlen_ratio
+    ins_seq_threshold = args.ins_seq_similarity
+    no_ins_seq = args.no_ins_seq
     if chrA not in DBvariants:
         if use_OCC_tag:
             return([0, 0])
@@ -287,14 +309,19 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             if match and is_ins and chrA == chrB:
                 db_svlen = DBvariants[chrA][chrB][var]["svlens"][candidate]
                 if db_svlen is not None and query_svlen is not None:
-                    if not overlap_module.insertion_svlen_match(query_svlen, db_svlen, ins_svlen_ratio):
+                    if isinstance(db_svlen, tuple):
+                        min_s, max_s = db_svlen
+                        if query_svlen > 0 and min_s > 0:
+                            if min(query_svlen, max_s) / max(query_svlen, min_s) < ins_svlen_ratio:
+                                match = False
+                    elif not overlap_module.insertion_svlen_match(query_svlen, db_svlen, ins_svlen_ratio):
                         match = False
 
             # Sequence similarity gate (within hard cap; skip if no_ins_seq or no sequences)
             if match and is_ins and chrA == chrB and not no_ins_seq:
                 pos_dist = abs(chrApos - int(event[0]))
                 if pos_dist <= _INS_SEQ_HARD_CAP:
-                    db_seq = DBvariants[chrA][chrB][var]["sequences"][candidate]
+                    db_seq = cap_seq(DBvariants[chrA][chrB][var]["sequences"][candidate], args.max_ins_seq_len)
                     if not ins_similarity.sequence_gate(query_seq, db_seq, ins_seq_threshold):
                         match = False
 
@@ -327,13 +354,13 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
 
 def SQDB(query_variant, args, db, has_ins_table=False):
     is_ins = "INS" in query_variant[4]
-    distance = getattr(args, "ins_distance", 25) if is_ins else args.bnd_distance
+    distance = args.ins_distance if is_ins else args.bnd_distance
     overlap = args.overlap
     variant = {"type": query_variant[4],
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
 
-    use_ins_table = is_ins and has_ins_table and not getattr(args, "no_ins_seq", False)
+    use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
 
     if use_ins_table:
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
@@ -358,9 +385,9 @@ def SQDB(query_variant, args, db, has_ins_table=False):
 
     hits = db.query(A)
 
-    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
-    ins_seq_threshold = getattr(args, "ins_seq_similarity", 0.75)
-    query_seq = query_variant[7] if is_ins else ""
+    ins_svlen_ratio = args.ins_svlen_ratio
+    ins_seq_threshold = args.ins_seq_similarity
+    query_seq = cap_seq(query_variant[7] if is_ins else "", args.max_ins_seq_len)
     query_svlen = query_variant[8] if is_ins else None
 
     match = set()
@@ -368,7 +395,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         if variant["chrA"] == variant["chrB"]:
             hit_posA, hit_posB, hit_sample = int(hit[0]), int(hit[1]), hit[2]
             if use_ins_table:
-                hit_idx, hit_seq, hit_len = hit[3], hit[4], hit[5]
+                hit_idx, hit_seq, hit_len = hit[3], decompress_ins_seq(hit[4]), hit[5]
                 _, similar = overlap_module.precise_overlap(
                     variant["posA"], variant["posB"], hit_posA, hit_posB, distance)
                 if similar and hit_len is not None and query_svlen is not None:
@@ -376,7 +403,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
                         similar = False
                 pos_dist = abs(variant["posA"] - hit_posA)
                 if similar and pos_dist <= _INS_SEQ_HARD_CAP:
-                    if not ins_similarity.sequence_gate(query_seq, hit_seq or "", ins_seq_threshold):
+                    if not ins_similarity.sequence_gate(query_seq, cap_seq(hit_seq, args.max_ins_seq_len), ins_seq_threshold):
                         similar = False
                 if similar:
                     match.add(hit_idx)

@@ -160,12 +160,12 @@ class TestExportBenchmark:
             f"export took {elapsed:.2f}s — exceeds budget of {BUDGET['export']}s"
         )
 
-    def test_export_dbscan_within_budget(self, db, tmp_path):
-        """DBSCAN path was the site of the UnboundLocalError bug — keep a timing check."""
+    def test_export_coarse_within_budget(self, db, tmp_path):
+        """--coarse path (formerly --DBSCAN) skips second-pass refinement — keep a timing check."""
         elapsed = timed_run(
-            "--export", "--db", str(db), "--DBSCAN",
-            "--prefix", str(tmp_path / "dbscan")
+            "--export", "--db", str(db), "--coarse",
+            "--prefix", str(tmp_path / "coarse")
         )
         assert elapsed < BUDGET["export"], (
-            f"export (DBSCAN) took {elapsed:.2f}s — exceeds budget of {BUDGET['export']}s"
+            f"export (--coarse) took {elapsed:.2f}s — exceeds budget of {BUDGET['export']}s"
         )

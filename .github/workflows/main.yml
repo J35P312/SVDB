@@ -2,6 +2,10 @@ name: CI
 
 on: ["push", "pull_request"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   tests:
@@ -71,4 +75,44 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
           flags: unittests
+
+  security:
+
+    name: Security checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Semgrep static analysis
+        run: |
+          pip install semgrep
+          semgrep scan --config p/python --error .
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan for invisible Unicode characters
+        run: |
+          if grep -rP "[\x{200B}-\x{200D}\x{2060}\x{FEFF}]" \
+               --include="*.py" --include="*.yml" --include="*.yaml" --include="*.toml" \
+               --exclude-dir=".git" .; then
+            echo "::error::Invisible Unicode characters detected"
+            exit 1
+          fi
+
+      - name: Scan for dangerous Unicode sequences (Bidi controls)
+        run: |
+          if grep -rP "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
+               --include="*.py" --include="*.yml" --include="*.yaml" --include="*.toml" \
+               --exclude-dir=".git" .; then
+            echo "::error::Dangerous bidirectional Unicode control sequences detected"
+            exit 1
+          fi
 

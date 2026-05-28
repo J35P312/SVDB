@@ -3,7 +3,7 @@
 ## Module overview
 
 | Module | Role |
-|---|---|
+| ------ | ---- |
 | `__main__` | CLI entry point; argument parsing, logging setup, command dispatch |
 | `build_module` | Populates a SQLite database (SVDB + INS tables) from VCF files; `--upgrade` for schema migration |
 | `query_module` | Annotates a query VCF with OCC/FRQ; supports SVLEN + sequence gates for insertions |
@@ -45,7 +45,6 @@ graph TD
     merge_vcf_module_cython --> ins_similarity
 
     export_module --> database
-    export_module --> overlap_module
     export_module --> dbscan
     export_module --> ins_similarity
 
@@ -53,6 +52,9 @@ graph TD
     read_vcf --> models
     merge_vcf_module --> models
 ```
+
+Note: `export_module` no longer imports `overlap_module`. Overlap gates are
+implemented directly in `expand_chain` using numpy vectorisation (see below).
 
 ## Key data models
 
@@ -109,7 +111,8 @@ classDiagram
 ## Data flow by command
 
 **`svdb --build`**
-```
+
+```text
 VCF files → read_vcf.readVCFLine → VCFVariant
   → populate_db → SVDB table (coordinates, samples)
                 → INS table   (ins_seq, ins_len per insertion idx)
@@ -117,16 +120,21 @@ VCF files → read_vcf.readVCFLine → VCFVariant
 ```
 
 **`svdb --build --upgrade`**
-```
+
+```text
 Existing SQLite (.db) → upgrade_db
   → CREATE INS table (if absent)
   → optional: VCF files → backfill INS rows matched by SVDB idx
 ```
 
 **`svdb --query`**
-```
+
+```text
 query VCF → _read_query_vcf → variant list
 DB (VCF/BEDPE)  → _load_vcf_db → queryVCFDB
+                   _parse_variants_svlens: VARIANTS field `:L{svlen}` suffix parsed
+                   once at load → (min, max) SVLEN tuple per cluster entry;
+                   range-based gate: min(q, max_s)/max(q, min_s) >= ins_svlen_ratio
                    ins_similarity.sequence_gate + insertion_svlen_match → OCC/FRQ
 DB (SQLite)     → SQDB
                    LEFT JOIN INS (when INS table present)
@@ -135,7 +143,8 @@ DB (SQLite)     → SQDB
 ```
 
 **`svdb --merge`**
-```
+
+```text
 VCF files → MergeVariant list (per chrA)
 merge_vcf_module_cython.merge
   → overlap_module.{precise_overlap, insertion_svlen_match}
@@ -144,14 +153,66 @@ merge_vcf_module_cython.merge
 ```
 
 **`svdb --export`**
+
+```mermaid
+flowchart TD
+    DB[(SQLite .db)] -->|"LEFT JOIN SVDB + INS\nper var/chrA/chrB group"| FV[fetch_all_variants\nvariant_dict + pos_coords ndarray]
+    FV --> DBSCAN["Pass 1: DBSCAN spatial grouping\ndbscan.main(pos_coords, epsilon, min_pts)\nlabels: -1=singleton, 0..k=cluster"]
+    DBSCAN -->|"label == -1"| SNG[Singletons\none VCF line each]
+    DBSCAN -->|"label >= 0\nper DBSCAN group"| COARSE{--coarse?}
+    COARSE -->|"yes"| CTR["Centroid representative\nmost-common ins_seq/len\none VCF line per group"]
+    COARSE -->|"no (default)"| EC["Pass 2: expand_chain\npairwise overlap gates\n→ similarity_matrix"]
+    EC --> CM{"--cluster_method"}
+    CM -->|"star (default)"| STAR["Greedy star\nhighest-degree claims neighbours\nno transitivity; multi-membership allowed"]
+    CM -->|"union_find"| UF["Union-Find\ntransitive closure\nA-B + B-C → {A,B,C}"]
+    STAR --> OUT[VCF lines\none per cluster]
+    UF --> Out2[VCF lines\none per cluster]
+    SNG --> VCF[VCF output]
+    CTR --> VCF
+    Out2 --> VCF
+    Out2 --> Par
+    STAR --> Par["(parallel workers via multiprocessing.Pool)"]
+    Par --> VCF
 ```
-SQLite → fetch_variants → coordinates
-  → dbscan.main or expand_chain/cluster_variants
-      expand_chain: insertion_svlen_match + ins_similarity.sequence_gate
-  → representative variant (INS: most-common ins_seq from INS table)
-  → vcf_line (INS ALT = N+ins_seq when sequence available, else <INS>)
-  → VCF file
-```
+
+**Pass 1 — DBSCAN spatial grouping**: groups nearby variants by proximity.
+Epsilon = `--ins_distance` for INS, `--bnd_distance` for other types.
+Singletons (noise, no neighbours within epsilon) are written immediately.
+See [algorithms.md](algorithms.md) for full parameter and algorithm reference.
+
+**Pass 2 — `expand_chain` overlap gates** (cheapest-first):
+
+| Gate | Applied to | Implementation |
+| ---- | ---------- | -------------- |
+| Spatial (L∞) | all types | numpy mask; cKDTree when n ≥ 200 (requires scipy) |
+| Overlap ratio | DEL/DUP/INV | vectorised numpy |
+| SVLEN ratio | INS | vectorised numpy (`--ins_svlen_ratio`) |
+| Sequence similarity | INS | per-pair rapidfuzz Levenshtein (`--ins_seq_similarity`) |
+
+The sequence gate is irreducibly serial; the earlier gates eliminate the vast
+majority of candidates before it runs.
+
+**Clustering** (`--cluster_method`): operates on the similarity graph output
+of `expand_chain`. `star` (default): greedy, no transitivity; a variant that
+overlaps multiple representatives appears in each cluster so OCC reflects all
+groups it genuinely belongs to. `union_find`: transitive closure, exclusive
+membership, fewer larger clusters.
+
+**`--coarse`**: skips Pass 2 entirely; centroid + most-common ins_seq/len from
+the DBSCAN group directly. Controlled by `--epsilon`/`--min_pts`.
+
+**ALT field per cluster**:
+
+- `N<ins_seq>` — all members have a sequence; most-common non-null `ins_seq` used
+- `<INS>` — any member lacks a sequence (capped at `--max_ins_seq_len`, symbolic allele,
+            or mixed cluster); `SVLEN` taken from most-common stored length across members.
+            A mixed cluster cannot be faithfully represented by one sequence.
+- `<SVTYPE>` — all other types
+
+**Parallelism**: DBSCAN groups dispatched via `multiprocessing.Pool` (spawn,
+safe with numpy). Workers receive plain dicts/ndarrays; results returned in
+deterministic order. Serial floor ≈ 7% of runtime on a 500-sample database.
+Fallback to serial on any pool exception.
 
 ## Packaging notes
 

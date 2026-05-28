@@ -4,10 +4,22 @@ Covers extract_ins_sequence, levenshtein_similarity, and sequence_gate using
 both simple synthetic sequences and sequences extracted directly from the
 ins_similarity fixture VCFs.
 """
+import argparse
+import unittest
+import unittest.mock
 import pytest
 from pathlib import Path
 
-from svdb.ins_similarity import extract_ins_sequence, levenshtein_similarity, sequence_gate
+from svdb.__main__ import _fraction, _positive_int
+from svdb.ins_similarity import (
+    apply_ins_profile,
+    cap_seq,
+    decompress_ins_seq,
+    extract_ins_sequence,
+    levenshtein_similarity,
+    parse_svlen,
+    sequence_gate,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "ins_similarity"
 
@@ -172,3 +184,197 @@ class TestSequenceGate:
         seq_a = _read_vcf_seq(FIXTURES / "grch37_neg_c_sim0.837" / "caller_a.vcf")
         seq_b = _read_vcf_seq(FIXTURES / "grch37_neg_c_sim0.837" / "caller_b.vcf")
         assert sequence_gate(seq_a, seq_b, threshold=0.75) is True
+
+
+class TestCapSeq:
+
+    def test_none_input_returns_empty(self):
+        assert cap_seq(None, 500) == ""
+
+    def test_empty_string_returns_empty(self):
+        assert cap_seq("", 500) == ""
+
+    def test_no_cap_returns_seq_unchanged(self):
+        assert cap_seq("ATCG", None) == "ATCG"
+
+    def test_under_cap_returns_seq_unchanged(self):
+        assert cap_seq("ATCG", 10) == "ATCG"
+
+    def test_over_cap_returns_empty(self):
+        assert cap_seq("A" * 600, 500) == ""
+
+    def test_exactly_at_cap_is_not_capped(self):
+        seq = "A" * 500
+        assert cap_seq(seq, 500) == seq
+
+
+class TestDecompressInsSeq:
+
+    def test_none_returns_none(self):
+        assert decompress_ins_seq(None) is None
+
+    def test_str_passthrough(self):
+        assert decompress_ins_seq("ATCG") == "ATCG"
+
+    def test_bytes_decompresses(self):
+        import zlib
+        compressed = zlib.compress(b"ATCGATCG")
+        assert decompress_ins_seq(compressed) == "ATCGATCG"
+
+
+class TestParseSvlen:
+
+    def test_positive_svlen(self):
+        assert parse_svlen("END=1000;SVLEN=150;SVTYPE=INS") == 150
+
+    def test_negative_svlen_returns_abs(self):
+        assert parse_svlen("SVLEN=-200;SVTYPE=DEL") == 200
+
+    def test_absent_returns_none(self):
+        assert parse_svlen("END=1000;SVTYPE=DEL") is None
+
+    def test_at_start_of_info(self):
+        assert parse_svlen("SVLEN=42") == 42
+
+
+class TestApplyInsProfile:
+
+    def _args(self, **kwargs):
+        ns = argparse.Namespace(
+            data_profile=None,
+            ins_distance=None,
+            ins_svlen_ratio=None,
+            ins_seq_similarity=None,
+        )
+        for k, v in kwargs.items():
+            setattr(ns, k, v)
+        return ns
+
+    def test_no_profile_sets_defaults(self):
+        args = self._args()
+        apply_ins_profile(args)
+        assert args.ins_distance == 25
+        assert args.ins_svlen_ratio == 0.90
+        assert args.ins_seq_similarity == 0.75
+        assert args.no_ins_seq is False
+
+    def test_cohort_profile(self):
+        args = self._args(data_profile="cohort")
+        apply_ins_profile(args)
+        assert args.ins_distance == 50
+        assert args.ins_svlen_ratio == 0.80
+        assert args.ins_seq_similarity == 0.75
+        assert args.no_ins_seq is False
+
+    def test_sample_profile(self):
+        args = self._args(data_profile="sample")
+        apply_ins_profile(args)
+        assert args.ins_distance == 25
+        assert args.ins_svlen_ratio == 0.90
+        assert args.ins_seq_similarity == 0.85
+        assert args.no_ins_seq is False
+
+    def test_position_only_profile(self):
+        args = self._args(data_profile="position_only")
+        apply_ins_profile(args)
+        assert args.ins_distance == 50
+        assert args.ins_svlen_ratio == 0.90
+        assert args.no_ins_seq is True
+
+    def test_explicit_flag_overrides_profile(self):
+        args = self._args(data_profile="cohort", ins_distance=10)
+        apply_ins_profile(args)
+        assert args.ins_distance == 10
+        assert args.ins_svlen_ratio == 0.80  # from cohort
+
+    def test_explicit_sim_overrides_position_only(self):
+        args = self._args(data_profile="position_only", ins_seq_similarity=0.90)
+        apply_ins_profile(args)
+        assert args.ins_seq_similarity == 0.90
+        assert args.no_ins_seq is True  # profile still sets this
+
+
+class TestArgValidators(unittest.TestCase):
+
+    def test_fraction_valid_boundary_values(self):
+        f = _fraction("--overlap")
+        assert f("0.0") == 0.0
+        assert f("1.0") == 1.0
+        assert f("0.75") == 0.75
+
+    def test_fraction_above_one_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _fraction("--overlap")("1.2")
+
+    def test_fraction_negative_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _fraction("--ins_seq_similarity")("-0.1")
+
+    def test_positive_int_valid(self):
+        f = _positive_int("--min_pts")
+        assert f("1") == 1
+        assert f("5") == 5
+
+    def test_positive_int_zero_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _positive_int("--min_pts")("0")
+
+    def test_positive_int_negative_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _positive_int("--min_pts")("-1")
+
+    def test_positive_int_float_string_raises(self):
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _positive_int("--min_pts")("1.2")
+
+
+class TestCLIArgValidation(unittest.TestCase):
+    """Verify that out-of-range values are rejected by the real argparse wiring,
+    not just by the validator functions in isolation."""
+
+    def _assert_cli_error(self, argv, expected_fragment):
+        """Run svdb with argv; assert it exits non-zero and stderr contains expected_fragment."""
+        from svdb.__main__ import main
+        import io
+        with unittest.mock.patch("sys.argv", argv), \
+             unittest.mock.patch("sys.stderr", new_callable=io.StringIO) as mock_err, \
+             self.assertRaises(SystemExit) as cm:
+            main()
+        self.assertNotEqual(cm.exception.code, 0)
+        self.assertIn(expected_fragment, mock_err.getvalue())
+
+    def test_merge_overlap_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--merge", "--overlap", "1.5", "--vcf", "/dev/null"],
+            "--overlap must be in [0.0, 1.0]",
+        )
+
+    def test_merge_ins_svlen_ratio_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--merge", "--ins_svlen_ratio", "1.1", "--vcf", "/dev/null"],
+            "--ins_svlen_ratio must be in [0.0, 1.0]",
+        )
+
+    def test_merge_ins_seq_similarity_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--merge", "--ins_seq_similarity", "1.2", "--vcf", "/dev/null"],
+            "--ins_seq_similarity must be in [0.0, 1.0]",
+        )
+
+    def test_export_overlap_negative(self):
+        self._assert_cli_error(
+            ["svdb", "--export", "--db", "x.db", "--overlap", "-0.1"],
+            "--overlap must be in [0.0, 1.0]",
+        )
+
+    def test_export_min_pts_zero(self):
+        self._assert_cli_error(
+            ["svdb", "--export", "--db", "x.db", "--min_pts", "0"],
+            "--min_pts must be ≥ 1",
+        )
+
+    def test_query_max_frq_above_one(self):
+        self._assert_cli_error(
+            ["svdb", "--query", "--query_vcf", "x.vcf", "--db", "x.vcf", "--max_frq", "1.5"],
+            "--max_frq must be in [0.0, 1.0]",
+        )

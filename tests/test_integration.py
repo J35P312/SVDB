@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 FIXTURES = Path(__file__).parent / "fixtures"
+INS_SVLEN_RANGE_DIR = FIXTURES / "ins_svlen_range"
 MANTA = FIXTURES / "manta_chr1_del.vcf"
 TIDDIT = FIXTURES / "tiddit_chr1_del.vcf"
 TRUTH = FIXTURES / "truth_chr1_del.vcf"
@@ -48,11 +49,18 @@ class TestBuild:
         assert r.returncode == 0
         assert (tmp_path / "svdb.db").exists()
 
-    def test_build_passonly(self, tmp_path):
+    def test_build_pass_only(self, tmp_path):
         prefix = tmp_path / "svdb_pass"
-        r = run("--build", "--files", str(MANTA), "--passonly", "--prefix", str(prefix))
+        r = run("--build", "--files", str(MANTA), "--pass_only", "--prefix", str(prefix))
         assert r.returncode == 0
         assert (tmp_path / "svdb_pass.db").exists()
+
+    def test_build_passonly_deprecated_alias(self, tmp_path):
+        prefix = tmp_path / "svdb_pass_alias"
+        r = run("--build", "--files", str(MANTA), "--passonly", "--prefix", str(prefix))
+        assert r.returncode == 0
+        assert (tmp_path / "svdb_pass_alias.db").exists()
+        assert "deprecated" in r.stderr.lower()
 
     def test_build_from_folder(self, tmp_path):
         import shutil
@@ -110,11 +118,17 @@ class TestExport:
         n1 = len(vcf_data_lines((ov1.parent / "ov1.vcf").read_text()))
         assert n0 <= n1
 
-    def test_export_dbscan(self, db, tmp_path):
-        prefix = tmp_path / "dbscan"
-        r = run("--export", "--db", str(db), "--DBSCAN", "--epsilon", "500",
+    def test_export_coarse(self, db, tmp_path):
+        prefix = tmp_path / "coarse"
+        r = run("--export", "--db", str(db), "--coarse", "--epsilon", "500",
                 "--min_pts", "2", "--prefix", str(prefix))
         assert r.returncode == 0
+
+    def test_export_dbscan_deprecated_alias(self, db, tmp_path):
+        prefix = tmp_path / "dbscan_alias"
+        r = run("--export", "--db", str(db), "--DBSCAN", "--prefix", str(prefix))
+        assert r.returncode == 0
+        assert "deprecated" in r.stderr.lower()
 
     def test_export_memory_flag(self, db, tmp_path):
         prefix = tmp_path / "mem"
@@ -162,6 +176,137 @@ class TestExportStripChr:
         assert len(lines) > 0
         assert all(not line.startswith("chr") for line in lines)
 
+
+# ---------------------------------------------------------------------------
+# Query: exported VCF round-trip for insertions with SVLEN variation
+# ---------------------------------------------------------------------------
+
+def _ins_vcf(sample_name: str, pos: int, seq: str) -> str:
+    """Minimal single-sample INS VCF with an actual sequence in ALT."""
+    svlen = len(seq)
+    return (
+        "##fileformat=VCFv4.1\n"
+        "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type\">\n"
+        "##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Length\">\n"
+        "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
+        f"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample_name}\n"
+        f"chr1\t{pos}\tins1\tN\tN{seq}\t.\tPASS\tSVTYPE=INS;SVLEN={svlen}\tGT\t0/1\n"
+    )
+
+
+class TestQueryInsVcfRoundTrip:
+    """A sample that contributed to a DB cluster must be findable when
+    querying the exported VCF, even if its SVLEN differs from the cluster
+    representative's SVLEN.
+
+    Scenario: 3 samples, all INS at chr1:1000.
+      sample_a: SVLEN=64  (8-copy tandem repeat; appears twice → becomes representative)
+      sample_b: SVLEN=64
+      sample_c: SVLEN=80  (10-copy; ratio vs representative = 64/80 = 0.80 < default 0.90)
+
+    After build → export (permissive ratio=0.79) → query sample_c with default
+    ratio=0.90 against the exported VCF: the cluster representative is SVLEN=64
+    but sample_c (SVLEN=80) is in the cluster.  Without the per-member SVLEN fix
+    the query returns no OCC for sample_c.
+    """
+
+    # tandem-repeat sequences: 8-copy and 10-copy of the same unit
+    _UNIT = "ATCGATCG"
+    _SEQ_64 = _UNIT * 8                             # 64 bp  (representative)
+    _SEQ_80 = _UNIT * 10                            # 80 bp  (outlier, ratio 64/80=0.80 < 0.90)
+
+    @pytest.fixture
+    def round_trip(self, tmp_path):
+        """Build DB from 3 samples, export to VCF, return (exported_vcf, query_vcf_c)."""
+        vcf_a = tmp_path / "sample_a.vcf"
+        vcf_b = tmp_path / "sample_b.vcf"
+        vcf_c = tmp_path / "sample_c.vcf"
+        vcf_a.write_text(_ins_vcf("sample_a", 1000, self._SEQ_64))
+        vcf_b.write_text(_ins_vcf("sample_b", 1000, self._SEQ_64))
+        vcf_c.write_text(_ins_vcf("sample_c", 1000, self._SEQ_80))
+
+        prefix = tmp_path / "test_db"
+        r = run(
+            "--build", "--files", str(vcf_a), str(vcf_b), str(vcf_c),
+            "--prefix", str(prefix),
+        )
+        assert r.returncode == 0, r.stderr
+
+        export_prefix = tmp_path / "exported"
+        r = run(
+            "--export", "--db", str(tmp_path / "test_db.db"),
+            "--prefix", str(export_prefix),
+            # 64/80=0.80 ≥ 0.79 → all three land in one cluster;
+            # sequence similarity is ~0.80 (≥ default 0.75) so no --ins_seq_similarity override needed
+            "--ins_svlen_ratio", "0.79",
+        )
+        assert r.returncode == 0, r.stderr
+
+        return tmp_path / "exported.vcf", vcf_c
+
+    def test_svlen_outlier_member_annotated_by_range_check(self, round_trip, tmp_path):
+        """Querying sample_c (SVLEN=80) against a cluster whose representative
+        is SVLEN=64 must return OCC > 0 (default ins_svlen_ratio=0.90)."""
+        exported_vcf, query_vcf = round_trip
+        result = run(
+            "--query",
+            "--query_vcf", str(query_vcf),
+            "--db", str(exported_vcf),
+        )
+        assert result.returncode == 0, result.stderr
+
+        data_lines = vcf_data_lines(result.stdout)
+        assert data_lines, "no variant lines in query output"
+
+        # Every INS line must have OCC annotated (not missing)
+        unannotated = [
+            ln for ln in data_lines
+            if "INS" in ln and "OCC=" not in ln
+        ]
+        assert not unannotated, (
+            f"{len(unannotated)} INS variant(s) missing OCC — "
+            "cluster member not matched against its own cluster in exported VCF"
+        )
+
+
+class TestQueryInsVcfRoundTripFixture:
+    """Real-world regression test using 9 Sniffles2 VCFs at chrX:128937049.
+
+    All 9 samples share an INS at this locus with SVLENs ranging from 496–602 bp.
+    After build → export, the cluster representative has SVLEN=500 (HG01312).
+    Querying HG04214 (SVLEN=564) with --db against the exported VCF previously
+    returned no OCC because 500/564=0.887 < default ins_svlen_ratio=0.90.
+    With per-member SVLEN stored in VARIANTS, the range check passes.
+    """
+
+    @pytest.fixture
+    def tiny_round_trip(self, tmp_path):
+        vcfs = sorted(INS_SVLEN_RANGE_DIR.glob("*.vcf"))
+        assert vcfs, f"tiny fixture directory empty: {INS_SVLEN_RANGE_DIR}"
+
+        r = run("--build", "--files", *[str(v) for v in vcfs], "--prefix", str(tmp_path / "db"))
+        assert r.returncode == 0, r.stderr
+
+        r = run("--export", "--db", str(tmp_path / "db.db"), "--prefix", str(tmp_path / "exp"))
+        assert r.returncode == 0, r.stderr
+
+        return tmp_path / "exp.vcf"
+
+    def test_hg04214_svlen_564_matched_against_cluster_rep_500(self, tiny_round_trip):
+        """HG04214 (SVLEN=564) must be annotated against a cluster whose representative
+        is SVLEN=500 (500/564=0.887 < default 0.90 without the range fix)."""
+        query_vcf = INS_SVLEN_RANGE_DIR / "HG04214.vcf"
+        result = run("--query", "--query_vcf", str(query_vcf), "--db", str(tiny_round_trip))
+        assert result.returncode == 0, result.stderr
+
+        data_lines = vcf_data_lines(result.stdout)
+        assert data_lines, "no variant lines in query output"
+
+        unannotated = [ln for ln in data_lines if "INS" in ln and "OCC=" not in ln]
+        assert not unannotated, (
+            f"{len(unannotated)} INS variant(s) missing OCC — "
+            "SVLEN-range fix not working for tiny fixture"
+        )
 
 # ---------------------------------------------------------------------------
 # Query — VCF db

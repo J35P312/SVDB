@@ -9,6 +9,42 @@ from . import build_module, export_module, merge_vcf_module, query_module
 logger = logging.getLogger(__name__)
 
 
+def _fraction(flag: str):
+    def _parse(value: str) -> float:
+        f = float(value)
+        if not 0.0 <= f <= 1.0:
+            raise argparse.ArgumentTypeError(f"{flag} must be in [0.0, 1.0], got {f}")
+        return f
+    return _parse
+
+
+def _positive_int(flag: str):
+    def _parse(value: str) -> int:
+        try:
+            n = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{flag} must be a whole number ≥ 1, got {value!r}")
+        if n < 1:
+            raise argparse.ArgumentTypeError(f"{flag} must be ≥ 1, got {n}")
+        return n
+    return _parse
+
+
+def _max_ins_seq_len(value: str):
+    """Parse --max_ins_seq_len: positive integer, or 0 meaning unlimited (None)."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"--max_ins_seq_len must be a positive integer or 0 (unlimited), got {value!r}"
+        )
+    if n < 0:
+        raise argparse.ArgumentTypeError(
+            f"--max_ins_seq_len must be ≥ 0 (0 = unlimited), got {n}"
+        )
+    return None if n == 0 else n
+
+
 def _setup_logging(debug: bool) -> None:
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
@@ -16,6 +52,34 @@ def _setup_logging(debug: bool) -> None:
         format="%(levelname)s: %(message)s",
         stream=sys.stderr,
     )
+
+
+def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
+    """Add the shared insertion matching flags to a subcommand parser."""
+    parser.add_argument(
+        '--ins_distance', type=int, default=None,
+        help="maximum distance to match two insertions "
+             "(default: 25; profile cohort/position_only: 50)")
+    parser.add_argument(
+        '--ins_svlen_ratio', type=_fraction('--ins_svlen_ratio'), default=None,
+        help="minimum SVLEN ratio (min/max) for insertions with known length "
+             "(default: 0.90; profile cohort: 0.80)")
+    parser.add_argument(
+        '--ins_seq_similarity', type=_fraction('--ins_seq_similarity'), default=None,
+        help="minimum Levenshtein sequence similarity (0–1); explicit value "
+             "overrides --data_profile for this parameter (effective default: 0.75)")
+    parser.add_argument(
+        '--data_profile', choices=["sample", "cohort", "position_only"], default=None,
+        help="insertion matching preset. "
+             "sample: strict (dist=25, ratio=0.90, sim=0.85) — same individual / technology. "
+             "cohort: permissive (dist=50, ratio=0.80, sim=0.75) — cross-individual or cross-caller. "
+             "position_only: no sequence gate, match on position+SVLEN only (dist=50, ratio=0.90). "
+             "Individual --ins_* flags override profile values.")
+    parser.add_argument(
+        '--max_ins_seq_len', type=_max_ins_seq_len, default=1000,
+        help="sequences longer than N bp are excluded from sequence similarity "
+             "and fall back to position+SVLEN (default: 1000); "
+             "use 0 for no cap (compare all sequences regardless of length).")
 
 
 def make_query_calls (args, queries, keyword):
@@ -63,7 +127,7 @@ def make_query_calls (args, queries, keyword):
 def main():
     version = importlib.metadata.version("svdb")
     parser = argparse.ArgumentParser(
-        f"""SVDB-{version}, use the build module to construct databases, use the query module to query the database usign vcf files, or use the hist module to generate histograms""", add_help=False)
+        f"""SVDB-{version}: use --build to construct databases, --query to annotate a VCF, --merge to merge callers, or --export to export a database to VCF""", add_help=False)
     parser.add_argument('--build', help="create a db",
                         required=False, action="store_true")
     parser.add_argument('--query', help="query a db",
@@ -72,51 +136,45 @@ def main():
                         required=False, action="store_true")
     parser.add_argument('--export', help="export a database",
                         required=False, action="store_true")
-    parser.add_argument('--debug', help="enable debug logging",
+    parser.add_argument('--debug', help="enable debug logging to stderr",
                         required=False, action="store_true")
     args, unknown = parser.parse_known_args()
     _setup_logging(args.debug)
 
     if args.query:
         parser = argparse.ArgumentParser(
-            f"""SVDB.{version}: query module""")
+            f"""SVDB-{version}: query module""")
         parser.add_argument('--query', help="query a db", required=False, action="store_true")
         parser.add_argument('--query_vcf', type=str, help="a vcf used to query the db", required=True)
-        parser.add_argument('--db', type=str, help="path to a SVDB db vcf or a comma separated list of vcfs")
-        parser.add_argument('--sqdb', type=str, help="path to a SVDB sqlite db or a comma separated list of dbs")
+        parser.add_argument('--db', type=str, help="path to a db vcf, or a comma-separated list of vcfs")
+        parser.add_argument('--sqdb', type=str, help="path to a SVDB sqlite db, or a comma-separated list of dbs")
         parser.add_argument('--bedpedb', type=str,
-                            help="path to a SV database of the following format chrA-posA-chrB-posB-type-count-frequency, or a or a comma separated list of dbs")
+                            help="path to a SV db in chrA-posA-chrB-posB-type-count-frequency format, or a comma-separated list of files")
         parser.add_argument('--in_occ', type=str,
-                            help="The allele count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AC or OCC), required if multiple databases are queried. Use default (as shown in the example in README) if you'd like to use default tag for a specific database")
+                            help="the allele count tag in the db INFO column (usually OCC or AN); "
+                                 "required when querying multiple databases. Use 'default' to use the default tag for a specific db")
         parser.add_argument('--in_frq', type=str,
-                            help="The frequency count tag, if used, this tag must be present in the INFO column of the input DB(usually set to AF or FRQ), required if multiple databases are queried. Use default (as shown in the example in README) if you'd like to use default tag for a specific database")
+                            help="the allele frequency tag in the db INFO column (usually FRQ or AF); "
+                                 "required when querying multiple databases. Use 'default' to use the default tag for a specific db")
         parser.add_argument('--out_occ', type=str, default="OCC",
-                            help="the allele count tag, as annotated by SVDBvariant(default=OCC), required if multiple databases are queried.")
+                            help="output tag for allele count (default: OCC); required when querying multiple databases")
         parser.add_argument('--out_frq', type=str, default="FRQ",
-                            help="the tag used to describe the frequency of the variant(default=FRQ), required if multiple databases are queried.")
-        parser.add_argument('--max_frq', type=float, default=1,
-                            help='Only include variants with a higher frequency than given here between 0 and 1. All new variants are always included. (default: 1)')
+                            help="output tag for allele frequency (default: FRQ); required when querying multiple databases")
+        parser.add_argument('--max_frq', type=_fraction('--max_frq'), default=1,
+                            help='only include variants with frequency at or below this value (default: 1, i.e. all variants)')
         parser.add_argument('--prefix', type=str, default=None,
-                            help="the prefix of the output file, default = print to stdout. Required, if multiple databases are queried")
+                            help="prefix for the output file (default: print to stdout); required when querying multiple databases")
         parser.add_argument('--bnd_distance', type=int, default=10000,
-                            help="the maximum distance between two similar breakpoints(default = 10000)")
-        parser.add_argument('--ins_distance', type=int, default=25,
-                            help="the maximum distance to match two insertions(default = 25)")
-        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) required to match two insertions (default = 0.90); applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
-        parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum Levenshtein sequence similarity to match two insertions (default = 0.75); overridden by --data_profile; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
-        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity threshold preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb")
-        parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check; match on position+SVLEN only; applied with --db and with --sqdb when the INS table is present; no effect with --bedpedb", required=False, action="store_true")
-        parser.add_argument('--overlap', type=float, default=0.6,
-                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.6")
+                            help="maximum distance between two similar breakpoints (default: 10000)")
+        _add_ins_flags(parser)
+        parser.add_argument('--overlap', type=_fraction('--overlap'), default=0.6,
+                            help="minimum reciprocal overlap required to match two events "
+                                 "(0 = anything touching; 1 = identical) (default: 0.6)")
         parser.add_argument('--memory',
-                            help="load the database into memory: increases the memory requirements, but lowers the time consumption(may only be used with sqdb)", required=False, action="store_true")
+                            help="load the database into memory: increases memory use but lowers query time (sqdb only)", required=False, action="store_true")
         parser.add_argument('--no_var',
-                            help="count overlaping variants of different type as hits in the db", required=False, action="store_true")
-        parser.add_argument('--debug', help="enable debug logging",
+                            help="count overlapping variants of different type as hits in the db", required=False, action="store_true")
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
@@ -140,23 +198,38 @@ def main():
         parser.add_argument('--build', help="create a db",
                             required=False, action="store_true")
         parser.add_argument(
-            '--passonly', help="Remove filtered variants (i.e anything not labeled  \"PASS\" or \".\")", required=False, action="store_true")
-        parser.add_argument('--files', type=str, nargs='*',
-                            help="create a db using the specified vcf files(cannot be used with --folder)")
+            '--pass_only', help="only include variants with PASS or . in the FILTER field", required=False, action="store_true")
         parser.add_argument(
-            '--folder', type=str, help="create a db using all the vcf files in the folders")
+            '--passonly', help=argparse.SUPPRESS, required=False, action="store_true")
+        parser.add_argument('--files', type=str, nargs='*',
+                            help="create a db using the specified vcf files (cannot be used with --folder)")
+        parser.add_argument(
+            '--folder', type=str, help="create a db using all vcf files in the given folder")
         parser.add_argument('--prefix', type=str, default="SVDB",
-                            help="the prefix of the output file, default = SVDB")
-        parser.add_argument('--upgrade', help="upgrade an existing database schema to the current SVDB version; safe to run on any database, exits with INFO if already up to date",
+                            help="prefix for the output file (default: SVDB)")
+        parser.add_argument('--upgrade', help="create the INS table and backfill insertion sequences "
+                            "from the provided VCFs; schema-only, no existing SVDB rows are changed. "
+                            "Exits with INFO if the INS table already exists. "
+                            "Warns for DB samples with no matching VCF; logs DB-absent VCF samples.",
                             required=False, action="store_true")
-        parser.add_argument('--debug', help="enable debug logging",
+        parser.add_argument('--max_ins_seq_len', type=int, default=None,
+                            help="maximum insertion sequence length (bp) to store; sequences longer than this "
+                                 "are stored with NULL sequence but retain SVLEN for length-ratio matching "
+                                 "(default: no limit)")
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
+        if args.passonly:
+            logger.warning("--passonly is deprecated; use --pass_only instead")
+            args.pass_only = True
         args.version = version
         if (args.files and args.folder):
             logger.error("only one DB build input source may be selected (--files or --folder)")
             sys.exit(1)
 
+        if args.upgrade and not args.files and not args.folder:
+            logger.error("--upgrade requires --files or --folder to backfill insertion sequences")
+            sys.exit(1)
         if args.upgrade:
             build_module.main(args)
         elif args.folder or args.files:
@@ -166,41 +239,57 @@ def main():
     elif args.export:
         parser = argparse.ArgumentParser(
             f"""SVDB-{version}: export module; export the variants of the SVDB sqlite database into a vcf file""")
-        parser.add_argument('--export', help="create a db",
+        parser.add_argument('--export', help="export the database",
                             required=False, action="store_true")
         parser.add_argument('--db', type=str, required=True,
-                            help="The SQLite database")
+                            help="the SQLite database")
         parser.add_argument(
             '--no_merge', help="skip the merging of variants, print all variants in the db to a vcf file", required=False, action="store_true")
         parser.add_argument('--bnd_distance', type=int, default=2500,
-                            help="the maximum distance between two similar precise breakpoints(default = 2500)")
-        parser.add_argument('--ins_distance', type=int, default=25,
-                            help="the maximum distance to cluster two insertions (default = 25)")
-        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) for insertion clustering (default = 0.90; requires INS table)")
-        parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum sequence similarity for insertion clustering (default = 0.75); overridden by --data_profile; requires INS table")
-        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity preset: sample=0.85, cohort=0.75; overrides --ins_seq_similarity; requires INS table")
+                            help="maximum distance between two similar precise breakpoints (default: 2500)")
+        _add_ins_flags(parser)
+        parser.add_argument('--overlap', type=_fraction('--overlap'), default=0.8,
+                            help="minimum reciprocal overlap required to merge two events "
+                                 "(0 = anything touching; 1 = identical) (default: 0.8)")
         parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check for clustering; requires INS table", required=False, action="store_true")
-        parser.add_argument('--overlap', type=float, default=0.8,
-                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.8")
+            '--coarse', help="skip the second-pass refinement (overlap/SVLEN/sequence gates) and use "
+                             "centroid-based representative selection directly from the DBSCAN spatial "
+                             "clusters; produces fewer, coarser clusters. Combine with --epsilon/--min_pts to tune.",
+            required=False, action="store_true")
         parser.add_argument(
-            '--DBSCAN', help="use dbscan to cluster the variants", required=False, action="store_true")
+            '--DBSCAN', help=argparse.SUPPRESS, required=False, action="store_true")
         parser.add_argument('--epsilon', type=float, default=500,
-                            help="used together with --DBSCAN; sets the epsilon paramter(default = 500)", required=False)
-        parser.add_argument('--min_pts', type=int, default=2,
-                            help="used together with --DBSCAN; sets the min_pts parameter(default = 2)", required=False)
+                            help="used together with --coarse; spatial grouping radius in bp (DBSCAN-style "
+                                 "epsilon): variants within this distance of each other are candidates "
+                                 "for the same cluster (default: 500)", required=False)
+        parser.add_argument('--min_pts', type=_positive_int('--min_pts'), default=2,
+                            help="used together with --coarse; DBSCAN-style min_pts: minimum number of "
+                                 "consecutively-positioned variants that must all fall within --epsilon "
+                                 "to seed a cluster — isolated variants become singletons "
+                                 "(default: 2, meaning any pair within --epsilon forms a cluster)", required=False)
         parser.add_argument('--prefix', type=str, default="SVDB",
-                            help="the prefix of the output file, default = same as input")
+                            help="prefix for the output file (default: same as input)")
         parser.add_argument(
-            '--memory', help="load the database into memory: increases the memory requirements, but lowers the time consumption", required=False, action="store_true")
+            '--memory', help="load the database into memory: increases memory use but lowers export time", required=False, action="store_true")
         parser.add_argument('--strip_chr', help="strip the 'chr' prefix from chromosome names in the output VCF",
                             required=False, action="store_true")
-        parser.add_argument('--debug', help="enable debug logging",
+        parser.add_argument('--samples', choices=['on', 'off'], default='on',
+                            help="include per-sample genotype columns (default: on); use 'off' for sites-only output analogous to gnomAD --sites-only")
+        parser.add_argument('--cluster_method', choices=['star', 'union_find'], default='star',
+                            help="second-pass clustering algorithm applied within each DBSCAN spatial group: "
+                                 "'star' = greedy star, highest-degree representative, no transitivity (default); "
+                                 "'union_find' = transitive closure, fewer output clusters, higher OCC counts")
+        parser.add_argument('--workers', type=int, default=0,
+                            help="parallel worker processes for clustering (default: 0 = use all logical CPUs; 1 = serial). "
+                                 "To find your optimal N: time with --workers 1, then increase until wall-clock time stops improving — "
+                                 "that is the serial floor (DB fetch, DBSCAN, I/O). On shared systems set N explicitly to be a good neighbour.")
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
+
+        if args.DBSCAN:
+            logger.warning("--DBSCAN is deprecated; use --coarse instead")
+            args.coarse = True
 
         # merging will be impossible
         if args.no_merge:
@@ -216,25 +305,19 @@ def main():
         parser.add_argument(
             '--merge', help="merge structural variants", required=False, action="store_true")
         parser.add_argument(
-            '--notag', help="Do not add the the VARID and set entries to the info field", required=False, action="store_true")
+            '--no_tag', help="do not add the VARID and set entries to the INFO field", required=False, action="store_true")
+        parser.add_argument(
+            '--notag', help=argparse.SUPPRESS, required=False, action="store_true")
         parser.add_argument('--vcf', nargs='*', type=str,
-                            help="input vcf files, all input vcf files will be merged into one. Use the --prioriy flag to prioritize the callers/vcf files", required=True)
+                            help="input vcf files to merge; use --priority to set caller precedence", required=True)
         parser.add_argument(
-            '--priority', type=str, help="prioritise the input files, using the following format --vcf caller1.vcf:2 caller2.vcf:1 --priority: 1,2")
+            '--priority', type=str, help="prioritise the input files, using the format --vcf caller1.vcf:2 caller2.vcf:1 --priority 1,2")
         parser.add_argument('--bnd_distance', type=int, default=2000,
-                            help="the maximum distance between two similar precise breakpoints(default = 2000)")
-        parser.add_argument('--ins_distance', type=int, default=25,
-                            help="the maximum distance to merge two insertions (default = 25)")
-        parser.add_argument('--ins_svlen_ratio', type=float, default=0.90,
-                            help="minimum SVLEN ratio (min/max) required to merge two insertions (default = 0.90)")
-        parser.add_argument('--ins_seq_similarity', type=float, default=None,
-                            help="minimum Levenshtein sequence similarity to merge two insertions with known sequence (default = 0.75); overridden by --data_profile")
-        parser.add_argument('--data_profile', choices=["sample", "cohort"], default=None,
-                            help="set sequence similarity threshold preset: sample=0.85 (same individual, any tech), cohort=0.75 (cross-individual or cross-technology)")
-        parser.add_argument(
-            '--no_ins_seq', help="disable insertion sequence similarity check; merge on position+SVLEN only", required=False, action="store_true")
-        parser.add_argument('--overlap', type=float, default=0.95,
-                            help="the overlap required to merge two events(0 means anything that touches will be merged, 1 means that two events must be identical to be merged), default = 0.95")
+                            help="maximum distance between two similar precise breakpoints (default: 2000)")
+        _add_ins_flags(parser)
+        parser.add_argument('--overlap', type=_fraction('--overlap'), default=0.95,
+                            help="minimum reciprocal overlap required to merge two events "
+                                 "(0 = anything touching; 1 = identical) (default: 0.95)")
         parser.add_argument(
             '--no_intra', help="no merging of variants within the same vcf", required=False, action="store_true")
         parser.add_argument(
@@ -242,11 +325,14 @@ def main():
         parser.add_argument(
             '--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         parser.add_argument(
-            '--same_order', help="Across all input vcf files, the order of the sample columns are the same", required=False, action="store_true")
-        parser.add_argument('--debug', help="enable debug logging",
+            '--same_order', help="across all input vcf files, the order of the sample columns is the same", required=False, action="store_true")
+        parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
         args.version = version
+        if args.notag:
+            logger.warning("--notag is deprecated; use --no_tag instead")
+            args.no_tag = True
         result = merge_vcf_module.main(args)
         if result is not None and result < 0:
             sys.exit(1)

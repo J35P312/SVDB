@@ -2,7 +2,7 @@ import logging
 import sys
 
 from . import merge_vcf_module_cython, read_vcf, vcf_utils
-from .ins_similarity import resolve_ins_seq_threshold
+from .ins_similarity import apply_ins_profile
 from .models import MergeVariant
 
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ def build_header(vcf_list, vcf_dictionary, args, command_line):
     # subheaders
     for entry in sorted(subheader):
         lines_out.append(subheader[entry].strip())
-    if not args.notag:
+    if not args.no_tag:
         lines_out.append("##INFO=<ID=VARID,Number=1,Type=String,Description=\"The variant ID of merged samples\">")
         lines_out.append("##INFO=<ID=FOUNDBY,Number=1,Type=Integer,Description=\"The number of files containing the variant\">")
         lines_out.append("##INFO=<ID=set,Number=1,Type=String,Description=\"Source VCF for the merged record in SVDB\">")
@@ -143,8 +143,7 @@ def print_header(vcf_list, vcf_dictionary, args, command_line):
 
 
 def main(args):
-    # Resolve insertion sequence similarity threshold once before the merge loop.
-    args.ins_seq_similarity = resolve_ins_seq_threshold(args)
+    apply_ins_profile(args)
 
     variants = {}
     # add all the variants into a dictionary

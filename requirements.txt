@@ -8,3 +8,5 @@ cython==3.2.4
     # via -r requirements.in
 numpy==2.4.4
     # via -r requirements.in
+rapidfuzz==3.14.5
+    # via -r requirements.in

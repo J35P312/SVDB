@@ -1,5 +1,5 @@
 from . import overlap_module
-from .ins_similarity import sequence_gate
+from .ins_similarity import cap_seq, sequence_gate
 
 
 def sanitize_id(s: str) -> str:
@@ -224,9 +224,10 @@ def merge(variants, samples, sample_order, priority_order, args):
     no_intra = args.no_intra
     no_var = args.no_var
     pass_only = args.pass_only
-    ins_svlen_ratio = getattr(args, "ins_svlen_ratio", 0.90)
-    ins_seq_similarity = getattr(args, "ins_seq_similarity", 0.75)
-    no_ins_seq = getattr(args, "no_ins_seq", False)
+    ins_svlen_ratio = args.ins_svlen_ratio
+    ins_seq_similarity = args.ins_seq_similarity
+    no_ins_seq = args.no_ins_seq
+    max_ins_seq_len = args.max_ins_seq_len
     # Sequence gate applies only within this hard cap, regardless of ins_distance.
     _INS_SEQ_HARD_CAP = 25
 
@@ -334,7 +335,7 @@ def merge(variants, samples, sample_order, priority_order, args):
                     if match and not no_ins_seq:
                         pos_dist = abs(posA_i - var_j.posA)
                         if pos_dist <= _INS_SEQ_HARD_CAP:
-                            if not sequence_gate(var_i.ins_seq, var_j.ins_seq, ins_seq_similarity):
+                            if not sequence_gate(cap_seq(var_i.ins_seq, max_ins_seq_len), cap_seq(var_j.ins_seq, max_ins_seq_len), ins_seq_similarity):
                                 match = False
 
                 if match:
@@ -382,10 +383,10 @@ def merge(variants, samples, sample_order, priority_order, args):
                 files[source_i.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
             line = sort_format_field(
                 line, samples, sample_order, priority_order, files, args)
-            if merge and not args.notag:
+            if merge and not args.no_tag:
                 line[7] += ";VARID=" + "|".join(merge)
                 line[2] += ":{}|".format(source_i.split(".vcf")[0].split("/")[-1]) + "|".join(merge)
-            if not args.notag:
+            if not args.no_tag:
                 set_tag = determine_set_tag(priority_order, files)
                 line[7] += f";set={set_tag}"
                 line[7] += f";FOUNDBY={len(set(filters_tag.keys()))}"
@@ -411,7 +412,7 @@ def merge(variants, samples, sample_order, priority_order, args):
             for tag in samples_tag:
                 line[7]+=";{}_INFO={}".format(tag,",".join(info_tag[tag]))
 
-            if not args.notag:
+            if not args.no_tag:
                 line[7]+=";svdb_origin={}".format("|".join(callers))
 
             sup_vec=[]
