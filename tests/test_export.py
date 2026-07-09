@@ -344,7 +344,7 @@ class TestPickRepresentative(unittest.TestCase):
     ins_seq matches the cluster's consensus) over the degree-based anchor,
     so POS/SVLEN/ALT come from one self-consistent row instead of stitching
     together an unrelated high-degree row's position with a different row's
-    sequence -- the exact failure traced in issue #93/#95.
+    sequence -- the exact failure traced in issue #93, fixed per issue #96.
     """
 
     def test_prefers_medoid_over_high_degree_row_with_different_sequence(self):
