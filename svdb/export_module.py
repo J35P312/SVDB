@@ -283,10 +283,28 @@ def expand_chain(chain, coordinates, chrA, chrB, distance, overlap,
     return chain_data
 
 
+def _pick_representative(fallback_idx, cluster_dictionary):
+    """Return the chain index to use as a cluster's representative.
+
+    Degree-based claiming decides *membership*; this decides which member's
+    own row gets displayed as POS/SVLEN/ALT. Prefers the medoid — an actual
+    member whose own ins_seq already equals the cluster's consensus sequence
+    (_pick_ins_seq) — so the exported representative is self-consistent with
+    one real row instead of stitching an unrelated high-degree anchor's
+    position onto a different row's sequence. Falls back to fallback_idx
+    (the degree-based anchor) when the cluster has no single consensus
+    sequence (mixed/symbolic membership).
+    """
+    consensus_seq = _pick_ins_seq(cluster_dictionary)
+    if consensus_seq is None:
+        return fallback_idx
+    return next(m for m in cluster_dictionary if cluster_dictionary[m].get("ins_seq") == consensus_seq)
+
+
 def cluster_variants(variant_dictionary, similarity_matrix):
     """Greedy star clustering (default).
 
-    Highest-degree variant becomes representative and claims its neighbours.
+    Highest-degree variant claims its neighbours to decide membership.
     A variant that overlaps multiple representatives contributes to each of
     their clusters — intentional, so OCC/FRQ reflect all groups it belongs to.
     No transitivity: A-B and B-C do not force A and C into the same cluster.
@@ -303,7 +321,7 @@ def cluster_variants(variant_dictionary, similarity_matrix):
         for var in similarity_matrix[i]:
             similarity_matrix[var][0] = -1
             cluster_dictionary[var] = variant_dictionary[var]
-        variant = variant_dictionary[i]
+        variant = variant_dictionary[_pick_representative(i, cluster_dictionary)]
 
         clusters.append([variant, cluster_dictionary])
     return clusters
@@ -315,7 +333,8 @@ def cluster_variants_union_find(variant_dictionary, similarity_matrix):
     Full transitive closure of the overlap graph: A-B and B-C always merge
     A, B, C into one component even if A and C don't overlap directly.
     Structurally prevents duplicate membership.  Representative is the
-    highest-degree member of each component.
+    medoid of each component (see _pick_representative), falling back to
+    the highest-degree member when there's no single consensus sequence.
     """
     n = len(variant_dictionary)
     parent = list(range(n))
@@ -347,8 +366,9 @@ def cluster_variants_union_find(variant_dictionary, similarity_matrix):
 
     clusters = []
     for members in components.values():
-        rep = max(members, key=lambda x: len(similarity_matrix[x]))
+        fallback = max(members, key=lambda x: len(similarity_matrix[x]))
         cluster_dict = {m: variant_dictionary[m] for m in members}
+        rep = _pick_representative(fallback, cluster_dict)
         clusters.append([variant_dictionary[rep], cluster_dict])
     return clusters
 

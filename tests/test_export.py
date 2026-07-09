@@ -10,7 +10,7 @@ from svdb.export_module import (
     _expand_and_cluster_worker, _resolve_workers,
     db_header, make_representing_variant, build_genotype_columns,
     vcf_line as make_vcf_line,
-    _pick_ins_seq,
+    _pick_ins_seq, _pick_representative,
 )
 
 #mock argeparse arguments
@@ -337,6 +337,81 @@ class TestClusterVariantsUnionFind(unittest.TestCase):
         self.assertEqual(len(clusters), 1)
         # representative posA should be variant 1's posA=150
         self.assertEqual(clusters[0][0]["posA"], 150)
+
+
+class TestPickRepresentative(unittest.TestCase):
+    """Representative selection prefers the medoid (a real member whose own
+    ins_seq matches the cluster's consensus) over the degree-based anchor,
+    so POS/SVLEN/ALT come from one self-consistent row instead of stitching
+    together an unrelated high-degree row's position with a different row's
+    sequence -- the exact failure traced in issue #93/#95.
+    """
+
+    def test_prefers_medoid_over_high_degree_row_with_different_sequence(self):
+        """Regression case: the highest-degree row is a minority sequence;
+        the medoid (majority sequence) should win as representative instead.
+        """
+        cluster_dictionary = {
+            0: {"posA": 999, "ins_seq": "MINORITY_BUT_HIGH_DEGREE"},
+            1: {"posA": 100, "ins_seq": "MAJORITY"},
+            2: {"posA": 101, "ins_seq": "MAJORITY"},
+            3: {"posA": 102, "ins_seq": "MAJORITY"},
+        }
+        # fallback_idx (0) is deliberately NOT the medoid -- mirrors a
+        # degree-based anchor that doesn't carry the consensus sequence.
+        rep_idx = _pick_representative(fallback_idx=0, cluster_dictionary=cluster_dictionary)
+        self.assertNotEqual(rep_idx, 0)
+        self.assertEqual(cluster_dictionary[rep_idx]["ins_seq"], "MAJORITY")
+
+    def test_falls_back_to_degree_anchor_when_no_consensus_sequence(self):
+        """Mixed cluster (some members lack a sequence): no single medoid
+        exists, so the degree-based fallback index is used, matching the
+        pre-existing behaviour for symbolic/mixed clusters.
+        """
+        cluster_dictionary = {
+            0: {"posA": 100, "ins_seq": "SEQ"},
+            1: {"posA": 200, "ins_seq": None},  # symbolic member -> no consensus possible
+        }
+        rep_idx = _pick_representative(fallback_idx=1, cluster_dictionary=cluster_dictionary)
+        self.assertEqual(rep_idx, 1)
+
+    def test_cluster_variants_star_uses_medoid(self):
+        """End-to-end through cluster_variants: representative POS comes from
+        the medoid row, not the arbitrary highest-degree row.
+        """
+        variant_dictionary = {
+            0: {"posA": 10878052, "posB": 10878052, "sample_id": "s0", "ins_seq": "AAAA", "ins_len": 4},
+            1: {"posA": 10878053, "posB": 10878053, "sample_id": "s1", "ins_seq": "CCCC", "ins_len": 4},
+            2: {"posA": 10878054, "posB": 10878054, "sample_id": "s2", "ins_seq": "CCCC", "ins_len": 4},
+        }
+        similarity_matrix = {
+            0: np.array([0, 1, 2]),  # highest degree, but its own seq (AAAA) is the minority
+            1: np.array([1]),
+            2: np.array([2]),
+        }
+        clusters = cluster_variants(variant_dictionary, similarity_matrix)
+        self.assertEqual(len(clusters), 1)
+        rep = clusters[0][0]
+        self.assertEqual(rep["ins_seq"], "CCCC")
+        self.assertIn(rep["posA"], (10878053, 10878054))
+
+    def test_cluster_variants_union_find_uses_medoid(self):
+        """Same medoid preference through cluster_variants_union_find."""
+        variant_dictionary = {
+            0: {"posA": 10878052, "posB": 10878052, "sample_id": "s0", "ins_seq": "AAAA", "ins_len": 4},
+            1: {"posA": 10878053, "posB": 10878053, "sample_id": "s1", "ins_seq": "CCCC", "ins_len": 4},
+            2: {"posA": 10878054, "posB": 10878054, "sample_id": "s2", "ins_seq": "CCCC", "ins_len": 4},
+        }
+        similarity_matrix = {
+            0: np.array([0, 1, 2]),
+            1: np.array([0, 1, 2]),
+            2: np.array([0, 1, 2]),
+        }
+        clusters = cluster_variants_union_find(variant_dictionary, similarity_matrix)
+        self.assertEqual(len(clusters), 1)
+        rep = clusters[0][0]
+        self.assertEqual(rep["ins_seq"], "CCCC")
+        self.assertIn(rep["posA"], (10878053, 10878054))
 
 
 class TestClusterMethodIntegration:
