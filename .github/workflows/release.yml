@@ -1,0 +1,43 @@
+name: Release
+
+# Tag-triggered. Runs as its own workflow (separate from CI in main.yml) since
+# it's release-specific rather than ongoing-test-specific, and grows into a
+# real build/publish pipeline later.
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+
+  version-check:
+
+    name: Verify tag matches setup.py version
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate tag looks like a version
+        run: |
+          TAG_CLEAN="${GITHUB_REF_NAME#v}"
+          if ! [[ "$TAG_CLEAN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' does not look like a semantic version (expected e.g. 2.11.2 or v2.11.2) -- skipping version comparison"
+            exit 1
+          fi
+
+      - name: Compare git tag to setup.py version
+        run: |
+          pip install --quiet setuptools
+          TAG_CLEAN="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION=$(python setup.py --version)
+          if [ "$PACKAGE_VERSION" != "$TAG_CLEAN" ]; then
+            echo "::error::Version mismatch: setup.py version ($PACKAGE_VERSION) does not match release tag ($TAG_CLEAN). Update setup.py's version= and push a matching tag."
+            exit 1
+          fi
+          echo "OK: setup.py version ($PACKAGE_VERSION) matches tag ($TAG_CLEAN)"
