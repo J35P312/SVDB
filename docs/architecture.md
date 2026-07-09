@@ -190,7 +190,9 @@ See [algorithms.md](algorithms.md) for full parameter and algorithm reference.
 | Sequence similarity | INS | per-pair rapidfuzz Levenshtein (`--ins_seq_similarity`) |
 
 The sequence gate is irreducibly serial; the earlier gates eliminate the vast
-majority of candidates before it runs.
+majority of candidates before it runs. Sequences over 10% 'N' bases
+(`ins_similarity.has_excess_n`) are treated as absent across build/query/merge/
+export alike, deferring to position+SVLEN matching same as a symbolic ALT.
 
 **Clustering** (`--cluster_method`): operates on the similarity graph output
 of `expand_chain`. `star` (default): greedy, no transitivity; a variant that
