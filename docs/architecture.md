@@ -198,6 +198,15 @@ overlaps multiple representatives appears in each cluster so OCC reflects all
 groups it genuinely belongs to. `union_find`: transitive closure, exclusive
 membership, fewer larger clusters.
 
+**Representative row** (`_pick_representative`, both `star` and `union_find`):
+degree only decides which variant *claims* a cluster's membership. The row
+actually used for the exported `POS`/`SVLEN`/`ALT` is the cluster's medoid —
+a real member whose own `ins_seq` already matches the cluster's consensus
+sequence — falling back to the degree-based anchor when the cluster has no
+single consensus (mixed/symbolic membership). This keeps the exported line
+self-consistent: without it, `POS` could come from one row while `ALT` came
+from a majority vote over a completely different row's sequence.
+
 **`--coarse`**: skips Pass 2 entirely; centroid + most-common ins_seq/len from
 the DBSCAN group directly. Controlled by `--epsilon`/`--min_pts`.
 

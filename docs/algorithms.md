@@ -63,16 +63,27 @@ collapsed by one of two algorithms:
 Sort variants by degree (overlapping neighbours) descending.
 For each variant, highest-degree first:
     if already marked as non-representative: skip
-    otherwise: become representative
+    otherwise: become the claiming anchor
         for each neighbour:
             mark neighbour as non-representative
             add neighbour to this cluster
+        representative row = medoid of the cluster (see below)
 ```
 
 Marking a variant as non-representative only prevents it from *starting* a
 new cluster — it does not exclude it from being collected by other active
 representatives whose neighbour list includes it.  A variant that overlaps
 two separate representatives therefore contributes to both clusters.
+
+**Representative row selection**: the highest-degree variant only decides
+*membership* (which neighbours get claimed). The row actually used for the
+exported `POS`/`SVLEN`/`ALT` is the cluster's **medoid** — a real member whose
+own `ins_seq` already equals the cluster's consensus sequence — falling back
+to the highest-degree row when the cluster has no single consensus (mixed or
+symbolic membership). Without this, the exported line could stitch together
+an unrelated high-degree anchor's position with a different row's sequence,
+making two clusters anchored by different minority alleles look like
+duplicates once both happened to converge on the same displayed consensus.
 
 **Properties**: fast; no transitivity (A-B and B-C do not force A and C into
 the same cluster). A variant in an ambiguous region between two groups
@@ -93,7 +104,9 @@ Union-Find (disjoint-set) structure:
 ```text
 For every overlapping pair (i, j):
     union(i, j)
-Collect connected components; representative = highest-degree member.
+Collect connected components; representative = medoid of the component
+(falls back to highest-degree member when there's no single consensus
+sequence — see "Representative row selection" above).
 ```
 
 **Properties**: A-B and B-C always merge {A, B, C} even if A and C do not
