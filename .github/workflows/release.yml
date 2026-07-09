@@ -1,12 +1,16 @@
 name: Release
 
 # Tag-triggered. Runs as its own workflow (separate from CI in main.yml) since
-# it's release-specific rather than ongoing-test-specific, and grows into a
-# real build/publish pipeline later.
+# it's release-specific rather than ongoing-test-specific.
 on:
   push:
     tags:
       - "*"
+
+# Least-privilege default; the publish job below opts back into id-token
+# write for PyPI trusted publishing.
+permissions:
+  contents: read
 
 jobs:
 
@@ -41,3 +45,89 @@ jobs:
             exit 1
           fi
           echo "OK: setup.py version ($PACKAGE_VERSION) matches tag ($TAG_CLEAN)"
+
+  build:
+
+    name: Build sdist and wheel
+    needs: version-check
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      # No Cython in [build-system] requires (pyproject.toml), so this
+      # isolated build never sees Cython -- setup.py's own try/except
+      # degrades to ext_modules=[], producing one portable py3-none-any
+      # wheel. No manylinux/cibuildwheel/multi-OS matrix needed.
+      - name: Build sdist and wheel
+        run: |
+          pip install --quiet build
+          python -m build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  test-built-artifacts:
+
+    name: Test the built wheel and sdist (not the source checkout)
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      # Tests run from a directory containing ONLY tests/, not the repo's
+      # own svdb/ source -- otherwise pytest can silently import the local
+      # source tree instead of the installed artifact, defeating the point
+      # of this job. Verified locally: `import svdb; svdb.__file__` resolves
+      # to site-packages, not the checkout, with this layout.
+      - name: Test installed wheel
+        run: |
+          python -m venv /tmp/venv_wheel
+          /tmp/venv_wheel/bin/pip install --quiet dist/*.whl pytest scipy
+          mkdir -p /tmp/wheel_test && cp -r tests /tmp/wheel_test/
+          cd /tmp/wheel_test && /tmp/venv_wheel/bin/pytest -v
+
+      - name: Test installed sdist
+        run: |
+          python -m venv /tmp/venv_sdist
+          /tmp/venv_sdist/bin/pip install --quiet dist/*.tar.gz pytest scipy
+          mkdir -p /tmp/sdist_test && cp -r tests /tmp/sdist_test/
+          cd /tmp/sdist_test && /tmp/venv_sdist/bin/pytest -v
+
+  publish:
+
+    name: Publish to PyPI
+    needs: [version-check, test-built-artifacts]
+    runs-on: ubuntu-latest
+    environment: pypi
+
+    permissions:
+      id-token: write
+
+    steps:
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
