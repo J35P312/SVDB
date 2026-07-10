@@ -52,7 +52,10 @@ cascade of gates — cheapest first to minimise work:
 2. **SVLEN ratio gate** (vectorised): requires `min(svlen)/max(svlen) ≥ --ins_svlen_ratio`
    for insertions with known length.
 3. **Sequence similarity gate** (Levenshtein, per-pair): requires similarity ≥
-   `--ins_seq_similarity` for insertions with known sequence.
+   `--ins_seq_similarity` for insertions with known sequence. Sequences over
+   10% ambiguous 'N' bases (`ins_similarity.has_excess_n`) are treated as
+   absent — N content makes Levenshtein similarity meaningless, so such
+   insertions fall back to position+SVLEN matching instead.
 
 The similarity graph (which variants can be merged with which) is then
 collapsed by one of two algorithms:

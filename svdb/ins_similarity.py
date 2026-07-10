@@ -15,7 +15,12 @@ Public API used by merge, query, and export pipelines:
 
   cap_seq(seq, max_len) -> str
       Cap insertion sequence to max_len before comparison; returns "" if over
-      the cap, which causes sequence_gate to defer to position+SVLEN.
+      the cap or too N-heavy (see has_excess_n), which causes sequence_gate
+      to defer to position+SVLEN.
+
+  has_excess_n(seq, max_n_fraction) -> bool
+      True if seq is too dominated by ambiguous 'N' bases for Levenshtein
+      similarity to be meaningful.
 
   parse_svlen(info_str) -> Optional[int]
       Extract |SVLEN| from a VCF INFO string.
@@ -34,6 +39,12 @@ from typing import Optional, Union
 from rapidfuzz.distance import Levenshtein
 
 logger = logging.getLogger(__name__)
+
+# Sequences at or above this fraction of 'N' bases are treated as absent for
+# similarity purposes — same defer-to-position+SVLEN behaviour as a symbolic
+# ALT. Not exposed as a CLI flag; matches the internal-constant style of
+# query_module._INS_SEQ_HARD_CAP.
+_MAX_N_FRACTION = 0.1
 
 # Effective defaults when no profile and no explicit flag is set.
 _INS_DEFAULTS: dict = {
@@ -120,15 +131,34 @@ def sequence_gate(seq_a: str, seq_b: str, threshold: float) -> bool:
     return levenshtein_similarity(seq_a, seq_b, score_cutoff=threshold) >= threshold
 
 
+def has_excess_n(seq: Optional[str], max_n_fraction: float = _MAX_N_FRACTION) -> bool:
+    """Return True if seq is too dominated by ambiguous 'N' bases for
+    Levenshtein similarity to be meaningful.
+
+    N marks masked/unresolved bases, not real sequence content — comparing
+    two N-heavy sequences can score deceptively high (both mostly the same
+    placeholder character) or deceptively low, either way telling you
+    nothing about the real insertion. Case-insensitive.
+    """
+    if not seq:
+        return False
+    return (seq.upper().count("N") / len(seq)) > max_n_fraction
+
+
 def cap_seq(seq: Optional[str], max_len: Optional[int]) -> str:
-    """Return seq unchanged if within max_len; return "" if it exceeds the cap.
+    """Return seq unchanged if within max_len and not too N-heavy; return ""
+    otherwise.
 
     An empty return causes sequence_gate to skip similarity and defer to
     position+SVLEN matching — consistent with symbolic ALT behaviour.
     """
-    if seq and max_len is not None and len(seq) > max_len:
+    if not seq:
         return ""
-    return seq or ""
+    if max_len is not None and len(seq) > max_len:
+        return ""
+    if has_excess_n(seq):
+        return ""
+    return seq
 
 
 def parse_svlen(info_str: str) -> Optional[int]:

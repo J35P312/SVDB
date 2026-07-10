@@ -62,6 +62,11 @@ def fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len=None):
     max_ins_seq_len: if set, sequences longer than this are treated as None
     during comparison (position+SVLEN only); the full sequence is still written
     to the ALT field of the output VCF.
+
+    Sequences too dominated by ambiguous 'N' bases (ins_similarity.has_excess_n)
+    are likewise treated as None -- N content makes sequence similarity
+    meaningless, so such insertions fall back to position+SVLEN matching same
+    as a symbolic ALT.
     """
     has_ins = db.has_ins_table()
     if has_ins:
@@ -84,6 +89,8 @@ def fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len=None):
         idx = int(hit[3])
         seq = decompress_ins_seq(hit[4]) if has_ins else None
         if seq and max_ins_seq_len is not None and len(seq) > max_ins_seq_len:
+            seq = None
+        if seq and ins_similarity.has_excess_n(seq):
             seq = None
         variant_dict[idx] = {
             "posA": int(hit[0]),

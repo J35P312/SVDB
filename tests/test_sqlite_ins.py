@@ -441,6 +441,28 @@ class TestExportINS:
         # All four cluster together (position_only); most common seq is ACGTACGT
         assert any("NACGTACGT" in line for line in lines)
 
+    def test_export_n_heavy_sequence_treated_as_symbolic(self, tmp_path):
+        """N-heavy sequence is nulled out for comparison (issue #95): a clean
+        sequence and an N-heavy one at the same position/SVLEN merge on
+        position+SVLEN alone -- without the guard, the sequence gate would
+        reject them (a clean sequence vs all-N looks maximally dissimilar)
+        and they'd export as two separate lines instead of one mixed,
+        symbolic cluster.
+        """
+        vcf = tmp_path / "sample.vcf"
+        make_ins_vcf(vcf, [
+            ("1", 1000, "ins1", "A" * 16),
+            ("1", 1001, "ins2", "N" * 16),
+        ])
+        build(tmp_path / "svdb", vcf)
+        r = run("--export", "--db", str(tmp_path / "svdb.db"),
+                "--prefix", str(tmp_path / "out"))
+        assert r.returncode == 0
+        lines = data_lines((tmp_path / "out.vcf").read_text())
+        ins_lines = [ln for ln in lines if "SVTYPE=INS" in ln]
+        assert len(ins_lines) == 1
+        assert "<INS>" in ins_lines[0]
+
     def test_export_ins_svlen_ratio_separates_different_lengths(self, tmp_path):
         """Default ratio=0.90 keeps very different lengths in separate clusters."""
         vcf = tmp_path / "sample.vcf"

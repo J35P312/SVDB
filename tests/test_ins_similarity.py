@@ -16,6 +16,7 @@ from svdb.ins_similarity import (
     cap_seq,
     decompress_ins_seq,
     extract_ins_sequence,
+    has_excess_n,
     levenshtein_similarity,
     parse_svlen,
     sequence_gate,
@@ -186,6 +187,38 @@ class TestSequenceGate:
         assert sequence_gate(seq_a, seq_b, threshold=0.75) is True
 
 
+class TestHasExcessN:
+
+    def test_no_n_returns_false(self):
+        assert has_excess_n("ATCGATCGATCG") is False
+
+    def test_none_input_returns_false(self):
+        assert has_excess_n(None) is False
+
+    def test_empty_string_returns_false(self):
+        assert has_excess_n("") is False
+
+    def test_above_default_threshold_returns_true(self):
+        # 2/10 N = 0.2 > 0.1 default
+        assert has_excess_n("NNAAAAAAAA") is True
+
+    def test_exactly_at_default_threshold_returns_false(self):
+        # 1/10 N = 0.1, not > 0.1 -- boundary is not flagged
+        assert has_excess_n("NAAAAAAAAA") is False
+
+    def test_all_n_returns_true(self):
+        assert has_excess_n("NNNNNNNN") is True
+
+    def test_case_insensitive(self):
+        assert has_excess_n("nnnnaaaa") is True
+        assert has_excess_n("NnNnAAAA") is True
+
+    def test_custom_threshold(self):
+        seq = "NAAAAAAAAA"  # 1/10 = 0.1
+        assert has_excess_n(seq, max_n_fraction=0.2) is False
+        assert has_excess_n(seq, max_n_fraction=0.05) is True
+
+
 class TestCapSeq:
 
     def test_none_input_returns_empty(self):
@@ -206,6 +239,19 @@ class TestCapSeq:
     def test_exactly_at_cap_is_not_capped(self):
         seq = "A" * 500
         assert cap_seq(seq, 500) == seq
+
+    def test_excess_n_returns_empty(self):
+        """N-heavy sequence is treated the same as over-cap: deferred to
+        position+SVLEN matching, same as a symbolic ALT -- issue #95."""
+        assert cap_seq("NNNNNNNNAA", None) == ""
+
+    def test_excess_n_then_sequence_gate_defers(self):
+        """End-to-end: an N-heavy sequence run through cap_seq (as merge and
+        query do) makes sequence_gate defer (return True) regardless of how
+        dissimilar the other side is."""
+        n_heavy = cap_seq("NNNNNNNNNN", None)
+        other = cap_seq("ATCGATCGAT", None)
+        assert sequence_gate(n_heavy, other, threshold=0.99) is True
 
 
 class TestDecompressInsSeq:
