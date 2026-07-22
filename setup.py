@@ -19,7 +19,7 @@ else:
     ext_modules = []
 
 setup(name='svdb',
-      version='2.11.1',
+      version='2.12.0',
       url="https://github.com/J35P312/SVDB",
       author="Jesper Eisfeldt",
       author_email="jesper.eisfeldt@scilifelab.se",
