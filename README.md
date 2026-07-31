@@ -239,11 +239,18 @@ The merge module merges variants within one or more vcf files. This could be use
 Variants are merged and output in the order of the input files (first file takes precedence).
 Use --priority to override the order explicitly.
 
+Each input file is tracked internally by a tag: its filename (without directory or
+.vcf/.vcf.gz extension) by default, or the explicit tag after `:` when using --priority.
+Two files that resolve to the same tag — e.g. same filename in different directories,
+or the same explicit --priority tag reused — is an error; SVDB will refuse to merge
+rather than silently treat both files as one. Use unique --priority tags to disambiguate.
+
   input (required):
     --vcf VCF [VCF ...]         input vcf files to merge
 
   input control:
     --priority ORDER            prioritise input files; format: --vcf a.vcf:1 b.vcf:2 --priority 2,1
+                                (tags must be unique per input vcf)
     --pass_only                 merge only variants labeled PASS
     --no_intra                  skip merging of variants within the same vcf
     --same_order                assume sample columns are in the same order across all input files

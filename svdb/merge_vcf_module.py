@@ -169,8 +169,16 @@ def main(args):
             priority_dictionary = {}
             vcf_dictionary = {}
             for vcf in vcf_list:
-                priority_dictionary[vcf.split(":")[-1]] = vcf.split(":")[0]
-                vcf_dictionary[vcf.split(":")[0]] = vcf.split(":")[-1]
+                file_part, tag = vcf.split(":")[0], vcf.split(":")[-1]
+                if tag in priority_dictionary:
+                    logger.error(
+                        "Error: tag '%s' is used for more than one input vcf (%s and %s). "
+                        "Each --vcf file:tag must use a unique tag.",
+                        tag, priority_dictionary[tag], file_part,
+                    )
+                    return -1
+                priority_dictionary[tag] = file_part
+                vcf_dictionary[file_part] = tag
             for tag in args.priority.split(","):
                 if tag in priority_dictionary:
                     priority_list.append(tag)
@@ -184,9 +192,15 @@ def main(args):
                 vcf_list.append(priority_dictionary[tag])
             priority_order = priority_list
 
+        vcf_set=set()
         for vcf in vcf_list:
             if not args.priority:
+                if vcf in vcf_dictionary or vcf.split(".vcf")[0].split("/")[-1]  in vcf_set:
+                   logger.error("Error overlapping filenames. A file named: " + vcf +" is already processed. Please use tags and the --priority tag to specify unique tags for each input vcf")
+                   return -1
+
                 vcf_dictionary[vcf] = vcf.split(".vcf")[0].split("/")[-1]
+                vcf_set.add(vcf.split(".vcf")[0].split("/")[-1])
                 priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
 
             with vcf_utils.open_vcf(vcf) as lines:
