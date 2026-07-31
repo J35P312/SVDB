@@ -186,6 +186,10 @@ def main(args):
 
         for vcf in vcf_list:
             if not args.priority:
+                if vcf in vcf_dictionary:
+                   logger.error("Error overlapping filenames. A file named: " + vcf +" is already processed. Please use tags and the --priority tag to specify unique tags for each input vcf")
+                   return -1
+
                 vcf_dictionary[vcf] = vcf.split(".vcf")[0].split("/")[-1]
                 priority_order.append(vcf.split(".vcf")[0].split("/")[-1])
 
