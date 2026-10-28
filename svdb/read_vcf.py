@@ -40,7 +40,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
     if "TRA" in variation[4]:
         event_type = "BND"
         chrB = description["CHR2"]
-        posB = int(description["END"])
+        posB = int(description.get("END", posA))
         if chrA > chrB:
             chrT = chrA
             chrA = chrB
