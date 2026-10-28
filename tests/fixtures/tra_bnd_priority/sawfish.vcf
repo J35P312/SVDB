@@ -1,0 +1,16 @@
+##fileformat=VCFv4.2
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr4,length=190214555>
+##contig=<ID=chr6,length=170805979>
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=TRA,Description="Translocation">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length of the variant">
+##INFO=<ID=CHR2,Number=1,Type=String,Description="Chromosome of the second breakpoint">
+##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakend">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1
+chr1	1000000	sawfish_del	N	<DEL>	.	PASS	SVTYPE=DEL;END=1005000;SVLEN=-5000	GT	0/1
+chr4	3000200	sawfish_bnd_a	N	N]chr6:5000000]	.	PASS	SVTYPE=BND;MATEID=sawfish_bnd_b	GT	0/1
+chr6	5000000	sawfish_bnd_b	N	N]chr4:3000200]	.	PASS	SVTYPE=BND;MATEID=sawfish_bnd_a	GT	0/1

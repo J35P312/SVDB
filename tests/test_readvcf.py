@@ -61,6 +61,17 @@ class TestReadVCFLine(unittest.TestCase):
         assert v.chrB == "2"
         assert v.event_type == "BND"
 
+    def test_tra_without_end_falls_back_to_posA(self):
+        """<TRA> with CHR2 but no END (e.g. older svdb --merge output, issue #102)
+        must not raise KeyError; posB falls back to posA."""
+        line = 'chr4\t3000000\t.\tN\t<TRA>\t.\tPASS\tSVTYPE=BND;CHR2=chr6\tGT\t0/1'
+        v = readVCFLine(line)
+        assert v.chrA == "chr4"
+        assert v.posA == 3000000
+        assert v.chrB == "chr6"
+        assert v.posB == 3000000
+        assert v.event_type == "BND"
+
     # --- Intrachromosomal paths (lines 55-88) ---
 
     def test_svlen_fallback(self):
