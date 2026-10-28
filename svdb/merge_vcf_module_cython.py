@@ -1,3 +1,5 @@
+from bisect import bisect_left, bisect_right
+
 from . import overlap_module
 from .ins_similarity import cap_seq, sequence_gate
 
@@ -217,6 +219,13 @@ def sort_format_field(line, samples, sample_order, priority_order, files, args):
     return line
 
 
+def source_id(source, args):
+    """Key of a variant's input file in priority_order: the --priority tag, or the file basename."""
+    if args.priority:
+        return source
+    return source.split(".vcf")[0].split("/")[-1]
+
+
 def merge(variants, samples, sample_order, priority_order, args):
     overlap_param = args.overlap
     bnd_distance = args.bnd_distance
@@ -231,16 +240,23 @@ def merge(variants, samples, sample_order, priority_order, args):
     # Sequence gate applies only within this hard cap, regardless of ins_distance.
     _INS_SEQ_HARD_CAP = 25
 
+    rank = {f: r for r, f in enumerate(priority_order)}
+
     # search for similar variants
     to_be_printed = {}
     for chrA in variants:
-        # Sort by posA so the positional early-exit break below is valid.
+        # Sort by posA so each anchor's candidates can be found with bisect.
         # Input variants[chrA] is built by concatenating multiple VCF files
         # which may themselves be unsorted, so we normalise here.
-        # O(n log n) is negligible compared to the O(n²) loop it enables.
         variants[chrA].sort(key=lambda v: v.posA)
+        positions = [v.posA for v in variants[chrA]]
+        # Anchor clusters on the highest-priority record: the anchor is the line
+        # written out, so ALT and the priority-only INFO tags (see sort_format_field)
+        # come from the same record. sorted() is stable, so ties keep posA order.
+        anchors = sorted(range(len(variants[chrA])),
+                         key=lambda k: (rank[source_id(variants[chrA][k].source, args)], positions[k]))
         analysed_variants = set([])
-        for i in range(len(variants[chrA])):
+        for i in anchors:
             if i in analysed_variants:
                 continue
 
@@ -272,10 +288,7 @@ def merge(variants, samples, sample_order, priority_order, args):
             posB_i = var_i.posB
             insertion_i = var_i.is_insertion()  # pre-compute once; was called per-j-iteration
 
-            if args.priority:
-               id = source_i
-            else:
-               id = source_i.split(".vcf")[0].split("/")[-1]
+            id = source_id(source_i, args)
 
             vcf_line_A=var_i.raw_line.strip().split("\t")
             chrom_tag[id]=[ format_tag(vcf_line_A[2], vcf_line_A[0]) ]
@@ -289,19 +302,18 @@ def merge(variants, samples, sample_order, priority_order, args):
             # This condition is constant across all j — evaluate once outside the loop.
             a_can_merge = (not pass_only) or var_i.vcf_filter in ('PASS', '.')
 
-            for j in range(i + 1, len(variants[chrA])) if a_can_merge else []:
+            # Every overlap test below rejects pairs whose posA differ by more than
+            # the distance it is given, so only records within that window can match.
+            radius = ins_distance if insertion_i else bnd_distance
+            lo = bisect_left(positions, posA_i - radius)
+            hi = bisect_right(positions, posA_i + radius)
+
+            for j in range(lo, hi) if a_can_merge else []:
                 # --- Cheap early-exit checks (no string split needed) ---
-                if j in analysed_variants:
+                if j == i or j in analysed_variants:
                     continue
 
                 var_j = variants[chrA][j]
-
-                # VCF files are sorted by (chrom, posA).  Once var_j.posA is
-                # further than bnd_distance ahead of posA_i, no subsequent j
-                # can overlap either — break out of the inner loop entirely.
-                # BND/interchromosomal pairs skip this check (chrA != chrB_i).
-                if chrA == chrB_i and var_j.posA - posA_i > bnd_distance:
-                    break
 
                 if chrB_i != var_j.chrB:
                     continue
@@ -342,10 +354,7 @@ def merge(variants, samples, sample_order, priority_order, args):
                     vcf_line_B = var_j.raw_line.strip().split("\t")
 
                     # add similar variants to the merge list and remove them
-                    if args.priority:
-                        match_id = var_j.source
-                    else:
-                        match_id = var_j.source.split(".vcf")[0].split("/")[-1]
+                    match_id = source_id(var_j.source, args)
 
                     files[match_id] = var_j.raw_line
                     merge.append(sanitize_id(vcf_line_B[2]) + ":" + match_id)
@@ -377,10 +386,7 @@ def merge(variants, samples, sample_order, priority_order, args):
             if line[0] not in to_be_printed:
                 to_be_printed[line[0]] = []
 
-            if args.priority:
-                files[source_i] = "\t".join(line)
-            else:
-                files[source_i.split(".vcf")[0].split("/")[-1]] = "\t".join(line)
+            files[id] = "\t".join(line)
             line = sort_format_field(
                 line, samples, sample_order, priority_order, files, args)
             if merge and not args.no_tag:
