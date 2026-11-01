@@ -368,22 +368,27 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         table = "SVDB s"
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE s.var == '{variant['type']}' AND s.chrA == '{variant['chrA']}' "
-            f"AND s.chrB == '{variant['chrB']}' "
-            f"AND s.posA <= {variant['posA'] + distance} AND s.posA >= {variant['posA'] - distance} "
-            f"AND s.posB <= {variant['posB'] + distance} AND s.posB >= {variant['posB'] - distance}"
+            "WHERE s.var == ? AND s.chrA == ? "
+            "AND s.chrB == ? "
+            "AND s.posA <= ? AND s.posA >= ? "
+            "AND s.posB <= ? AND s.posB >= ?"
         )
     else:
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE var == '{variant['type']}' AND chrA == '{variant['chrA']}' "
-            f"AND chrB == '{variant['chrB']}' "
-            f"AND posA <= {variant['posA'] + distance} AND posA >= {variant['posA'] - distance} "
-            f"AND posB <= {variant['posB'] + distance} AND posB >= {variant['posB'] - distance}"
+            "WHERE var == ? AND chrA == ? "
+            "AND chrB == ? "
+            "AND posA <= ? AND posA >= ? "
+            "AND posB <= ? AND posB >= ?"
         )
+    params = (
+        variant["type"], variant["chrA"], variant["chrB"],
+        variant["posA"] + distance, variant["posA"] - distance,
+        variant["posB"] + distance, variant["posB"] - distance,
+    )
 
-    hits = db.query(A)
+    hits = db.query(A, params)
 
     ins_svlen_ratio = args.ins_svlen_ratio
     ins_seq_threshold = args.ins_seq_similarity
