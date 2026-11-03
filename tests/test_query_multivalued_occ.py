@@ -73,6 +73,9 @@ class TestNoVarSkipsMultiValuedRecords:
         assert int(info["OCC"]) == 11
         assert float(info["FRQ"]) == pytest.approx(0.011)
 
+    def test_skip_is_reported(self, no_var):
+        assert "skipped 3 db variants with multi-valued AC/AF" in no_var.stderr
+
     def test_ins_near_short_mcnv_is_not_annotated(self, no_var):
         assert no_var.returncode == 0, no_var.stderr
         assert "OCC" not in info_by_id(no_var.stdout)["ins_vs_short_mcnv"]
