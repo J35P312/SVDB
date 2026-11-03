@@ -1,9 +1,34 @@
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .ins_similarity import extract_ins_sequence
-from .models import VCFVariant
+from .models import VCFVariant, combine_cnv_types, gt_type
 from .vcf_utils import parse_info_field
+
+_CNV_TYPES = {"DEL", "DUP", "CNV"}
+
+
+def _allele_type(allele: str) -> str:
+    """Base type of one symbolic allele: <DUP:TANDEM> -> DUP, <CN=0>/<CN0>/<CNV> -> CNV."""
+    allele = allele.strip("<>")
+    return "CNV" if allele.startswith("CN") else allele.split(":")[0]
+
+
+def _multi_alt_type(alt: str, info: Dict[str, str], fmt: Dict[str, List[str]]) -> Tuple[str, Tuple[str, ...]]:
+    """Record type and per-ALT types of a multi-ALT symbolic record.
+
+    Copy-number alleles (DEL/DUP/CNV) resolve from the carriers' GTs when every
+    sample is called; otherwise (sites-only, no-calls) from all ALT alleles.
+    Other allele kinds fall back to SVTYPE.
+    """
+    alt_types = tuple(_allele_type(a) for a in alt.split(","))
+    if not set(alt_types) <= _CNV_TYPES:
+        return info.get("SVTYPE", alt_types[0]), ()
+    gts = fmt.get("GT", [])
+    carried = set()
+    if gts and all("." not in gt for gt in gts):
+        carried = {t for t in (gt_type(alt_types, gt) for gt in gts) if t}
+    return combine_cnv_types(carried or set(alt_types)), alt_types
 
 
 def readVCFLine(line: str) -> Optional[VCFVariant]:
@@ -12,6 +37,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
     variation = line.strip().split("\t")
     event_type = ""
+    alt_types: Tuple[str, ...] = ()
     chrA = variation[0]
     posA = int(variation[1])
     posB = 0
@@ -66,10 +92,15 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
 
         nucleotides=set(["A","T","C","G","N"])
         #SVtype is given in alt column
-        if "<" in variation[4] and ">" in variation[4]:
+        if "," in variation[4] and variation[4].startswith("<"):
+            event_type, alt_types = _multi_alt_type(variation[4], description, fmt)
+
+        elif "<" in variation[4] and ">" in variation[4]:
             event_type = variation[4].strip("<").rstrip(">")
             if "DUP" in event_type:
                 event_type = "DUP"
+            elif event_type.startswith("CN"):
+                event_type = "CNV"
 
         #SVtype present in INFO
         elif "SVTYPE" in description:
@@ -128,4 +159,4 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
         # DEL/DUP/INV etc.: prefer INFO SVLEN, fall back to coordinate span (covers END-only callers)
         svlen = svlen_from_info if svlen_from_info is not None else (posB - posA if posB > posA else None)
 
-    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt, ins_seq=ins_seq, svlen=svlen, vcf_filter=variation[6])
+    return VCFVariant(chrA=chrA, posA=posA, chrB=chrB, posB=posB, event_type=event_type, info=description, fmt=fmt, ins_seq=ins_seq, svlen=svlen, vcf_filter=variation[6], alt_types=alt_types)
