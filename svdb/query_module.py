@@ -92,6 +92,7 @@ def _load_vcf_db(args):
     use_OCC_tag = False
     OCC_tag = None
     FRQ_tag = None
+    n_multivalued = 0
 
     if args.in_occ:
         OCC_tag = args.in_occ
@@ -143,6 +144,9 @@ def _load_vcf_db(args):
                         chrA, posA, OCC_tag, FRQ_tag,
                     )
                     continue
+                if "," in str(OCC) or "," in str(FRQ):
+                    n_multivalued += 1
+                    continue
                 sample_entry = [OCC, FRQ]
                 use_OCC_tag = True
 
@@ -162,6 +166,9 @@ def _load_vcf_db(args):
             entry["svlens"].append(svlen)
             entry["sequences"].append(seq)
             entry["samples"].append(sample_entry)
+
+    if n_multivalued:
+        logger.warning("skipped %d db variants with multi-valued %s/%s", n_multivalued, OCC_tag, FRQ_tag)
 
     for chrA in DBvariants:
         for chrB in DBvariants[chrA]:
