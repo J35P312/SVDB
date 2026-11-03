@@ -70,6 +70,8 @@ This module is used to construct structural variant databases from vcf files. Th
 Sample names are taken from the VCF header's sample column (the named `FORMAT` columns).
 For VCFs with no sample columns (INFO-only format), the filename stem is used instead.
 
+From v2.12.3, multi-ALT CNV records (e.g. `<DEL>,<DUP>`, `<CN=0>,<CN=1>,...`) are typed per sample GT as DEL, DUP or CNV. Rebuild databases made with earlier versions if their input VCFs contain such records.
+
 ```text
     svdb --build --help
     svdb --build --files sample1.vcf sample2.vcf sample3.vcf
