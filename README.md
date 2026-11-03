@@ -194,8 +194,10 @@ The query module is used to query one or more structural variant databases. Typi
     --out_frq OUT_FRQ           output tag for allele frequency (default: FRQ)
     --in_occ IN_OCC             allele count tag in the db INFO column (usually OCC or AN);
                                 required when querying multiple databases
+                                db variants with a multi-valued tag are skipped
     --in_frq IN_FRQ             allele frequency tag in the db INFO column (usually FRQ or AF);
                                 required when querying multiple databases
+                                db variants with a multi-valued tag are skipped
 
   algorithm — SV matching:
     --bnd_distance BND_DISTANCE maximum distance between two similar breakpoints (default: 10000)
