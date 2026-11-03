@@ -366,18 +366,20 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
         join = "LEFT JOIN INS i ON s.idx = i.idx"
         table = "SVDB s"
+        var_filter = "" if args.no_var else f"s.var == '{variant['type']}' AND "
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE s.var == '{variant['type']}' AND s.chrA == '{variant['chrA']}' "
+            f"WHERE {var_filter}s.chrA == '{variant['chrA']}' "
             f"AND s.chrB == '{variant['chrB']}' "
             f"AND s.posA <= {variant['posA'] + distance} AND s.posA >= {variant['posA'] - distance} "
             f"AND s.posB <= {variant['posB'] + distance} AND s.posB >= {variant['posB'] - distance}"
         )
     else:
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
+        var_filter = "" if args.no_var else f"var == '{variant['type']}' AND "
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE var == '{variant['type']}' AND chrA == '{variant['chrA']}' "
+            f"WHERE {var_filter}chrA == '{variant['chrA']}' "
             f"AND chrB == '{variant['chrB']}' "
             f"AND posA <= {variant['posA'] + distance} AND posA >= {variant['posA'] - distance} "
             f"AND posB <= {variant['posB'] + distance} AND posB >= {variant['posB'] - distance}"
