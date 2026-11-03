@@ -42,12 +42,13 @@ def _vcf_sample_names(vcf_path: str) -> list:
 
 
 def _iter_vcf_variants(vcf_path: str):
-    """Yield (sample_name, variant) pairs from a VCF.
+    """Yield (sample_name, variant, event_type) triples from a VCF.
 
     For VCFs with sample columns and a GT FORMAT field, yields one entry per
-    non-ref genotype using the corresponding header column name.  For VCFs
-    without sample columns (INFO-only), yields one entry per variant line
-    using the filename stem.
+    non-ref genotype using the corresponding header column name, typed by that
+    genotype (multi-ALT CNV records; GTs carrying no ALT allele are skipped).
+    For VCFs without sample columns (INFO-only), yields one entry per variant
+    line using the filename stem.
     """
     stem = Path(vcf_path).stem.replace(".", "_")
     sample_names: list = []
@@ -68,11 +69,13 @@ def _iter_vcf_variants(vcf_path: str):
                 continue
 
             if "GT" not in variant.fmt or not sample_names:
-                yield stem, variant
+                yield stem, variant, variant.event_type
             else:
                 for sample_index, genotype in enumerate(variant.fmt["GT"]):
                     if genotype not in ["0/0", "./."]:
-                        yield sample_names[sample_index], variant
+                        event_type = variant.type_for_gt(genotype)
+                        if event_type is not None:
+                            yield sample_names[sample_index], variant, event_type
 
 
 def populate_db(args):
@@ -110,7 +113,7 @@ def populate_db(args):
             var = []
             ins = []
 
-            for sample_name, variant in _iter_vcf_variants(vcf):
+            for sample_name, variant, event_type in _iter_vcf_variants(vcf):
                 if args.pass_only and variant.vcf_filter not in ("PASS", "."):
                     continue
 
@@ -118,7 +121,6 @@ def populate_db(args):
                 posA = variant.posA
                 chrB = variant.chrB
                 posB = variant.posB
-                event_type = variant.event_type
                 INFO = variant.info
 
                 ci_A_lower = 0
@@ -180,14 +182,14 @@ def upgrade_db(args):
                 logger.warning("unable to open %s — skipping", vcf)
                 continue
 
-            for sample_name, variant in _iter_vcf_variants(vcf):
+            for sample_name, variant, event_type in _iter_vcf_variants(vcf):
                 vcf_sample_names.add(sample_name)
-                if "INS" not in variant.event_type:
+                if "INS" not in event_type:
                     continue
 
                 rows = db.query(
                     f"SELECT idx FROM SVDB WHERE sample == '{sample_name}' "
-                    f"AND var == '{variant.event_type}' "
+                    f"AND var == '{event_type}' "
                     f"AND chrA == '{variant.chrA}' AND posA == {variant.posA}"
                 )
                 for (idx,) in rows:
