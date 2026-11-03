@@ -1,0 +1,13 @@
+##fileformat=VCFv4.2
+##source=synthetic; modelled on GATK >=4.2 JointGermlineCNVSegmentation cohort VCF (<DEL>,<DUP> + SVTYPE=CNV when both present; DUP genotypes are no-call ./. with CN)
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Predicted copy state">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Variant length">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Variant type">
+##contig=<ID=1,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG003	HG004	HG005
+1	20100001	CNV_1_20100001_20150000	N	<DEL>	.	.	END=20150000;SVLEN=50000;SVTYPE=DEL	GT:CN	0/1:1	0/0:2	0/0:2
+1	152555001	CNV_1_152555001_152590000	N	<DEL>,<DUP>	.	.	END=152590000;SVLEN=35000;SVTYPE=CNV	GT:CN	0/1:1	./.:3	0/0:2

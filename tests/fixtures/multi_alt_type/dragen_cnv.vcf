@@ -1,0 +1,18 @@
+##fileformat=VCFv4.2
+##source=synthetic; modelled on DRAGEN 4.4 germline CNV VCF (single ALT <DEL>/<DUP>, SVTYPE=CNV, DUP GT ./1)
+##ALT=<ID=CNV,Description="Copy number variant region">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Region of elevated copy number relative to the reference">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=REFLEN,Number=1,Type=Integer,Description="Number of REF positions included in this record">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=SM,Number=1,Type=Float,Description="Linear copy ratio of the segment mean">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Estimated copy number">
+##FORMAT=<ID=BC,Number=1,Type=Integer,Description="Number of bins in the region">
+##FORMAT=<ID=PE,Number=2,Type=Integer,Description="Number of improperly paired end reads at start and stop breakpoints">
+##contig=<ID=1,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG007
+1	16800001	DRAGEN:GAIN:1:16800002-16860000	N	<DUP>	150	PASS	SVLEN=60000;SVTYPE=CNV;END=16860000;REFLEN=60000	GT:SM:CN:BC:PE	./1:1.49:3:60:4,6
+1	20100001	DRAGEN:LOSS:1:20100002-20150000	N	<DEL>	150	PASS	SVLEN=-50000;SVTYPE=CNV;END=20150000;REFLEN=50000	GT:SM:CN:BC:PE	0/1:0.52:1:50:7,5
