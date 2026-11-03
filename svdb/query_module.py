@@ -125,15 +125,26 @@ def _load_vcf_db(args):
                 v = read_vcf.readVCFLine(line)
                 chrA, posA, chrB, posB, event_type, INFO, FORMAT = v.chrA, v.posA, v.chrB, v.posB, v.event_type, v.info, v.fmt
 
-            if chrA not in DBvariants:
-                DBvariants[chrA] = {}
-            if chrB not in DBvariants[chrA]:
-                DBvariants[chrA][chrB] = {}
-            if event_type not in DBvariants[chrA][chrB]:
-                DBvariants[chrA][chrB][event_type] = {
-                    "samples": [], "coordinates": [], "svlens": [], "sequences": []}
-
-            DBvariants[chrA][chrB][event_type]["coordinates"].append(np.array([int(posA), int(posB)]))
+            # resolve samples before inserting, so skipped variants leave no entry
+            if "GT" in FORMAT and not use_OCC_tag:
+                sample_entry = np.array(FORMAT["GT"])
+                db_size = len(FORMAT["GT"])
+            elif args.bedpedb:
+                sample_entry = [hits, frequency]
+                use_OCC_tag = True
+            else:
+                try:
+                    OCC = INFO[OCC_tag]
+                    FRQ = INFO[FRQ_tag]
+                except KeyError:
+                    logger.warning(
+                        "skipping db variant at %s:%s — OCC/FRQ tag not found in INFO "
+                        "(expected %s / %s); use --in_occ/--in_frq to set the correct tag names",
+                        chrA, posA, OCC_tag, FRQ_tag,
+                    )
+                    continue
+                sample_entry = [OCC, FRQ]
+                use_OCC_tag = True
 
             # Store SVLEN and sequence for insertion entries (VCF format only, not BEDPE)
             if not args.bedpedb and "INS" in event_type:
@@ -144,31 +155,13 @@ def _load_vcf_db(args):
             else:
                 svlen = None
                 seq = ""
-            DBvariants[chrA][chrB][event_type]["svlens"].append(svlen)
-            DBvariants[chrA][chrB][event_type]["sequences"].append(seq)
-            if "GT" in FORMAT and not use_OCC_tag:
-                DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
-                db_size = len(FORMAT["GT"])
-            elif args.bedpedb:
-                DBvariants[chrA][chrB][event_type]["samples"].append([hits, frequency])
-                use_OCC_tag = True
-            else:
-                try:
-                    OCC = INFO[OCC_tag]
-                    FRQ = INFO[FRQ_tag]
-                    DBvariants[chrA][chrB][event_type]["samples"].append([OCC, FRQ])
-                    use_OCC_tag = True
-                except KeyError:
-                    logger.warning(
-                        "skipping db variant at %s:%s — OCC/FRQ tag not found in INFO "
-                        "(expected %s / %s); use --in_occ/--in_frq to set the correct tag names",
-                        chrA, posA, OCC_tag, FRQ_tag,
-                    )
-                    # remove entries added above for this variant to keep all lists in sync
-                    DBvariants[chrA][chrB][event_type]["coordinates"].pop()
-                    DBvariants[chrA][chrB][event_type]["svlens"].pop()
-                    DBvariants[chrA][chrB][event_type]["sequences"].pop()
-                    continue
+
+            entry = DBvariants.setdefault(chrA, {}).setdefault(chrB, {}).setdefault(
+                event_type, {"samples": [], "coordinates": [], "svlens": [], "sequences": []})
+            entry["coordinates"].append(np.array([int(posA), int(posB)]))
+            entry["svlens"].append(svlen)
+            entry["sequences"].append(seq)
+            entry["samples"].append(sample_entry)
 
     for chrA in DBvariants:
         for chrB in DBvariants[chrA]:
