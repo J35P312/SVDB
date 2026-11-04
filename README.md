@@ -206,6 +206,10 @@ The query module is used to query one or more structural variant databases. Typi
     --max_frq MAX_FRQ           only report variants with frequency at or below this value
                                 (default: 1, i.e. all variants)
     --no_var                    count overlapping variants of different type as hits in the db
+    --svtype_match {exact,hierarchical}
+                                exact (default): types must be equal; hierarchical: a type also
+                                matches its parent or child, never its siblings
+                                (INS:ME:ALU~INS, CNV~DEL/DUP; not with --no_var)
 
   algorithm — insertion matching (--db and --sqdb with INS table; no effect with --bedpedb):
     --data_profile {sample,cohort,position_only}
@@ -264,6 +268,10 @@ rather than silently treat both files as one. Use unique --priority tags to disa
     --overlap OVERLAP           minimum reciprocal overlap to merge two events;
                                 must be in [0.0, 1.0] (0 = anything touching; 1 = identical) (default: 0.95)
     --no_var                    variants of different type will be merged
+    --svtype_match {exact,hierarchical}
+                                exact (default): types must be equal; hierarchical: a type also
+                                matches its parent or child, never its siblings
+                                (INS:ME:ALU~INS, CNV~DEL/DUP; not with --no_var)
 
   algorithm — insertion matching:
     --data_profile {sample,cohort,position_only}
