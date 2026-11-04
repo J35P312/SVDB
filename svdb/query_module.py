@@ -5,7 +5,7 @@ import numpy as np
 
 from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
 from .ins_similarity import cap_seq, decompress_ins_seq
-from .svtype import svtypes_match
+from .svtype import matching_svtypes, svtypes_match
 
 logger = logging.getLogger(__name__)
 
@@ -243,8 +243,12 @@ def main(args, output_file=None):
                     "run: svdb --build --upgrade --files <original_vcfs>"
                 )
 
+            db_svtypes = None
+            if args.svtype_match == "hierarchical":
+                db_svtypes = [row[0] for row in db.query("SELECT DISTINCT var FROM SVDB")]
+
             for query in queries:
-                query[5] = SQDB(query, args, db, has_ins_table)
+                query[5] = SQDB(query, args, db, has_ins_table, db_svtypes)
 
         _write_sqdb_results(queries, args, writer, db_size)
 
@@ -351,13 +355,19 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     return hits
 
 
-def SQDB(query_variant, args, db, has_ins_table=False):
+def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
+    """db_svtypes: all types in the db, for --svtype_match hierarchical; None for exact."""
     is_ins = "INS" in query_variant[4]
     distance = args.ins_distance if is_ins else args.bnd_distance
     overlap = args.overlap
     variant = {"type": query_variant[4],
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
+    if db_svtypes is None:
+        type_sql = f"== '{variant['type']}'"
+    else:
+        types = matching_svtypes(variant["type"], db_svtypes, hierarchical=True)
+        type_sql = "IN ({})".format(", ".join(f"'{t}'" for t in types))
 
     use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
 
@@ -367,7 +377,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         table = "SVDB s"
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE s.var == '{variant['type']}' AND s.chrA == '{variant['chrA']}' "
+            f"WHERE s.var {type_sql} AND s.chrA == '{variant['chrA']}' "
             f"AND s.chrB == '{variant['chrB']}' "
             f"AND s.posA <= {variant['posA'] + distance} AND s.posA >= {variant['posA'] - distance} "
             f"AND s.posB <= {variant['posB'] + distance} AND s.posB >= {variant['posB'] - distance}"
@@ -376,7 +386,7 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE var == '{variant['type']}' AND chrA == '{variant['chrA']}' "
+            f"WHERE var {type_sql} AND chrA == '{variant['chrA']}' "
             f"AND chrB == '{variant['chrB']}' "
             f"AND posA <= {variant['posA'] + distance} AND posA >= {variant['posA'] - distance} "
             f"AND posB <= {variant['posB'] + distance} AND posB >= {variant['posB'] - distance}"
