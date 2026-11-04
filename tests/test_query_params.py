@@ -21,7 +21,7 @@ def _args():
     return SimpleNamespace(
         ins_distance=1000, bnd_distance=1000, overlap=0.8,
         no_ins_seq=True, ins_svlen_ratio=0.8, ins_seq_similarity=0.8,
-        max_ins_seq_len=1000,
+        max_ins_seq_len=1000, no_var=False,
     )
 
 

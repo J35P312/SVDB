@@ -363,14 +363,18 @@ def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
     variant = {"type": query_variant[4],
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
-    if db_svtypes is None:
+    use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
+
+    col = "s." if use_ins_table else ""
+    if args.no_var:
+        types = []
+        var_filter = ""
+    elif db_svtypes is None:
         types = [variant["type"]]
-        type_sql = "== ?"
+        var_filter = f"{col}var == ? AND "
     else:
         types = matching_svtypes(variant["type"], db_svtypes, hierarchical=True)
-        type_sql = "IN ({})".format(", ".join("?" * len(types)))
-
-    use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
+        var_filter = "{}var IN ({}) AND ".format(col, ", ".join("?" * len(types)))
 
     if use_ins_table:
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
@@ -378,7 +382,7 @@ def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
         table = "SVDB s"
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE s.var {type_sql} AND s.chrA == ? "
+            f"WHERE {var_filter}s.chrA == ? "
             "AND s.chrB == ? "
             "AND s.posA <= ? AND s.posA >= ? "
             "AND s.posB <= ? AND s.posB >= ?"
@@ -387,7 +391,7 @@ def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE var {type_sql} AND chrA == ? "
+            f"WHERE {var_filter}chrA == ? "
             "AND chrB == ? "
             "AND posA <= ? AND posA >= ? "
             "AND posB <= ? AND posB >= ?"
