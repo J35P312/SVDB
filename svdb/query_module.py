@@ -92,6 +92,7 @@ def _load_vcf_db(args):
     use_OCC_tag = False
     OCC_tag = None
     FRQ_tag = None
+    n_multivalued = 0
 
     if args.in_occ:
         OCC_tag = args.in_occ
@@ -125,15 +126,29 @@ def _load_vcf_db(args):
                 v = read_vcf.readVCFLine(line)
                 chrA, posA, chrB, posB, event_type, INFO, FORMAT = v.chrA, v.posA, v.chrB, v.posB, v.event_type, v.info, v.fmt
 
-            if chrA not in DBvariants:
-                DBvariants[chrA] = {}
-            if chrB not in DBvariants[chrA]:
-                DBvariants[chrA][chrB] = {}
-            if event_type not in DBvariants[chrA][chrB]:
-                DBvariants[chrA][chrB][event_type] = {
-                    "samples": [], "coordinates": [], "svlens": [], "sequences": []}
-
-            DBvariants[chrA][chrB][event_type]["coordinates"].append(np.array([int(posA), int(posB)]))
+            # resolve samples before inserting, so skipped variants leave no entry
+            if "GT" in FORMAT and not use_OCC_tag:
+                sample_entry = np.array(FORMAT["GT"])
+                db_size = len(FORMAT["GT"])
+            elif args.bedpedb:
+                sample_entry = [hits, frequency]
+                use_OCC_tag = True
+            else:
+                try:
+                    OCC = INFO[OCC_tag]
+                    FRQ = INFO[FRQ_tag]
+                except KeyError:
+                    logger.warning(
+                        "skipping db variant at %s:%s — OCC/FRQ tag not found in INFO "
+                        "(expected %s / %s); use --in_occ/--in_frq to set the correct tag names",
+                        chrA, posA, OCC_tag, FRQ_tag,
+                    )
+                    continue
+                if "," in str(OCC) or "," in str(FRQ):
+                    n_multivalued += 1
+                    continue
+                sample_entry = [OCC, FRQ]
+                use_OCC_tag = True
 
             # Store SVLEN and sequence for insertion entries (VCF format only, not BEDPE)
             if not args.bedpedb and "INS" in event_type:
@@ -144,31 +159,16 @@ def _load_vcf_db(args):
             else:
                 svlen = None
                 seq = ""
-            DBvariants[chrA][chrB][event_type]["svlens"].append(svlen)
-            DBvariants[chrA][chrB][event_type]["sequences"].append(seq)
-            if "GT" in FORMAT and not use_OCC_tag:
-                DBvariants[chrA][chrB][event_type]["samples"].append(np.array(FORMAT["GT"]))
-                db_size = len(FORMAT["GT"])
-            elif args.bedpedb:
-                DBvariants[chrA][chrB][event_type]["samples"].append([hits, frequency])
-                use_OCC_tag = True
-            else:
-                try:
-                    OCC = INFO[OCC_tag]
-                    FRQ = INFO[FRQ_tag]
-                    DBvariants[chrA][chrB][event_type]["samples"].append([OCC, FRQ])
-                    use_OCC_tag = True
-                except KeyError:
-                    logger.warning(
-                        "skipping db variant at %s:%s — OCC/FRQ tag not found in INFO "
-                        "(expected %s / %s); use --in_occ/--in_frq to set the correct tag names",
-                        chrA, posA, OCC_tag, FRQ_tag,
-                    )
-                    # remove entries added above for this variant to keep all lists in sync
-                    DBvariants[chrA][chrB][event_type]["coordinates"].pop()
-                    DBvariants[chrA][chrB][event_type]["svlens"].pop()
-                    DBvariants[chrA][chrB][event_type]["sequences"].pop()
-                    continue
+
+            entry = DBvariants.setdefault(chrA, {}).setdefault(chrB, {}).setdefault(
+                event_type, {"samples": [], "coordinates": [], "svlens": [], "sequences": []})
+            entry["coordinates"].append(np.array([int(posA), int(posB)]))
+            entry["svlens"].append(svlen)
+            entry["sequences"].append(seq)
+            entry["samples"].append(sample_entry)
+
+    if n_multivalued:
+        logger.warning("skipped %d db variants with multi-valued %s/%s", n_multivalued, OCC_tag, FRQ_tag)
 
     for chrA in DBvariants:
         for chrB in DBvariants[chrA]:
@@ -369,23 +369,28 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         var_filter = "" if args.no_var else f"s.var == '{variant['type']}' AND "
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE {var_filter}s.chrA == '{variant['chrA']}' "
-            f"AND s.chrB == '{variant['chrB']}' "
-            f"AND s.posA <= {variant['posA'] + distance} AND s.posA >= {variant['posA'] - distance} "
-            f"AND s.posB <= {variant['posB'] + distance} AND s.posB >= {variant['posB'] - distance}"
+            "WHERE {var_filter}s.chrA == ? "
+            "AND s.chrB == ? "
+            "AND s.posA <= ? AND s.posA >= ? "
+            "AND s.posB <= ? AND s.posB >= ?"
         )
     else:
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
         var_filter = "" if args.no_var else f"var == '{variant['type']}' AND "
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE {var_filter}chrA == '{variant['chrA']}' "
-            f"AND chrB == '{variant['chrB']}' "
-            f"AND posA <= {variant['posA'] + distance} AND posA >= {variant['posA'] - distance} "
-            f"AND posB <= {variant['posB'] + distance} AND posB >= {variant['posB'] - distance}"
+            "WHERE {var_filter}chrA == ? "
+            "AND chrB == ? "
+            "AND posA <= ? AND posA >= ? "
+            "AND posB <= ? AND posB >= ?"
         )
+    params = (
+        variant["type"], variant["chrA"], variant["chrB"],
+        variant["posA"] + distance, variant["posA"] - distance,
+        variant["posB"] + distance, variant["posB"] - distance,
+    )
 
-    hits = db.query(A)
+    hits = db.query(A, params)
 
     ins_svlen_ratio = args.ins_svlen_ratio
     ins_seq_threshold = args.ins_seq_similarity

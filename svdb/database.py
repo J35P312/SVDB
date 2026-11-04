@@ -45,8 +45,8 @@ class DB:
     def __len__(self) -> int:
         return len(self.query('SELECT DISTINCT sample FROM SVDB'))
 
-    def query(self, query: str) -> List[Tuple[Any, ...]]:
-        self.cursor.execute(query)
+    def query(self, query: str, params: tuple = ()) -> List[Tuple[Any, ...]]:
+        self.cursor.execute(query, params)
         res = self.cursor.fetchall()
         return res
 
