@@ -1,6 +1,7 @@
 from bisect import bisect_left, bisect_right
 
 from . import overlap_module
+from .svtype import svtypes_match
 from .ins_similarity import cap_seq, sequence_gate
 
 
@@ -232,6 +233,7 @@ def merge(variants, samples, sample_order, priority_order, args):
     ins_distance = args.ins_distance
     no_intra = args.no_intra
     no_var = args.no_var
+    hierarchical = args.svtype_match == "hierarchical"
     pass_only = args.pass_only
     ins_svlen_ratio = args.ins_svlen_ratio
     ins_seq_similarity = args.ins_seq_similarity
@@ -318,7 +320,8 @@ def merge(variants, samples, sample_order, priority_order, args):
                 if chrB_i != var_j.chrB:
                     continue
 
-                if type_i != var_j.event_type and not no_var:
+                if type_i != var_j.event_type and not no_var and not (
+                        hierarchical and svtypes_match(type_i, var_j.event_type, True)):
                     continue
 
                 if pass_only and var_j.vcf_filter not in ('PASS', '.'):

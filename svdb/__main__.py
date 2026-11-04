@@ -54,6 +54,16 @@ def _setup_logging(debug: bool) -> None:
     )
 
 
+def _add_svtype_flags(parser: argparse.ArgumentParser, no_var_help: str) -> None:
+    """Add the mutually exclusive SV type matching flags (--no_var, --svtype_match)."""
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--no_var', help=no_var_help, action="store_true")
+    group.add_argument(
+        '--svtype_match', choices=["exact", "hierarchical"], default="exact",
+        help="SV type matching: exact (default), or hierarchical: a type also matches its "
+             "parent or child, never its siblings (INS:ME:ALU~INS, CNV~DEL/DUP)")
+
+
 def _add_ins_flags(parser: argparse.ArgumentParser) -> None:
     """Add the shared insertion matching flags to a subcommand parser."""
     parser.add_argument(
@@ -172,8 +182,7 @@ def main():
                                  "(0 = anything touching; 1 = identical) (default: 0.6)")
         parser.add_argument('--memory',
                             help="load the database into memory: increases memory use but lowers query time (sqdb only)", required=False, action="store_true")
-        parser.add_argument('--no_var',
-                            help="count overlapping variants of different type as hits in the db", required=False, action="store_true")
+        _add_svtype_flags(parser, "count overlapping variants of different type as hits in the db")
         parser.add_argument('--debug', help=argparse.SUPPRESS,
                             required=False, action="store_true")
         args = parser.parse_args()
@@ -320,8 +329,7 @@ def main():
                                  "(0 = anything touching; 1 = identical) (default: 0.95)")
         parser.add_argument(
             '--no_intra', help="no merging of variants within the same vcf", required=False, action="store_true")
-        parser.add_argument(
-            '--no_var', help="variants of different type will be merged", required=False, action="store_true")
+        _add_svtype_flags(parser, "variants of different type will be merged")
         parser.add_argument(
             '--pass_only', help="merge only variants labeled PASS", required=False, action="store_true")
         parser.add_argument(
