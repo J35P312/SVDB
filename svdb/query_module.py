@@ -5,6 +5,7 @@ import numpy as np
 
 from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
 from .ins_similarity import cap_seq, decompress_ins_seq
+from .svtype import svtypes_match
 
 logger = logging.getLogger(__name__)
 
@@ -276,17 +277,15 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             return([0, 0])
         else:
             return 0
+    hierarchical = args.svtype_match == "hierarchical"
     for var in DBvariants[chrA][chrB]:
-        if not args.no_var and variation_type != var:
+        if not args.no_var and not svtypes_match(variation_type, var, hierarchical):
             continue
 
         candidates = np.where((args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:, 0] - chrApos)) & (
             args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:, 1] - chrBpos)))
-        if not len(candidates[0]) and not args.no_var:
-            if use_OCC_tag:
-                return([0, 0])
-            else:
-                return 0
+        if not len(candidates[0]):
+            continue
         # check if this variation is already present
         for candidate in candidates[0]:
             event = DBvariants[chrA][chrB][var]["coordinates"][candidate]
