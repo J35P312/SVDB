@@ -152,10 +152,10 @@ def main():
                             help="path to a SV db in chrA-posA-chrB-posB-type-count-frequency format, or a comma-separated list of files")
         parser.add_argument('--in_occ', type=str,
                             help="the allele count tag in the db INFO column (usually OCC or AN); "
-                                 "required when querying multiple databases. Use 'default' to use the default tag for a specific db")
+                                 "required when querying multiple databases. Use 'default' to use the default tag for a specific db. db variants with a multi-valued tag are skipped")
         parser.add_argument('--in_frq', type=str,
                             help="the allele frequency tag in the db INFO column (usually FRQ or AF); "
-                                 "required when querying multiple databases. Use 'default' to use the default tag for a specific db")
+                                 "required when querying multiple databases. Use 'default' to use the default tag for a specific db. db variants with a multi-valued tag are skipped")
         parser.add_argument('--out_occ', type=str, default="OCC",
                             help="output tag for allele count (default: OCC); required when querying multiple databases")
         parser.add_argument('--out_frq', type=str, default="FRQ",
