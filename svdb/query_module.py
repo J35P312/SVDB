@@ -364,10 +364,11 @@ def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
     if db_svtypes is None:
-        type_sql = f"== '{variant['type']}'"
+        types = [variant["type"]]
+        type_sql = "== ?"
     else:
         types = matching_svtypes(variant["type"], db_svtypes, hierarchical=True)
-        type_sql = "IN ({})".format(", ".join(f"'{t}'" for t in types))
+        type_sql = "IN ({})".format(", ".join("?" * len(types)))
 
     use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
 
@@ -377,22 +378,27 @@ def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
         table = "SVDB s"
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE s.var {type_sql} AND s.chrA == '{variant['chrA']}' "
-            f"AND s.chrB == '{variant['chrB']}' "
-            f"AND s.posA <= {variant['posA'] + distance} AND s.posA >= {variant['posA'] - distance} "
-            f"AND s.posB <= {variant['posB'] + distance} AND s.posB >= {variant['posB'] - distance}"
+            f"WHERE s.var {type_sql} AND s.chrA == ? "
+            "AND s.chrB == ? "
+            "AND s.posA <= ? AND s.posA >= ? "
+            "AND s.posB <= ? AND s.posB >= ?"
         )
     else:
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE var {type_sql} AND chrA == '{variant['chrA']}' "
-            f"AND chrB == '{variant['chrB']}' "
-            f"AND posA <= {variant['posA'] + distance} AND posA >= {variant['posA'] - distance} "
-            f"AND posB <= {variant['posB'] + distance} AND posB >= {variant['posB'] - distance}"
+            f"WHERE var {type_sql} AND chrA == ? "
+            "AND chrB == ? "
+            "AND posA <= ? AND posA >= ? "
+            "AND posB <= ? AND posB >= ?"
         )
+    params = (
+        *types, variant["chrA"], variant["chrB"],
+        variant["posA"] + distance, variant["posA"] - distance,
+        variant["posB"] + distance, variant["posB"] - distance,
+    )
 
-    hits = db.query(A)
+    hits = db.query(A, params)
 
     ins_svlen_ratio = args.ins_svlen_ratio
     ins_seq_threshold = args.ins_seq_similarity
