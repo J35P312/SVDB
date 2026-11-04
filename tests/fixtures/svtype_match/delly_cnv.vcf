@@ -1,0 +1,16 @@
+##fileformat=VCFv4.2
+##source=synthetic; modelled on Delly cnv output (ALT <CNV>, SVTYPE=CNV, GT missing, copy number in CN)
+##ALT=<ID=CNV,Description="copy-number variants">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the copy-number variant">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise copy-number variant">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVMETHOD,Number=1,Type=String,Description="Type of approach used to detect CNV">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Integer copy-number">
+##FORMAT=<ID=CNL,Number=.,Type=Float,Description="Log10-scaled copy-number likelihoods">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=FT,Number=1,Type=String,Description="Per-sample genotype filter">
+##FORMAT=<ID=RDCN,Number=1,Type=Float,Description="Read-depth based copy-number estimate">
+##contig=<ID=chr1,length=248956422>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004
+chr1	11000	CNV00000001	N	<CNV>	.	PASS	IMPRECISE;SVTYPE=CNV;END=51000;SVMETHOD=EMBL.DELLYv1.2.6	GT:CN:CNL:GQ:FT:RDCN	./.:3:-80.1,-41.7,-12.3,0,-9.8:98:PASS:3.04
