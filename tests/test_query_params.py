@@ -37,6 +37,19 @@ def test_sqdb_quote_in_chromosome_is_literal(db):
     assert SQDB(_query(chrA="1' OR '1'='1"), _args(), db) == 0
 
 
+def test_sqdb_quote_in_type_is_literal(db):
+    assert SQDB(_query(event="DEL' OR '1'='1"), _args(), db) == 0
+
+
+@pytest.mark.parametrize("event, db_svtypes, expected", [
+    ("CNV", None, 0),        # exact: CNV != DEL
+    ("CNV", ["DEL"], 1),     # hierarchical: parent matches child
+    ("DUP", ["DEL"], 0),     # sibling: no db type matches, empty IN ()
+])
+def test_sqdb_svtype_match(db, event, db_svtypes, expected):
+    assert SQDB(_query(event=event), _args(), db, db_svtypes=db_svtypes) == expected
+
+
 def test_db_query_accepts_params(db):
     rows = db.query(
         "SELECT sample FROM SVDB WHERE var = ? AND chrA = ?", ("DEL", "1")

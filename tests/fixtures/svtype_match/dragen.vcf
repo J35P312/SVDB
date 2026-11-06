@@ -1,0 +1,16 @@
+##fileformat=VCFv4.2
+##source=synthetic; modelled on DRAGEN 4.4 cnv_sv VCF (CNV records SVTYPE=CNV with <DEL>; SV records SVTYPE=DEL)
+##ALT=<ID=DEL,Description="Deletion">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=SM,Number=1,Type=Float,Description="Linear copy ratio of the segment mean">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Estimated copy number">
+##FORMAT=<ID=BC,Number=1,Type=Integer,Description="Number of bins in the region">
+##FORMAT=<ID=PE,Number=2,Type=Integer,Description="Number of improperly paired end reads at start and stop breakpoints">
+##contig=<ID=chr1,length=248956422>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002
+chr1	11000	DRAGEN:LOSS:chr1:11001-51000	N	<DEL>	150	PASS	SVLEN=-40000;SVTYPE=CNV;END=51000	GT:SM:CN:BC:PE	0/1:0.51:1:40:3,4
+chr1	46000	DRAGEN:LOSS:chr1:46001-99350	N	<DEL>	150	PASS	SVLEN=-53350;SVTYPE=CNV;END=99350	GT:SM:CN:BC:PE	0/1:0.49:1:53:6,5
+chr1	79086	DRAGEN:DEL:12011:0:1:0:0:0	N	<DEL>	412	PASS	SVLEN=-9032;SVTYPE=DEL;END=88118	GT:SM:CN:BC:PE	0/1:.:.:.:.

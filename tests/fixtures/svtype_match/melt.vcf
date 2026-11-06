@@ -1,0 +1,11 @@
+##fileformat=VCFv4.1
+##source=synthetic; modelled on MELT v2 output (ALT <INS:ME:ALU>, SVTYPE=ALU)
+##ALT=<ID=INS:ME:ALU,Description="Insertion of ALU element">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=MEINFO,Number=4,Type=String,Description="Mobile element info of the form NAME,START,END,POLARITY">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=chr1,length=248956422>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG005
+chr1	61305	ALU_umary_1	T	<INS:ME:ALU>	.	PASS	SVTYPE=ALU;SVLEN=281;MEINFO=AluYa5,1,281,+	GT	0/1
+chr1	634600	ALU_umary_2	C	<INS:ME:ALU>	.	PASS	SVTYPE=ALU;SVLEN=281;MEINFO=AluYb8,1,281,-	GT	0/1

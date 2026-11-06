@@ -1,0 +1,20 @@
+##fileformat=VCFv4.2
+##source=gnomAD-SV v4.1 sites VCF (GRCh38), real chr1 records, INFO trimmed
+##ALT=<ID=CNV,Description="Copy Number Polymorphism">
+##ALT=<ID=DEL:ME:LINE1,Description="LINE1 element deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##ALT=<ID=INS:ME:ALU,Description="Alu element insertion">
+##ALT=<ID=INS:ME:LINE1,Description="LINE1 element insertion">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles genotyped (biallelic sites only).">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Number of non-reference alleles observed (biallelic sites only).">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency (biallelic sites only).">
+##contig=<ID=chr1,length=248956422>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr1	11000	gnomAD-SV_v3_DUP_chr1_7d73682f	N	<DUP>	999	PASS	END=51000;SVLEN=40000;SVTYPE=DUP;AN=106172;AC=7119;AF=0.067052
+chr1	46000	gnomAD-SV_v3_CNV_chr1_e3665ac3	N	<CNV>	.	PASS	END=99350;SVLEN=53350;SVTYPE=CNV
+chr1	61303	gnomAD-SV_v3_INS_chr1_ce3bb71c	N	<INS:ME:ALU>	629	PASS	END=61350;SVLEN=279;SVTYPE=INS;AN=125974;AC=1;AF=8e-06
+chr1	79086	gnomAD-SV_v3_DEL_chr1_733c4ef0	N	<DEL:ME:LINE1>	344	UNRESOLVED	END=88118;SVLEN=9032;SVTYPE=DEL;AN=126090;AC=5;AF=4e-05
+chr1	634598	gnomAD-SV_v3_INS_chr1_58faad16	N	<INS:ME:LINE1>	306	PASS	END=634621;SVLEN=1264;SVTYPE=INS;AN=125956;AC=14;AF=0.000111

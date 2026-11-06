@@ -5,6 +5,7 @@ import numpy as np
 
 from . import database, ins_similarity, overlap_module, read_vcf, vcf_utils
 from .ins_similarity import cap_seq, decompress_ins_seq
+from .svtype import matching_svtypes, svtypes_match
 
 logger = logging.getLogger(__name__)
 
@@ -242,8 +243,12 @@ def main(args, output_file=None):
                     "run: svdb --build --upgrade --files <original_vcfs>"
                 )
 
+            db_svtypes = None
+            if args.svtype_match == "hierarchical":
+                db_svtypes = [row[0] for row in db.query("SELECT DISTINCT var FROM SVDB")]
+
             for query in queries:
-                query[5] = SQDB(query, args, db, has_ins_table)
+                query[5] = SQDB(query, args, db, has_ins_table, db_svtypes)
 
         _write_sqdb_results(queries, args, writer, db_size)
 
@@ -276,17 +281,15 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
             return([0, 0])
         else:
             return 0
+    hierarchical = args.svtype_match == "hierarchical"
     for var in DBvariants[chrA][chrB]:
-        if not args.no_var and variation_type != var:
+        if not args.no_var and not svtypes_match(variation_type, var, hierarchical):
             continue
 
         candidates = np.where((args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:, 0] - chrApos)) & (
             args.bnd_distance >= abs(DBvariants[chrA][chrB][var]["coordinates"][:, 1] - chrBpos)))
-        if not len(candidates[0]) and not args.no_var:
-            if use_OCC_tag:
-                return([0, 0])
-            else:
-                return 0
+        if not len(candidates[0]):
+            continue
         # check if this variation is already present
         for candidate in candidates[0]:
             event = DBvariants[chrA][chrB][var]["coordinates"][candidate]
@@ -352,21 +355,31 @@ def queryVCFDB(DBvariants, query_variant, args, use_OCC_tag):
     return hits
 
 
-def SQDB(query_variant, args, db, has_ins_table=False):
+def SQDB(query_variant, args, db, has_ins_table=False, db_svtypes=None):
+    """db_svtypes: all types in the db, for --svtype_match hierarchical; None for exact."""
     is_ins = "INS" in query_variant[4]
     distance = args.ins_distance if is_ins else args.bnd_distance
     overlap = args.overlap
     variant = {"type": query_variant[4],
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
-
     use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
+
+    col = "s." if use_ins_table else ""
+    if args.no_var:
+        types = []
+        var_filter = ""
+    elif db_svtypes is None:
+        types = [variant["type"]]
+        var_filter = f"{col}var == ? AND "
+    else:
+        types = matching_svtypes(variant["type"], db_svtypes, hierarchical=True)
+        var_filter = "{}var IN ({}) AND ".format(col, ", ".join("?" * len(types)))
 
     if use_ins_table:
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
         join = "LEFT JOIN INS i ON s.idx = i.idx"
         table = "SVDB s"
-        var_filter = "" if args.no_var else "s.var == ? AND "
         A = (
             f"SELECT {selection} FROM {table} {join} "
             f"WHERE {var_filter}s.chrA == ? "
@@ -376,7 +389,6 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         )
     else:
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
-        var_filter = "" if args.no_var else "var == ? AND "
         A = (
             f"SELECT {selection} FROM SVDB "
             f"WHERE {var_filter}chrA == ? "
@@ -384,8 +396,8 @@ def SQDB(query_variant, args, db, has_ins_table=False):
             "AND posA <= ? AND posA >= ? "
             "AND posB <= ? AND posB >= ?"
         )
-    params = (() if args.no_var else (variant["type"],)) + (
-        variant["chrA"], variant["chrB"],
+    params = (
+        *types, variant["chrA"], variant["chrB"],
         variant["posA"] + distance, variant["posA"] - distance,
         variant["posB"] + distance, variant["posB"] - distance,
     )
