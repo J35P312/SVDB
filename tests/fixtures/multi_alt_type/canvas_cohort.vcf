@@ -1,0 +1,15 @@
+##fileformat=VCFv4.1
+##source=synthetic; modelled on Canvas CanvasSegmentWriter multi-sample VCF (ALT = per-haplotype copy numbers <CNk>, DUP last; SVTYPE=CNV)
+##ALT=<ID=CNV,Description="Copy number variable region">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=RC,Number=1,Type=Float,Description="Mean counts per bin in the region">
+##FORMAT=<ID=BC,Number=1,Type=Float,Description="Number of bins in the region">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
+##FORMAT=<ID=QS,Number=1,Type=Float,Description="Phred-scaled quality score">
+##FORMAT=<ID=FT,Number=1,Type=String,Description="Sample filter">
+##contig=<ID=1,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG006	NA12878	NA24631
+1	46000	Canvas:COMPLEXCNV:1:46001-111250	N	<CN0>,<CN2>	.	PASS	SVTYPE=CNV;END=111250	GT:RC:BC:CN:QS:FT	0/1:31.2:65:1:42.10:PASS	0/2:94.8:65:3:38.70:PASS	0/0:63.1:65:2:51.00:PASS
+1	20100000	Canvas:LOSS:1:20100001-20150000	N	<CN0>	.	PASS	SVTYPE=CNV;END=20150000	GT:RC:BC:CN:QS:FT	0/1:30.9:50:1:45.20:PASS	0/0:62.4:50:2:50.10:PASS	0/0:61.7:50:2:49.80:PASS

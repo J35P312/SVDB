@@ -1,6 +1,21 @@
 """Shared data structures for SVDB."""
+import re
 from dataclasses import dataclass, field
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, Set, Tuple
+
+_GT_SEP = re.compile(r"[/|]")
+
+
+def combine_cnv_types(types: Set[str]) -> str:
+    """One type for a set of DEL/DUP/CNV allele types: itself if unique, else CNV."""
+    return next(iter(types)) if len(types) == 1 else "CNV"
+
+
+def gt_type(alt_types: Tuple[str, ...], gt: str) -> Optional[str]:
+    """Type carried by a genotype over alt_types; None if it carries no ALT allele."""
+    types = {alt_types[int(a) - 1] for a in _GT_SEP.split(gt)
+             if a.isdigit() and 0 < int(a) <= len(alt_types)}
+    return combine_cnv_types(types) if types else None
 
 
 @dataclass(frozen=True)
@@ -21,6 +36,14 @@ class VCFVariant:
     ins_seq: str = field(default="", compare=False, hash=False)
     svlen: Optional[int] = field(default=None, compare=False, hash=False)
     vcf_filter: str = field(default="", compare=False, hash=False)
+    # per-ALT DEL/DUP/CNV types of a multi-ALT copy-number record; empty otherwise
+    alt_types: Tuple[str, ...] = field(default=(), compare=False, hash=False)
+
+    def type_for_gt(self, gt: str) -> Optional[str]:
+        """Type carried by one sample's GT; None if a multi-ALT GT carries no ALT allele."""
+        if not self.alt_types:
+            return self.event_type
+        return gt_type(self.alt_types, gt)
 
     def is_interchromosomal(self) -> bool:
         """True when the variant spans two different chromosomes (e.g. BND translocation)."""

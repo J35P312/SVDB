@@ -1,0 +1,13 @@
+##fileformat=VCFv4.2
+##source=synthetic; modelled on DRAGEN ASCN CNV VCF with --cnv-enable-legacy-vcf-format (copy-neutral LOH as <DEL>,<DUP> GT 1/2)
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Estimated copy number">
+##FORMAT=<ID=MCN,Number=1,Type=Integer,Description="Estimated minor-haplotype copy number">
+##contig=<ID=1,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	COLO829T
+1	152555001	DRAGEN:CNLOH:1:152555002-152590000	N	<DEL>,<DUP>	54	PASS	SVLEN=35000;SVTYPE=CNV;END=152590000	GT:CN:MCN	1/2:2:0

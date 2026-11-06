@@ -1,0 +1,17 @@
+##fileformat=VCFv4.2
+##source=gnomAD-SV v2.1 sites VCF (GRCh37), first two chr1 MCNV records, INFO trimmed
+##FILTER=<ID=MULTIALLELIC,Description="Multiallelic site">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the structural variant">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">
+##INFO=<ID=ALGORITHMS,Number=.,Type=String,Description="Source algorithms">
+##INFO=<ID=EVIDENCE,Number=.,Type=String,Description="Classes of random forest support.">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles genotyped (for biallelic sites) or individuals with copy-state estimates (for multiallelic sites).">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Number of non-reference alleles observed (for biallelic sites) or individuals at each copy state (for multiallelic sites).">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency (for biallelic sites) or copy-state frequency (for multiallelic sites).">
+##contig=<ID=1,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+1	46000	gnomAD-SV_v2.1_MCNV_1_1	N	<CN=0>,<CN=1>,<CN=2>,<CN=3>,<CN=4>,<CN=5>,<CN=6>,<CN=7>,<CN=8>	999	MULTIALLELIC	END=111250;SVTYPE=MCNV;SVLEN=65250;ALGORITHMS=depth;EVIDENCE=BAF,RD;AN=10307;AC=977,2784,3605,1829,862,206,39,4,1;AF=0.09479,0.270108,0.349762,0.177452,0.083632,0.019986,0.003784,0.000388,9.7e-05
+1	94000	gnomAD-SV_v2.1_MCNV_1_2	N	<CN=0>,<CN=1>,<CN=2>,<CN=3>,<CN=4>,<CN=5>,<CN=6>	999	MULTIALLELIC	END=129400;SVTYPE=MCNV;SVLEN=35400;ALGORITHMS=depth;EVIDENCE=RD;AN=10307;AC=0,585,6302,1911,1277,228,4;AF=0,0.056758,0.611429,0.185408,0.123896,0.022121,0.000388

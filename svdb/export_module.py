@@ -114,6 +114,7 @@ def db_header(args):
     headerString += '##ALT=<ID=INV,Description="Inversion">\n'
     headerString += '##ALT=<ID=INS,Description="Insertion">\n'
     headerString += '##ALT=<ID=BND,Description="Break end">\n'
+    headerString += '##ALT=<ID=CNV,Description="Copy number variable region">\n'
     headerString += '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">\n'
     headerString += '##INFO=<ID=END,Number=1,Type=String,Description="End of an intra-chromosomal variant">\n'
     headerString += '##INFO=<ID=OCC,Number=1,Type=Integer,Description="The number of occurences of the event in the database">\n'
