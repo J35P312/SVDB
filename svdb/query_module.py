@@ -366,24 +366,26 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         selection = "s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len"
         join = "LEFT JOIN INS i ON s.idx = i.idx"
         table = "SVDB s"
+        var_filter = "" if args.no_var else "s.var == ? AND "
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            "WHERE s.var == ? AND s.chrA == ? "
+            f"WHERE {var_filter}s.chrA == ? "
             "AND s.chrB == ? "
             "AND s.posA <= ? AND s.posA >= ? "
             "AND s.posB <= ? AND s.posB >= ?"
         )
     else:
         selection = "posA, posB, sample" if variant["chrA"] == variant["chrB"] else "sample"
+        var_filter = "" if args.no_var else "var == ? AND "
         A = (
             f"SELECT {selection} FROM SVDB "
-            "WHERE var == ? AND chrA == ? "
+            f"WHERE {var_filter}chrA == ? "
             "AND chrB == ? "
             "AND posA <= ? AND posA >= ? "
             "AND posB <= ? AND posB >= ?"
         )
-    params = (
-        variant["type"], variant["chrA"], variant["chrB"],
+    params = (() if args.no_var else (variant["type"],)) + (
+        variant["chrA"], variant["chrB"],
         variant["posA"] + distance, variant["posA"] - distance,
         variant["posB"] + distance, variant["posB"] - distance,
     )
