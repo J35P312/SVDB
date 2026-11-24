@@ -32,7 +32,7 @@ Here the `AF` and `AN` are the allele frequency tags of the database, the `AF` i
 
 ## Install
 
-Dependencies: SVDB requires Python 3.9+ and numpy.
+Dependencies: SVDB requires Python 3.10+ and numpy.
 
 Install from PyPI:
 
@@ -294,7 +294,7 @@ Runtime dependencies are pinned via [pip-tools](https://pip-tools.readthedocs.io
 pip-compile requirements.in --output-file requirements.txt --strip-extras
 ```
 
-Dev tools (`requirements-dev.txt`) are intentionally unpinned — they span Python 3.9–3.14 where transitive pins would differ per version.
+Dev tools (`requirements-dev.txt`) are intentionally unpinned — they span Python 3.10–3.14 where transitive pins would differ per version.
 
 Install development dependencies:
 
