@@ -1,0 +1,10 @@
+##fileformat=VCFv4.2
+##ALT=<ID=DEL,Description="Deletion">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1
+1	869037	del1	N	<DEL>	.	PASS	SVTYPE=DEL;END=870258	GT	1/1
+1	1584530	del2	N	<DEL>	.	PASS	SVTYPE=DEL;END=1647689	GT	0/1
+1	3000000	bnd1	N	N]2:5000000]	.	PASS	SVTYPE=BND	GT	0/1
+MT	1000	mt1	N	<DEL>	.	PASS	SVTYPE=DEL;END=3000	GT	0/1
