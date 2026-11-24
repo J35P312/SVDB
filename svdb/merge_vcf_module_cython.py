@@ -226,7 +226,15 @@ def source_id(source, args):
     return source.split(".vcf")[0].split("/")[-1]
 
 
-def merge(variants, samples, sample_order, priority_order, args):
+def merge(variants, samples, sample_order, priority_order, supp_vec_order, args):
+    """Cluster variants across input files; return output lines per chromosome.
+
+    priority_order: input keys (see source_id) in --priority order, or --vcf
+        order without --priority. Decides which record represents a cluster.
+    supp_vec_order: input keys in --vcf order, the order labelled in the
+        SUPP_VEC header line. SUPP_VEC has one digit per input in this order,
+        so it does not change with --priority.
+    """
     overlap_param = args.overlap
     bnd_distance = args.bnd_distance
     ins_distance = args.ins_distance
@@ -421,14 +429,8 @@ def merge(variants, samples, sample_order, priority_order, args):
             if not args.no_tag:
                 line[7]+=";svdb_origin={}".format("|".join(callers))
 
-            sup_vec=[]
-            for c in sorted(priority_order):
-                if c in filters_tag:
-                    sup_vec.append("1")
-                else:
-                    sup_vec.append("0")
-
-            line[7]+=";SUPP_VEC={}".format("".join(sup_vec))
+            supp_vec = "".join("1" if c in filters_tag else "0" for c in supp_vec_order)
+            line[7] += f";SUPP_VEC={supp_vec}"
 
             to_be_printed[line[0]].append(line)
 
