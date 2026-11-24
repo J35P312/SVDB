@@ -3,6 +3,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
+from .vcf_utils import chrom_key
+
 _GT_SEP = re.compile(r"[/|]")
 
 
@@ -38,6 +40,12 @@ class VCFVariant:
     vcf_filter: str = field(default="", compare=False, hash=False)
     # per-ALT DEL/DUP/CNV types of a multi-ALT copy-number record; empty otherwise
     alt_types: Tuple[str, ...] = field(default=(), compare=False, hash=False)
+    chrA_key: str = field(init=False, compare=False, hash=False)
+    chrB_key: str = field(init=False, compare=False, hash=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "chrA_key", chrom_key(self.chrA))
+        object.__setattr__(self, "chrB_key", chrom_key(self.chrB))
 
     def type_for_gt(self, gt: str) -> Optional[str]:
         """Type carried by one sample's GT; None if a multi-ALT GT carries no ALT allele."""

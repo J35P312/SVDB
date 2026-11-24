@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .ins_similarity import extract_ins_sequence
 from .models import VCFVariant, combine_cnv_types, gt_type
-from .vcf_utils import parse_info_field
+from .vcf_utils import chrom_key, parse_info_field
 
 _CNV_TYPES = {"DEL", "DUP", "CNV"}
 
@@ -67,7 +67,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
         event_type = "BND"
         chrB = description["CHR2"]
         posB = int(description.get("END", posA))
-        if chrA > chrB:
+        if chrom_key(chrA) > chrom_key(chrB):
             chrT = chrA
             chrA = chrB
             chrB = chrT
@@ -132,7 +132,7 @@ def readVCFLine(line: str) -> Optional[VCFVariant]:
         chr_and_pos = bnd_parts[1]
         chrB = ":".join(chr_and_pos.split(":")[:-1])
         posB = int(chr_and_pos.split(":")[-1])
-        if chrA > chrB:
+        if chrom_key(chrA) > chrom_key(chrB):
             chrT = chrA
             chrA = chrB
             chrB = chrT
