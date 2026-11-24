@@ -74,7 +74,7 @@ def _read_query_vcf(args, writer):
             if variant is None:
                 logger.debug("skipping unparseable line: %s", line.rstrip())
                 continue
-            queries.append([variant.chrA, int(variant.posA), variant.chrB, int(variant.posB), variant.event_type, variant.fmt, line, variant.ins_seq, variant.svlen])
+            queries.append([variant.chrA_key, int(variant.posA), variant.chrB_key, int(variant.posB), variant.event_type, variant.fmt, line, variant.ins_seq, variant.svlen])
 
     return queries
 
@@ -107,15 +107,16 @@ def _load_vcf_db(args):
 
             if args.bedpedb:
                 content = line.strip().split()
-                if (content[0] == content[2] and (int(content[1]) < int(content[3]))) or (content[0] < content[2]):
-                    chrA = content[0]
+                key1, key2 = vcf_utils.chrom_key(content[0]), vcf_utils.chrom_key(content[2])
+                if (key1 == key2 and (int(content[1]) < int(content[3]))) or (key1 < key2):
+                    chrA = key1
                     posA = int(content[1])
-                    chrB = content[2]
+                    chrB = key2
                     posB = int(content[3])
                 else:
-                    chrA = content[2]
+                    chrA = key2
                     posA = int(content[3])
-                    chrB = content[0]
+                    chrB = key1
                     posB = int(content[1])
                 event_type = content[4]
                 hits = int(content[5])
@@ -124,7 +125,7 @@ def _load_vcf_db(args):
                 INFO = {}
             else:
                 v = read_vcf.readVCFLine(line)
-                chrA, posA, chrB, posB, event_type, INFO, FORMAT = v.chrA, v.posA, v.chrB, v.posB, v.event_type, v.info, v.fmt
+                chrA, posA, chrB, posB, event_type, INFO, FORMAT = v.chrA_key, v.posA, v.chrB_key, v.posB, v.event_type, v.info, v.fmt
 
             # resolve samples before inserting, so skipped variants leave no entry
             if "GT" in FORMAT and not use_OCC_tag:
@@ -360,6 +361,13 @@ def SQDB(query_variant, args, db, has_ins_table=False):
                "chrA": query_variant[0], "posA": query_variant[1],
                "chrB": query_variant[2], "posB": query_variant[3]}
 
+    names_A = db.chrom_names.get(variant["chrA"], ())
+    names_B = db.chrom_names.get(variant["chrB"], ())
+    if not names_A or not names_B:
+        return 0
+    in_A = f"IN ({', '.join('?' * len(names_A))})"
+    in_B = f"IN ({', '.join('?' * len(names_B))})"
+
     use_ins_table = is_ins and has_ins_table and not args.no_ins_seq
 
     if use_ins_table:
@@ -369,8 +377,8 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         var_filter = "" if args.no_var else "s.var == ? AND "
         A = (
             f"SELECT {selection} FROM {table} {join} "
-            f"WHERE {var_filter}s.chrA == ? "
-            "AND s.chrB == ? "
+            f"WHERE {var_filter}s.chrA {in_A} "
+            f"AND s.chrB {in_B} "
             "AND s.posA <= ? AND s.posA >= ? "
             "AND s.posB <= ? AND s.posB >= ?"
         )
@@ -379,13 +387,12 @@ def SQDB(query_variant, args, db, has_ins_table=False):
         var_filter = "" if args.no_var else "var == ? AND "
         A = (
             f"SELECT {selection} FROM SVDB "
-            f"WHERE {var_filter}chrA == ? "
-            "AND chrB == ? "
+            f"WHERE {var_filter}chrA {in_A} "
+            f"AND chrB {in_B} "
             "AND posA <= ? AND posA >= ? "
             "AND posB <= ? AND posB >= ?"
         )
-    params = (() if args.no_var else (variant["type"],)) + (
-        variant["chrA"], variant["chrB"],
+    params = (() if args.no_var else (variant["type"],)) + names_A + names_B + (
         variant["posA"] + distance, variant["posA"] - distance,
         variant["posB"] + distance, variant["posB"] - distance,
     )
