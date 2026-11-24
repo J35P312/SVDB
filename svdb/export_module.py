@@ -8,7 +8,7 @@ import numpy as np
 
 from . import dbscan, database, ins_similarity
 from .ins_similarity import decompress_ins_seq
-from .vcf_utils import normalize_chrom
+from .vcf_utils import chrom_key, normalize_chrom
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ def build_genotype_columns(sample_IDs, hit_sample_ids):
     return [zygosity[sample] for sample in sample_IDs]
 
 
-def fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len=None):
-    """Load all variant data for one (var, chrA, chrB) group in a single query.
+def fetch_all_variants(variant, names, db, max_ins_seq_len=None):
+    """Load all variant data for one var and the stored (chrA, chrB) names of one chromosome pair.
 
     Returns (variant_dict, pos_coords, pos_indices):
       variant_dict   – {idx: {posA, posB, sample_id, ins_seq, ins_len}}
@@ -70,16 +70,14 @@ def fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len=None):
     """
     has_ins = db.has_ins_table()
     if has_ins:
-        hits = db.query(
-            'SELECT s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len '
-            'FROM SVDB s LEFT JOIN INS i ON s.idx = i.idx '
-            f'WHERE s.var == \'{variant}\' AND s.chrA == \'{chrA}\' AND s.chrB == \'{chrB}\''
-        )
+        sql = ('SELECT s.posA, s.posB, s.sample, s.idx, i.ins_seq, i.ins_len '
+               'FROM SVDB s LEFT JOIN INS i ON s.idx = i.idx '
+               'WHERE s.var == ? AND s.chrA == ? AND s.chrB == ?')
     else:
-        hits = db.query(
-            f'SELECT posA, posB, sample, idx FROM SVDB '
-            f'WHERE var == \'{variant}\' AND chrA == \'{chrA}\' AND chrB == \'{chrB}\''
-        )
+        sql = 'SELECT posA, posB, sample, idx FROM SVDB WHERE var == ? AND chrA == ? AND chrB == ?'
+    hits = [hit for chrA, chrB in names for hit in db.query(sql, (variant, chrA, chrB))]
+    # dbscan needs posA order, which the SV index gives per name only
+    hits.sort(key=lambda hit: hit[0])
     if not hits:
         return {}, np.empty((0, 2), dtype=int), np.array([], dtype=int)
 
@@ -465,10 +463,11 @@ def _run_tasks(tasks: list, workers: int) -> list:
         return [_expand_and_cluster_worker(t) for t in tasks]
 
 
-def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
+def svdb_cluster_main(names, variant, sample_IDs, args, db, i, f):
     workers = _resolve_workers(getattr(args, "workers", 1))
     max_ins_seq_len = getattr(args, "max_ins_seq_len", None)
-    all_data, pos_coords, pos_indices = fetch_all_variants(variant, chrA, chrB, db, max_ins_seq_len)
+    all_data, pos_coords, pos_indices = fetch_all_variants(variant, names, db, max_ins_seq_len)
+    chrA, chrB = names[0]
     if not all_data:
         return i
 
@@ -537,7 +536,9 @@ def svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f):
 def export(args, sample_IDs):
     ins_similarity.apply_ins_profile(args)
     with database.DB(args.db, memory=args.memory) as db:
-        groups = db.query('SELECT DISTINCT var, chrA, chrB FROM SVDB')
+        groups = {}
+        for var, chrA, chrB in db.query('SELECT DISTINCT var, chrA, chrB FROM SVDB'):
+            groups.setdefault((var, chrom_key(chrA), chrom_key(chrB)), []).append((chrA, chrB))
 
         if any("INS" in var for var, _, _ in groups) and not db.has_ins_table():
             logger.warning(
@@ -557,8 +558,8 @@ def export(args, sample_IDs):
 
         i = 0
         with open(args.prefix + ".vcf", 'a') as f:
-            for variant, chrA, chrB in groups:
-                i = svdb_cluster_main(chrA, chrB, variant, sample_IDs, args, db, i, f)
+            for (variant, _, _), names in groups.items():
+                i = svdb_cluster_main(names, variant, sample_IDs, args, db, i, f)
 
 
 def main(args):
