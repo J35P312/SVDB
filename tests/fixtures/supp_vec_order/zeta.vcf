@@ -1,0 +1,10 @@
+##fileformat=VCFv4.2
+##contig=<ID=1,length=249250621>
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+1	1000000	only_zeta	A	<INS>	100	PASS	SVTYPE=INS;SVLEN=100;END=1000000	GT	0/1
+1	3000000	shared_zeta	A	<INS>	50	PASS	SVTYPE=INS;SVLEN=100;END=3000000	GT	0/1
