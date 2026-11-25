@@ -21,6 +21,12 @@ def normalize_chrom(name: str) -> str:
     return name.replace("chr", "").replace("Chr", "").replace("CHR", "")
 
 
+def chrom_key(name: str) -> str:
+    """Name used to match chromosomes: no leading 'chr' (any case), M and MT alike."""
+    key = name[3:] if name[:3].lower() == "chr" else name
+    return "MT" if key == "M" else key
+
+
 def parse_info_field(info_str: str) -> Dict[str, str]:
     """Parse a VCF INFO field string into a key→value dict.
 

@@ -212,11 +212,11 @@ def main(args):
                         if v is None:
                             logger.debug("skipping unparseable line: %s", line.rstrip())
                             continue
-                        if v.chrA not in variants:
-                            variants[v.chrA] = []
+                        if v.chrA_key not in variants:
+                            variants[v.chrA_key] = []
 
                         source = vcf_dictionary[vcf] if args.priority else vcf
-                        variants[v.chrA].append(MergeVariant(v.chrB, v.event_type, v.posA, v.posB, source, i, line.strip(), v.ins_seq, v.svlen, v.vcf_filter))
+                        variants[v.chrA_key].append(MergeVariant(v.chrB_key, v.event_type, v.posA, v.posB, source, i, line.strip(), v.ins_seq, v.svlen, v.vcf_filter))
                         i += 1
 
     samples, sample_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)

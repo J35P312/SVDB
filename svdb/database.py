@@ -1,5 +1,8 @@
 import sqlite3
-from typing import Any, List, Tuple
+from functools import cached_property
+from typing import Any, Dict, List, Tuple
+
+from .vcf_utils import chrom_key
 
 SCHEMA_COLUMNS = (
     "var TEXT",
@@ -96,6 +99,15 @@ class DB:
     @property
     def tables(self) -> List[str]:
         return self.query_column("SELECT name FROM sqlite_master WHERE type='table'")
+
+    @cached_property
+    def chrom_names(self) -> Dict[str, Tuple[str, ...]]:
+        """Stored chromosome names per chrom_key."""
+        names: Dict[str, Tuple[str, ...]] = {}
+        for name in self.query_column("SELECT chrA FROM SVDB UNION SELECT chrB FROM SVDB"):
+            key = chrom_key(name)
+            names[key] = names.get(key, ()) + (name,)
+        return names
 
     @property
     def sample_ids(self) -> List[str]:
