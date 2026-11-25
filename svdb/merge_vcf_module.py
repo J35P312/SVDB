@@ -81,6 +81,8 @@ def build_header(vcf_list, vcf_dictionary, args, command_line):
         lines_out.append(header["INFO"][entry].strip())
     del header["INFO"]
 
+    # vcf_dictionary is in --vcf order (also with --priority); SUPP_VEC digits
+    # in merge() use the same order, so this label names them.
     supp_vector_order = []
     for vcf in vcf_dictionary:
         lines_out.append(f"##INFO=<ID={vcf_dictionary[vcf]}_INFO,Number=.,Type=String,Description=\"pipe separated list of all details in the INFO column of file {vcf_dictionary[vcf]}\">")
@@ -220,7 +222,9 @@ def main(args):
                         i += 1
 
     samples, sample_order, contigs = print_header(vcf_list, vcf_dictionary, args, sys.argv)
-    to_be_printed = merge_vcf_module_cython.merge(variants, samples, sample_order, priority_order, args)
+    # --vcf order, same as the SUPP_VEC header label built from vcf_dictionary
+    supp_vec_order = list(vcf_dictionary.values())
+    to_be_printed = merge_vcf_module_cython.merge(variants, samples, sample_order, priority_order, supp_vec_order, args)
 
     # use the contig order as defined in the header, or use lexiographic order
     if contigs:
